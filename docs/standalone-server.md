@@ -2,7 +2,7 @@
 
 The package contains runtime files only. Build caches, tests, Android signing keys, Electron output, and unrelated source artifacts are excluded.
 
-For complete Windows Server, Linux, Docker Compose, HTTPS reverse proxy, tunnel, backup, migration, recovery, and upgrade instructions, read [服务器部署与使用教程.md](服务器部署与使用教程.md).
+For complete Windows Server, Linux, Docker Compose, HTTPS reverse proxy, tunnel, backup, migration, recovery, and upgrade instructions, read [服务器部署与使用教程](server-deployment-guide.md).
 
 All accounts, rooms, permissions, uploaded files, thumbnails, subtitles, voice messages, chat history, recovery trash, mail encryption keys, and the owner token are stored in `SyncWatch同步观影-Data/` beside the program. Stop the server and copy the complete directory when moving the deployment. Do not copy only `config.json`; QQ SMTP credentials require `SyncWatch同步观影-Data/.secrets/mail.key` as well.
 

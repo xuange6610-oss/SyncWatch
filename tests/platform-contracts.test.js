@@ -19,7 +19,7 @@ const macServerConfig = JSON.parse(read('electron-builder-mac-server.json'));
 const macClientConfig = JSON.parse(read('electron-builder-mac-client.json'));
 const macDistributionExample = JSON.parse(read('mac-distribution.example.json'));
 const embeddedMacReadme = read('mac/README.md');
-const windowsBuild = read('生成EXE.ps1');
+const windowsBuild = read('build-windows.ps1');
 const dockerfile = read('Dockerfile');
 const dockerignore = read('.dockerignore');
 
@@ -59,7 +59,7 @@ assert.ok(packageManifest.build.files.includes('server/macos-distribution.js'));
 assert.ok(macServerConfig.files.includes('server/macos-distribution.js'));
 assert.equal(macDistributionExample.manifestVersion, 1);
 assert.ok(macDistributionExample.server.arm64.dmg.startsWith('https://'));
-assert.match(read('MACOS-BUILD.md'), /mac-distribution\.json/);
+assert.match(read('docs/macos-build.md'), /mac-distribution\.json/);
 assert.ok(!packageManifest.build.extraResources.some((entry) => ['mac', 'mobile', 'SyncWatch同步观影-Client-v2.1.5.exe'].includes(String(entry.from || ''))),
   'Windows server EXE must keep client, Android and macOS downloads as separate release artifacts');
 assert.match(embeddedMacReadme, /scripts\/build-macos\.sh/);
@@ -78,14 +78,14 @@ assert.ok(dockerignore.indexOf('!SyncWatch同步观影-Client-v2.1.5.exe') > doc
 
 for (const [config, main] of [[macServerConfig, 'electron-pink.js'], [macClientConfig, 'electron-client.js']]) {
   assert.ok(config.files.includes(main));
-  assert.equal(config.mac.icon, '同步观影图标2026.png');
+  assert.equal(config.mac.icon, 'assets/app-icon.png');
   const architectures = config.mac.target.flatMap((target) => target.arch || []);
   assert.ok(architectures.includes('x64'));
   assert.ok(architectures.includes('arm64'));
   assert.match(config.artifactName, /\$\{arch\}/);
 }
 assert.match(packageManifest.scripts['build:mac'], /build-macos\.sh/);
-assert.ok(fs.existsSync(path.join(root, '同步观影图标2026.png')));
+assert.ok(fs.existsSync(path.join(root, 'assets/app-icon.png')));
 assert.ok(fs.existsSync(path.join(root, 'scripts', 'prepare-cloudflared-macos.js')));
 
 console.log('desktop, Android and macOS platform contract tests passed.');

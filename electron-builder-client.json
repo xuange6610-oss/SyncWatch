@@ -14,13 +14,13 @@
     "public/vendor/three/three.min.js",
     "public/vendor/three/GLTFLoader.js",
     "public/vendor/three/LICENSE",
-    "同步观影图标2026.ico",
+    "assets/app-icon.ico",
     "package.json"
   ],
   "extraMetadata": { "main": "electron-client.js", "name": "syncwatch-client", "version": "2.1.5", "description": "SyncWatch同步观影" },
   "win": {
     "target": [{ "target": "portable", "arch": ["x64"] }],
-    "icon": "同步观影图标2026.ico",
+    "icon": "assets/app-icon.ico",
     "executableName": "SyncWatch同步观影",
     "requestedExecutionLevel": "asInvoker",
     "signExecutable": false

@@ -105,7 +105,10 @@ function verifySources() {
 
   const gradle = read('mobile/app/build.gradle');
   assert.match(gradle, /prepareMobileServerAssets/);
-  assert.match(gradle, /server\/index\.js/);
+  assert.match(gradle, /new File\(repositoryRoot, 'server'\)[\s\S]{0,120}into 'syncwatch\/server'/,
+    'Gradle must package the complete server source directory, not only server/index.js');
+  assert.match(buildScript, /Get-ChildItem[\s\S]{0,300}server[\s\S]{0,300}-Recurse[\s\S]{0,300}\*\.js/,
+    'the release verifier must enumerate every bundled server JavaScript file');
   assert.match(gradle, /const ID_START = \/\^\[\$_A-Za-z\]\$\//,
     'Gradle asset preparation must retain the path-to-regexp ID_START compatibility patch');
   assert.match(gradle, /const ID_CONTINUE = \/\^\[\$_A-Za-z0-9\]\$\//,
@@ -276,7 +279,6 @@ function verifyApk(dependencyClosure) {
   const apk = parseZip(fs.readFileSync(apkPath));
   const requiredEntries = [
     'AndroidManifest.xml',
-    'assets/syncwatch/server/index.js',
     'assets/syncwatch/server/mobile-index.js',
     'assets/syncwatch/public/index.html',
     'assets/syncwatch/public/js/app.js',
@@ -286,6 +288,12 @@ function verifyApk(dependencyClosure) {
     'assets/syncwatch/public/css/style.css',
     'assets/syncwatch/runtime-version.txt'
   ];
+  const serverRoot = path.join(repositoryRoot, 'server');
+  const serverSources = walkFiles(serverRoot).filter((sourceFile) => sourceFile.endsWith('.js'));
+  for (const sourceFile of serverSources) {
+    const relative = path.relative(serverRoot, sourceFile).split(path.sep).join('/');
+    requiredEntries.push(`assets/syncwatch/server/${relative}`);
+  }
   for (const abi of Object.keys(NODE_MOBILE.libraries)) {
     requiredEntries.push(`lib/${abi}/libnode.so`, `lib/${abi}/libsyncwatch-node.so`, `lib/${abi}/libc++_shared.so`);
   }
@@ -309,9 +317,11 @@ function verifyApk(dependencyClosure) {
     }
   }
 
-  assert.equal(sha256(apk.extract('assets/syncwatch/server/index.js')),
-    sha256(fs.readFileSync(path.join(repositoryRoot, 'server/index.js'))),
-    'APK server/index.js is not byte-for-byte identical to the production source');
+  for (const sourceFile of serverSources) {
+    const relative = path.relative(serverRoot, sourceFile).split(path.sep).join('/');
+    assert.equal(sha256(apk.extract(`assets/syncwatch/server/${relative}`)),
+      sha256(fs.readFileSync(sourceFile)), `APK server source is stale: ${relative}`);
+  }
   assert.equal(sha256(apk.extract('assets/syncwatch/server/mobile-index.js')),
     sha256(expectedMobileServerSource()), 'APK mobile-index.js is stale');
   const publicRoot = path.join(repositoryRoot, 'public');

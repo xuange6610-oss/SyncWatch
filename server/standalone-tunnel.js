@@ -12,6 +12,7 @@ const net = require('net');
 const os = require('os');
 const path = require('path');
 const { spawn } = require('child_process');
+const { ensureCloudflaredBinary } = require('./cloudflared-installer');
 
 const DEFAULT_BYPASS_PROXY = true;
 const MAX_ATTEMPTS = 4;
@@ -217,7 +218,7 @@ function requestPublicConfig(publicUrl, timeoutMs = VERIFY_TIMEOUT_MS, { localAd
   });
 }
 
-function createStandaloneTunnelManager({ rootDir, dataDir, getPort } = {}) {
+function createStandaloneTunnelManager({ rootDir, dataDir, getPort, installCloudflared = ensureCloudflaredBinary } = {}) {
   const resolvedRoot = path.resolve(rootDir || process.cwd());
   const resolvedData = path.resolve(dataDir || path.join(resolvedRoot, 'SyncWatch同步观影-Data'));
   const startupFile = path.join(resolvedData, 'tunnel-startup.json');
@@ -334,6 +335,16 @@ function createStandaloneTunnelManager({ rootDir, dataDir, getPort } = {}) {
     await stop();
     const startGeneration = ++generation;
     desired = { ...options };
+    if (!resolveBinary(resolvedRoot, resolvedData)) {
+      current = { ...current, state: 'downloading', mode: options.mode, publicUrl: '', verified: false, error: '' };
+      try {
+        await installCloudflared({ dataDir: resolvedData });
+      } catch (error) {
+        desired = null;
+        current = { ...current, state: 'error', error: `自动安装 cloudflared 失败：${error.message}` };
+        throw new Error(current.error);
+      }
+    }
     current = { ...current, state: 'diagnosing', mode: options.mode, publicUrl: '', verified: false, bypassProxy: options.bypassProxy, error: '', reconnectCount: 0 };
     let preflight = { physicalIpv4: networkAddress(), edgeAddresses: [], failureCode: '' };
     if (options.autoDiagnose) {

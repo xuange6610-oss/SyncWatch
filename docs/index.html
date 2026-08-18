@@ -1,0 +1,271 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#101318">
+  <meta name="description" content="SyncWatch同步观影是开源、多端、自托管的同步观影与实时协作系统。查看功能、截图、新手启动步骤和下载入口。">
+  <title>SyncWatch同步观影 | 开源自托管同步观影系统</title>
+  <link rel="icon" href="screenshots/login.png" type="image/png">
+  <link rel="stylesheet" href="assets/site.css">
+  <script src="assets/site.js" defer></script>
+</head>
+<body>
+  <!--
+  THESIS: 用一次真实的“房主启动到成员加入”路径证明产品，拒绝只堆功能口号的常规软件首页。
+  OWN-WORLD: 深色影院控制台、暖白说明区、绿色连接状态、珊瑚色行动点和琥珀色运行提示。
+  STORY: 访客先认出真实界面，再理解连接流程、数据边界与下载选择，最后进入仓库或新手文档。
+  FIRST VIEWPORT: 全宽真实登录界面作背景，左侧是产品全名、用途和两个行动入口，底部露出运行能力带。
+  FORM: 从软件界面到连接路径再到维护文档的公开产品控制页；grounded candidate 6，seed 5d28d19d。
+  FINISH: unreviewed and undocumented is unfinished; this build ends with the finish review, the verdict, and DESIGN.md
+  -->
+  <a class="skip-link" href="#main">跳到主要内容</a>
+
+  <header class="site-header" aria-label="站点导航">
+    <a class="wordmark" href="#top" aria-label="返回页面顶部">
+      <span class="wordmark__signal" aria-hidden="true"></span>
+      <span>SyncWatch同步观影</span>
+    </a>
+    <nav aria-label="主要导航">
+      <a href="#how-it-works">工作方式</a>
+      <a href="#screenshots">界面</a>
+      <a href="#quick-start">快速开始</a>
+      <a href="#downloads">下载</a>
+      <a href="https://github.com/xuange6610-oss/SyncWatch">源代码</a>
+    </nav>
+  </header>
+
+  <main id="main">
+    <section id="top" class="hero" aria-labelledby="hero-title">
+      <div class="hero__image" role="img" aria-label="SyncWatch同步观影真实登录界面"></div>
+      <div class="hero__shade" aria-hidden="true"></div>
+      <div class="hero__body shell">
+        <div class="hero__copy">
+          <h1 id="hero-title">SyncWatch同步观影</h1>
+          <p class="hero__lead">把服务器、房间和媒体掌握在自己手里，让 Windows、Android、macOS 与浏览器中的成员同步看到同一刻。</p>
+          <p class="hero__detail">局域网可直接连接，跨网络可按需启用 Cloudflare Tunnel 或自己的 HTTPS 反向代理。</p>
+          <div class="hero__actions">
+            <a class="button button--primary" href="https://github.com/xuange6610-oss/SyncWatch/releases/latest">前往下载</a>
+            <a class="button button--quiet" href="#quick-start">新手快速开始</a>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="capability-band" aria-label="核心能力">
+      <div class="shell capability-band__inner">
+        <p><strong>自己部署</strong><span>账号、设置和媒体保存在你的服务器</span></p>
+        <p><strong>多端加入</strong><span>桌面、手机和现代浏览器共享房间状态</span></p>
+        <p><strong>同步协作</strong><span>播放、进度、聊天、语音和屏幕共享集中完成</span></p>
+        <p><strong>局域网 / 公网</strong><span>先在本地使用，需要时再开放安全访问</span></p>
+      </div>
+    </section>
+
+    <section id="how-it-works" class="section section--light">
+      <div class="shell">
+        <div class="section-heading">
+          <h2>从启动服务器到一起播放</h2>
+          <p>不需要先理解全部技术名词。房主完成前三步，其他成员只需要一个地址。</p>
+        </div>
+        <ol class="connection-track">
+          <li>
+            <span class="connection-track__marker">1</span>
+            <div><h3>房主启动</h3><p>运行服务器 EXE，或在源码目录执行 <code>npm start</code>。</p></div>
+          </li>
+          <li>
+            <span class="connection-track__marker">2</span>
+            <div><h3>完成安全设置</h3><p>登录默认管理员账号后立即改密码，再创建房间和房间密码。</p></div>
+          </li>
+          <li>
+            <span class="connection-track__marker">3</span>
+            <div><h3>分享访问地址</h3><p>同一网络分享局域网地址；跨网络时启动临时公网访问或配置 HTTPS。</p></div>
+          </li>
+          <li>
+            <span class="connection-track__marker">4</span>
+            <div><h3>成员加入</h3><p>成员用客户端或浏览器打开地址，进入房间后由房主统一开始播放。</p></div>
+          </li>
+        </ol>
+      </div>
+    </section>
+
+    <section id="screenshots" class="section section--dark">
+      <div class="shell">
+        <div class="section-heading section-heading--dark">
+          <h2>先看真实界面，再决定是否下载</h2>
+          <p>点击任意截图可放大查看。这里展示的是实际软件界面，不是重新绘制的概念图。</p>
+        </div>
+        <div class="gallery">
+          <button class="gallery-item gallery-item--wide" type="button" aria-label="查看登录与房间入口截图" data-gallery-item data-image="screenshots/login.png" data-caption="登录、服务器与房间入口">
+            <img src="screenshots/login.png" alt="SyncWatch同步观影登录、服务器与房间入口">
+            <span><strong>登录与房间入口</strong><small>先连接服务器，再选择身份和房间</small></span>
+          </button>
+          <button class="gallery-item gallery-item--wide" type="button" aria-label="查看同步播放实况截图" data-gallery-item data-image="screenshots/synchronized-playback.png" data-caption="真实同步播放、在线成员和播放进度">
+            <img src="screenshots/synchronized-playback.png" alt="真实同步播放、在线成员和播放进度">
+            <span><strong>同步播放实况</strong><small>播放控制、在线成员、同步状态和媒体进度同时可见</small></span>
+          </button>
+          <button class="gallery-item" type="button" aria-label="查看账号注册截图" data-gallery-item data-image="screenshots/account-registration.png" data-caption="新账号注册界面">
+            <img src="screenshots/account-registration.png" alt="新账号注册界面">
+            <span><strong>账号注册</strong><small>邮箱验证和服务器审批可按需开启</small></span>
+          </button>
+          <button class="gallery-item" type="button" aria-label="查看首次使用确认截图" data-gallery-item data-image="screenshots/legal-agreement.png" data-caption="首次登录使用协议">
+            <img src="screenshots/legal-agreement.png" alt="首次登录使用协议">
+            <span><strong>首次使用确认</strong><small>管理员可以维护服务规则和使用边界</small></span>
+          </button>
+          <button class="gallery-item" type="button" aria-label="查看公网访问设置截图" data-gallery-item data-image="screenshots/public-access-settings.png" data-caption="公网访问设置与网络诊断">
+            <img src="screenshots/public-access-settings.png" alt="公网访问设置与网络诊断">
+            <span><strong>公网访问设置</strong><small>临时隧道、固定域名和网络诊断集中管理</small></span>
+          </button>
+          <button class="gallery-item" type="button" aria-label="查看备份与恢复截图" data-gallery-item data-image="screenshots/backup-and-restore.png" data-caption="数据备份与恢复选项">
+            <img src="screenshots/backup-and-restore.png" alt="数据备份与恢复选项">
+            <span><strong>备份与恢复</strong><small>按模块导出，迁移前仍建议完整备份数据目录</small></span>
+          </button>
+          <button class="gallery-item gallery-item--wide" type="button" aria-label="查看播放控制截图" data-gallery-item data-image="screenshots/playback-controls.png" data-caption="播放器控制栏、同步状态和房主控制">
+            <img src="screenshots/playback-controls.png" alt="播放器控制栏、同步状态和房主控制">
+            <span><strong>播放控制与同步状态</strong><small>房主锁定、进度、倍速、音量和同步提示集中在播放器上方</small></span>
+          </button>
+          <button class="gallery-item" type="button" aria-label="查看移动端播放器截图" data-gallery-item data-image="screenshots/mobile-player.png" data-caption="Android 移动端播放器界面">
+            <img src="screenshots/mobile-player.png" alt="Android 移动端播放器界面">
+            <span><strong>移动端播放器</strong><small>手机端也能进入房间、查看状态并使用播放控制</small></span>
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <section class="section section--paper">
+      <div class="shell split-section">
+        <div class="section-heading">
+          <h2>一个房间里不只是一块播放器</h2>
+          <p>房主控制共同状态，成员保留自己的设备音量和必要的本地选择。</p>
+        </div>
+        <dl class="feature-ledger">
+          <div><dt>同步播放</dt><dd>播放、暂停、进度、倍速和可选音量同步，客户端自动校正明显偏差。</dd></div>
+          <div><dt>媒体与字幕</dt><dd>本地上传、字幕、播放队列、缩略图和浏览器兼容格式转换。</dd></div>
+          <div><dt>实时沟通</dt><dd>公聊、私聊、弹幕、表情、图片、语音消息、全麦语音和全屏公告。</dd></div>
+          <div><dt>共享与协作</dt><dd>桌面或手机屏幕共享、网页共享，以及受支持桌面端的电脑音源共享。</dd></div>
+          <div><dt>账号与权限</dt><dd>好友、在线状态、权限组、注册审批、设备管理、封禁与操作记录。</dd></div>
+          <div><dt>服务器运维</dt><dd>数据导入导出、备份恢复、邮件验证、日志、网络诊断和可选 AI 中转。</dd></div>
+        </dl>
+      </div>
+    </section>
+
+    <section class="section section--data" aria-labelledby="data-title">
+      <div class="shell">
+        <div class="section-heading section-heading--dark">
+          <h2 id="data-title">数据目录到底保存什么</h2>
+          <p><code>SyncWatch同步观影-Data/</code> 是这台服务器的运行数据，不是源码。迁移时应停止服务器并完整复制。</p>
+        </div>
+        <div class="table-wrap" tabindex="0" aria-label="数据目录说明，可横向滚动">
+          <table>
+            <thead><tr><th>路径</th><th>作用</th><th>备份建议</th></tr></thead>
+            <tbody>
+              <tr><td><code>config.json</code></td><td>账号、房间、权限、设置和媒体索引</td><td>必须备份，不要手工编辑</td></tr>
+              <tr><td><code>uploads/</code></td><td>上传的影片、音频、字幕、图片和文档</td><td>必须与索引一起备份</td></tr>
+              <tr><td><code>.secrets/</code>、<code>secrets/</code></td><td>邮件密钥和管理员验证材料</td><td>绝不能公开，随数据一起备份</td></tr>
+              <tr><td><code>compatible-media/</code></td><td>自动生成的浏览器兼容媒体</td><td>可以重建，空间不足时可在停机后清理</td></tr>
+              <tr><td><code>logs/</code>、<code>crash-dumps/</code></td><td>运行和异常诊断信息</td><td>提交 Issue 前先脱敏</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="data-note">只复制 <code>config.json</code> 会造成记录、文件或密钥不完整。软件内的“全部数据与配置”导出适合日常备份。</p>
+      </div>
+    </section>
+
+    <section id="quick-start" class="section section--light">
+      <div class="shell quick-start">
+        <div class="section-heading">
+          <h2>从源码启动，按以下四条命令</h2>
+          <p>适合想查看代码或参与开发的用户。普通使用者应优先从 Releases 下载已经构建的文件。</p>
+        </div>
+        <div class="command-panel">
+          <div class="command-panel__bar"><span>PowerShell / Terminal</span><button type="button" data-copy-command>复制命令</button></div>
+          <pre><code>git clone https://github.com/xuange6610-oss/SyncWatch.git
+cd SyncWatch
+npm ci
+npm start</code></pre>
+          <p id="copy-status" role="status" aria-live="polite"></p>
+        </div>
+        <div class="first-login">
+          <h3>第一次登录后马上做什么</h3>
+          <ol>
+            <li>打开 <code>http://127.0.0.1:5000</code>。</li>
+            <li>使用默认管理员账号 <code>admin</code>、密码 <code>admin888</code> 登录。</li>
+            <li>立即修改管理员密码，再创建房间。</li>
+            <li>先用局域网地址测试成员连接，确认成功后再配置公网访问。</li>
+          </ol>
+        </div>
+      </div>
+    </section>
+
+    <section id="downloads" class="section section--download">
+      <div class="shell download-layout">
+        <div class="section-heading section-heading--dark">
+          <h2>下载时先认清文件用途</h2>
+          <p>仓库自动生成的 Source code ZIP 是源码，不等于完整安装包。可直接使用的文件以 Releases 中真实存在的资产为准。</p>
+        </div>
+        <div class="download-actions">
+          <a class="button button--primary" href="https://github.com/xuange6610-oss/SyncWatch/releases/latest">打开最新 Release</a>
+          <a class="button button--quiet" href="https://github.com/xuange6610-oss/SyncWatch/blob/main/docs/user-guide.md">阅读完整使用说明</a>
+        </div>
+        <ul class="download-notes">
+          <li><strong>服务器版</strong><span>房主运行，保存账号、房间、媒体和配置。</span></li>
+          <li><strong>客户端</strong><span>成员连接已有服务器，不在本机运行完整服务。</span></li>
+          <li><strong>源码</strong><span>需要 Node.js 和依赖安装，适合开发与审查。</span></li>
+          <li><strong>macOS</strong><span>Intel 为 x64，Apple Silicon 为 arm64；现代 macOS 不支持 32 位应用。</span></li>
+        </ul>
+      </div>
+    </section>
+
+    <section class="pages-boundary">
+      <div class="shell pages-boundary__inner">
+        <h2>这里是展示站，不是在线服务器</h2>
+        <p>GitHub Pages 仅提供静态展示、截图、说明和下载入口，不能运行 Node.js、WebSocket、文件上传、AI 中转或临时公网访问。要体验完整功能，请下载服务器版或按部署教程启动自己的实例。</p>
+        <a href="server-deployment-guide.md">查看服务器部署教程</a>
+      </div>
+    </section>
+
+    <section class="section section--paper">
+      <div class="shell docs-index">
+        <div class="section-heading">
+          <h2>按你的任务继续阅读</h2>
+          <p>文档文件名使用稳定的英文短路径，正文保留中文，新手和自动化工具都更容易找到。</p>
+        </div>
+        <div class="docs-list">
+          <a href="user-guide.md"><strong>普通用户使用说明</strong><span>下载、启动、登录、建房、连接和常用功能</span></a>
+          <a href="server-deployment-guide.md"><strong>服务器部署教程</strong><span>Windows、Linux、Docker、HTTPS、隧道、备份和升级</span></a>
+          <a href="architecture.md"><strong>技术架构与依赖</strong><span>模块边界、数据、构建入口和测试方式</span></a>
+          <a href="macos-build.md"><strong>macOS 构建</strong><span>Intel 与 Apple Silicon 构建和发布说明</span></a>
+          <a href="cloud-media-deployment.md"><strong>云端媒体与商业部署</strong><span>对象存储、反向代理和容量边界</span></a>
+          <a href="https://github.com/xuange6610-oss/SyncWatch/blob/main/CONTRIBUTING.md"><strong>参与贡献</strong><span>分支、格式、测试和 Pull Request 要求</span></a>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="shell site-footer__inner">
+      <div>
+        <strong>SyncWatch同步观影</strong>
+        <p>原创项目由 xuan 设计与开发。Apache-2.0 允许依法使用、修改和再发布；再发布时请保留许可证与 NOTICE，不要移除署名或虚假宣称原始作者身份。</p>
+      </div>
+      <address>
+        <span>QQ: 2590813506</span>
+        <span>微信: love_020804</span>
+        <a href="https://github.com/xuange6610-oss/SyncWatch/blob/main/LICENSE">Apache-2.0 License</a>
+      </address>
+      <small>Copyright © <span data-current-year>2026</span> xuan</small>
+    </div>
+  </footer>
+
+  <dialog class="lightbox" data-lightbox aria-labelledby="lightbox-caption">
+    <div class="lightbox__toolbar">
+      <p id="lightbox-caption"></p>
+      <button type="button" data-lightbox-close aria-label="关闭大图" title="关闭">×</button>
+    </div>
+    <img src="screenshots/login.png" alt="">
+    <div class="lightbox__controls">
+      <button type="button" data-lightbox-prev>上一张</button>
+      <button type="button" data-lightbox-next>下一张</button>
+    </div>
+  </dialog>
+</body>
+</html>

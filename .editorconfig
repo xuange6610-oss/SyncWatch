@@ -1,0 +1,23 @@
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+indent_size = 2
+
+[*.{md,markdown}]
+trim_trailing_whitespace = false
+
+[*.{java,gradle,cpp}]
+indent_size = 4
+
+[*.{ps1,psm1,psd1}]
+charset = utf-8-bom
+end_of_line = crlf
+indent_size = 4
+
+[*.{cmd,bat}]
+end_of_line = crlf

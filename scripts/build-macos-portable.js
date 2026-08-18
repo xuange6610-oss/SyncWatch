@@ -115,7 +115,7 @@ function prepareSource(kind, arch, stagingRoot) {
   };
 
   if (kind === 'client') {
-    for (const relative of ['electron-client.js', 'electron-client-preload.js', 'client-launcher.html', '同步观影图标2026.png']) copy(relative);
+    for (const relative of ['electron-client.js', 'electron-client-preload.js', 'client-launcher.html', 'assets/app-icon.png']) copy(relative);
     const packageJson = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8'));
     packageJson.main = 'electron-client.js';
     packageJson.name = 'syncwatch-client';
@@ -129,7 +129,7 @@ function prepareSource(kind, arch, stagingRoot) {
   for (const relative of [
     'electron-pink.js', 'electron-main-preload.js', 'electron-settings-preload.js',
     'server/index.js', 'server/ai-relay.js', 'server/macos-distribution.js',
-    'public', '同步观影图标2026.png'
+    'public', 'assets/app-icon.png'
   ]) copy(relative);
 
   const packageJson = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8'));

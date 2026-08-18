@@ -1,0 +1,68 @@
+name: 缺陷报告
+description: 报告可以稳定复现的软件问题
+title: "[Bug] "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: 提交前请先删除真实姓名、邮箱、IP、房间号、令牌、聊天内容和媒体文件名。
+  - type: input
+    id: version
+    attributes:
+      label: 版本
+      description: 请填写版本号和下载文件名。
+      placeholder: v2.1.5 / Windows 服务器 EXE
+    validations:
+      required: true
+  - type: dropdown
+    id: platform
+    attributes:
+      label: 平台
+      options:
+        - Windows 64 位
+        - Windows 32 位
+        - Android
+        - macOS Intel
+        - macOS Apple Silicon
+        - Linux / Docker
+        - 浏览器
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: 复现步骤
+      description: 从启动软件开始，按顺序写出最少步骤。
+      placeholder: |
+        1. 启动服务器
+        2. 打开……
+        3. 点击……
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: 预期结果
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: 实际结果
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: 已脱敏的日志或截图
+      description: 请勿上传数据目录、密钥或受版权保护的媒体文件。
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: 提交确认
+      options:
+        - label: 我已在最新版本中复现，并搜索过现有 Issue。
+          required: true
+        - label: 我已经删除个人信息、令牌和敏感内容。
+          required: true

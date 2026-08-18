@@ -34,7 +34,7 @@ def bundledRuntimePackages = [
 
 def configuredNodeMobileRoot = System.getenv('NODEJS_MOBILE_ANDROID_HOME')
 def vendoredNodeMobileRoot = file('libnode')
-def preparedNodeMobileRoot = file('C:/Users/Administrator/AppData/Local/Temp/nodejs-mobile-v18.20.4-android')
+def preparedNodeMobileRoot = new File(System.getProperty('java.io.tmpdir'), 'nodejs-mobile-v18.20.4-android')
 def nodeMobileRoot = configuredNodeMobileRoot ? file(configuredNodeMobileRoot) :
         (vendoredNodeMobileRoot.isDirectory() ? vendoredNodeMobileRoot : preparedNodeMobileRoot)
 def androidSdkRoot = file(System.getenv('ANDROID_SDK_ROOT') ?: System.getenv('ANDROID_HOME') ?:
@@ -63,7 +63,8 @@ if (!new File(androidNdkRoot, 'toolchains/llvm/prebuilt/windows-x86_64/bin/clang
 tasks.register('prepareMobileServerAssets', Sync) {
     into generatedServerAssets
 
-    from(new File(repositoryRoot, 'server/index.js')) {
+    from(new File(repositoryRoot, 'server')) {
+        include '**/*.js'
         into 'syncwatch/server'
     }
     from(new File(repositoryRoot, 'public')) {

@@ -4,13 +4,14 @@
   "description": "SyncWatch同步观影",
   "main": "electron-pink.js",
   "author": "xuan",
-  "license": "MIT",
+  "license": "Apache-2.0",
   "packageManager": "pnpm@11.9.0",
   "private": true,
   "scripts": {
     "start": "electron .",
     "start:server": "node server-standalone.js",
     "test": "node tests/integration.test.js",
+    "test:repo": "node tests/repository-standards.test.js",
     "test:features": "node tests/features-1.0.0.test.js",
     "test:hardening": "node tests/server-hardening.test.js",
     "test:media": "node tests/media.test.js",
@@ -111,7 +112,7 @@
       "server/macos-distribution.js",
       "public/**/*",
       "package.json",
-      "同步观影图标2026.ico"
+      "assets/app-icon.ico"
     ],
     "asarUnpack": [
       "node_modules/ffmpeg-static/**/*",
@@ -132,7 +133,7 @@
           ]
         }
       ],
-      "icon": "同步观影图标2026.ico",
+      "icon": "assets/app-icon.ico",
       "executableName": "SyncWatch同步观影",
       "requestedExecutionLevel": "asInvoker",
       "signExecutable": false

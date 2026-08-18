@@ -265,7 +265,6 @@ function Assert-ApkPayload([string]$apkPath, [string]$repositoryRoot) {
 
         $requiredEntries = @(
             'AndroidManifest.xml',
-            'assets/syncwatch/server/index.js',
             'assets/syncwatch/server/mobile-index.js',
             'assets/syncwatch/public/index.html',
             'assets/syncwatch/public/js/app.js',
@@ -275,6 +274,12 @@ function Assert-ApkPayload([string]$apkPath, [string]$repositoryRoot) {
             'assets/syncwatch/public/css/style.css',
             'assets/syncwatch/runtime-version.txt'
         )
+        $serverRoot = Join-Path $repositoryRoot 'server'
+        $serverSourceFiles = @(Get-ChildItem -LiteralPath $serverRoot -Recurse -File -Filter '*.js')
+        foreach ($sourceFile in $serverSourceFiles) {
+            $relativePath = $sourceFile.FullName.Substring($serverRoot.Length).TrimStart('\', '/') -replace '\\', '/'
+            $requiredEntries += "assets/syncwatch/server/$relativePath"
+        }
         foreach ($abi in $NodeMobileLibSha256.Keys) {
             $requiredEntries += "lib/$abi/libnode.so"
             $requiredEntries += "lib/$abi/libsyncwatch-node.so"
@@ -295,10 +300,14 @@ function Assert-ApkPayload([string]$apkPath, [string]$repositoryRoot) {
             }
         }
 
-        $serverEntryHash = Get-ZipEntrySha256 $entries['assets/syncwatch/server/index.js']
-        $expectedServerHash = Get-Sha256 (Join-Path $repositoryRoot 'server\index.js')
-        if ($serverEntryHash -ne $expectedServerHash) {
-            throw 'APK server/index.js is not byte-for-byte identical to the production server source.'
+        foreach ($sourceFile in $serverSourceFiles) {
+            $relativePath = $sourceFile.FullName.Substring($serverRoot.Length).TrimStart('\', '/') -replace '\\', '/'
+            $entryName = "assets/syncwatch/server/$relativePath"
+            $entryHash = Get-ZipEntrySha256 $entries[$entryName]
+            $sourceHash = Get-Sha256 $sourceFile.FullName
+            if ($entryHash -ne $sourceHash) {
+                throw "APK server source is stale or corrupt: $relativePath"
+            }
         }
 
         $mobileServerEntryHash = Get-ZipEntrySha256 $entries['assets/syncwatch/server/mobile-index.js']

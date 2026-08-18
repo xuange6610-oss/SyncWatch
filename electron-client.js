@@ -15,7 +15,7 @@ const allowedWebPermissions = new Set(['media', 'display-capture', 'geolocation'
 const MAX_LOGIN_MODEL_BYTES = 25 * 1024 * 1024;
 
 function iconPath() {
-  return path.join(__dirname, process.platform === 'darwin' ? '同步观影图标2026.png' : '同步观影图标2026.ico');
+  return path.join(__dirname, 'assets', process.platform === 'darwin' ? 'app-icon.png' : 'app-icon.ico');
 }
 
 function scanVisibleWindowsPrograms() {

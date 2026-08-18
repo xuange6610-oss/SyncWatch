@@ -1,0 +1,31 @@
+name: 功能建议
+description: 说明使用场景和希望解决的问题
+title: "[Feature] "
+labels:
+  - enhancement
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: 使用场景和问题
+      description: 请说明谁在什么情况下遇到了什么问题。
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: 建议方案
+      description: 描述操作流程和成功结果，不必设计代码结构。
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: 已尝试的替代方法
+  - type: checkboxes
+    id: scope
+    attributes:
+      label: 范围确认
+      options:
+        - label: 该建议与同步观影、自托管、跨端连接或服务器管理直接相关。
+          required: true

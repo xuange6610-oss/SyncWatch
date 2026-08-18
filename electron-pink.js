@@ -502,7 +502,7 @@ async function migrateLegacyData() {
   fs.rmSync(progressFile, { force: true });
 }
 
-function iconPath() { return path.join(__dirname, process.platform === 'darwin' ? '同步观影图标2026.png' : '同步观影图标2026.ico'); }
+function iconPath() { return path.join(__dirname, 'assets', process.platform === 'darwin' ? 'app-icon.png' : 'app-icon.ico'); }
 
 function serverSettingsHtml() {
   const port = serverController?.port || activeServerSettings?.port || DEFAULT_PORT;

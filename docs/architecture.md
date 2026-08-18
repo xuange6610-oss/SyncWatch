@@ -34,7 +34,7 @@ flowchart LR
 | `electron-pink.js` | Electron 主入口；启动内置服务器；创建主窗口、托盘和菜单；限制单实例；重复启动时聚焦旧窗口并提示；关闭窗口时让用户选择最小化到托盘、退出或取消；处理屏幕/窗口捕获；管理 Cloudflare Tunnel；生成服务器设置窗口；控制数据目录和安全退出。 |
 | `electron-settings-preload.js` | 服务器设置窗口的最小化预加载桥，保持 `contextIsolation`，不向页面暴露 Node.js。 |
 | `package.json` | Electron 入口、依赖锁定、测试命令和 `electron-builder` 便携 EXE 配置。 |
-| `同步观影图标2026.ico` | Windows EXE、窗口和托盘图标。 |
+| `assets/app-icon.ico` | Windows EXE、窗口和托盘图标。 |
 
 Electron 安全设置包括 `nodeIntegration: false`、`contextIsolation: true`、`sandbox: true`、同源导航限制和可信外链白名单。桌面端内置 Electron 自带的 Chromium 运行时，不依赖用户另外安装 Chrome；网页共享仍受目标网站的 `X-Frame-Options`、CSP、登录状态和版权保护限制。
 
@@ -214,7 +214,7 @@ npm run start:server
 推荐运行完整发布脚本：
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\生成EXE.ps1
+powershell -ExecutionPolicy Bypass -File .\build-windows.ps1
 ```
 
 该脚本会先构建并验证 APK，再执行接口、硬化、媒体、Electron、同步、主进程、穿透和成品测试，最后原子替换 `release/windows-server/SyncWatch同步观影-v2.1.5.exe`，并同步生成 Windows 客户端和服务器部署包。
@@ -275,8 +275,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\build-server-package.ps1
 - `server/`、`public/`、`mobile/`、`tests/`、`scripts/`
 - `electron-pink.js`、`electron-settings-preload.js`、`server-standalone.js`
 - `package.json`、锁文件、Docker 和服务器启动/构建脚本
-- `生成EXE.ps1`、`build-server-package.ps1`
-- `同步观影图标2026.ico`
+- `build-windows.ps1`、`build-server-package.ps1`
+- `assets/app-icon.ico`
 - 使用、部署和本技术说明文档
 - 最终 EXE、APK、服务器 ZIP
 

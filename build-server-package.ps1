@@ -49,38 +49,17 @@ if (-not (Test-Path -LiteralPath $clientArtifact -PathType Leaf)) {
     throw 'Missing separate Windows client artifact. Build release\windows-client\SyncWatch同步观影-Client-v2.1.5.exe first.'
 }
 
-# Windows PowerShell 5 reads BOM-less script source using the active ANSI code
-# page. Discover the UTF-8 deployment guide from ASCII content markers instead
-# of embedding its non-ASCII file name in this script.
-$deploymentGuideFiles = @(Get-ChildItem -LiteralPath $PSScriptRoot -Filter '*.md' -File | Where-Object {
-    $guideContent = Get-Content -Raw -Encoding UTF8 -LiteralPath $_.FullName
-    $guideContent.Contains('## 1.') -and
-    $guideContent.Contains('## 23.') -and
-    $guideContent.Contains('TimeoutStopSec=90') -and
-    $guideContent.Contains('MEDIA_FILE_UNAVAILABLE')
-})
-if ($deploymentGuideFiles.Count -ne 1) {
-    throw "Expected exactly one deployment guide, found $($deploymentGuideFiles.Count)."
-}
-$deploymentGuideName = [string]$deploymentGuideFiles[0].Name
-$architectureGuideFiles = @(Get-ChildItem -LiteralPath $PSScriptRoot -Filter '*.md' -File | Where-Object {
-    $guideContent = Get-Content -Raw -Encoding UTF8 -LiteralPath $_.FullName
-    $guideContent.Contains('electron-builder') -and
-    $guideContent.Contains('Node.js Mobile') -and
-    $guideContent.Contains('tests/artifact-smoke.js') -and
-    $guideContent.Contains('## 11.')
-})
-if ($architectureGuideFiles.Count -ne 1) {
-    throw "Expected exactly one architecture guide, found $($architectureGuideFiles.Count)."
-}
-$architectureGuideName = [string]$architectureGuideFiles[0].Name
+$deploymentGuidePath = 'docs\server-deployment-guide.md'
+$architectureGuidePath = 'docs\architecture.md'
+$macosGuidePath = 'docs\macos-build.md'
+$standaloneReadmePath = 'docs\standalone-server.md'
 
 $requiredFiles = @(
-    'package.json', 'package-lock.json', 'server-standalone.js', 'server\standalone-tunnel.js', 'vendor\cloudflared.exe',
+    'package.json', 'package-lock.json', 'server-standalone.js', 'server\standalone-tunnel.js', 'server\cloudflared-installer.js', 'vendor\cloudflared.exe',
     'start-server.ps1', 'start-server.cmd', 'start-server.sh',
-    'Dockerfile', 'docker-compose.yml', '.dockerignore', 'SERVER-README.md', 'MACOS-BUILD.md', 'mac-distribution.example.json',
+    'Dockerfile', 'docker-compose.yml', '.dockerignore', 'mac-distribution.example.json',
     'scripts\collect-macos-distribution.ps1',
-    $deploymentGuideName, $architectureGuideName,
+    $standaloneReadmePath, $deploymentGuidePath, $architectureGuidePath, $macosGuidePath,
     'server\index.js', 'server\ai-relay.js', 'server\macos-distribution.js', 'public\index.html', 'public\js\app.js', 'public\css\style.css',
     'mobile\SyncWatch同步观影-v2.1.5.apk',
     'tests\standalone-package-smoke.js',
@@ -106,12 +85,10 @@ if ($launcherErrors.Count -gt 0) {
     throw ('start-server.ps1 is not valid in Windows PowerShell 5.1: ' + (($launcherErrors | ForEach-Object { $_.Message }) -join '; '))
 }
 
-$node = 'C:\Users\Administrator\.trae-cn\binaries\node\versions\24.14.1\node.exe'
-if (-not (Test-Path -LiteralPath $node)) {
-    $command = Get-Command node -ErrorAction SilentlyContinue
-    if (-not $command) { throw 'Node.js is required to build the deployment package.' }
-    $node = $command.Source
-}
+$command = Get-Command node.exe -ErrorAction SilentlyContinue
+if (-not $command) { $command = Get-Command node -ErrorAction SilentlyContinue }
+if (-not $command) { throw 'Node.js is required to build the deployment package.' }
+$node = $command.Source
 $nodeDirectory = Split-Path -Parent $node
 $npm = Join-Path $nodeDirectory 'npm.cmd'
 if (-not (Test-Path -LiteralPath $npm)) {
@@ -151,8 +128,14 @@ try {
     # for this build only, then restore the caller's environment in finally.
     $env:Path = $nodeDirectory + [IO.Path]::PathSeparator + $originalProcessPath
     New-Item -ItemType Directory -Path $stage -Force | Out-Null
-    foreach ($name in @('package.json','package-lock.json','server-standalone.js','start-server.ps1','start-server.cmd','start-server.sh','Dockerfile','docker-compose.yml','.dockerignore','SERVER-README.md','MACOS-BUILD.md','mac-distribution.example.json',$deploymentGuideName,$architectureGuideName)) {
+    foreach ($name in @('package.json','package-lock.json','server-standalone.js','start-server.ps1','start-server.cmd','start-server.sh','Dockerfile','docker-compose.yml','.dockerignore','mac-distribution.example.json')) {
         Copy-Item -LiteralPath (Join-Path $PSScriptRoot $name) -Destination (Join-Path $stage $name)
+    }
+    Copy-Item -LiteralPath (Join-Path $PSScriptRoot $standaloneReadmePath) -Destination (Join-Path $stage 'README.md')
+    $stagedDocs = Join-Path $stage 'docs'
+    New-Item -ItemType Directory -Path $stagedDocs -Force | Out-Null
+    foreach ($guidePath in @($deploymentGuidePath, $architectureGuidePath, $macosGuidePath)) {
+        Copy-Item -LiteralPath (Join-Path $PSScriptRoot $guidePath) -Destination (Join-Path $stagedDocs (Split-Path -Leaf $guidePath))
     }
     # Keep the constrained macOS artifact collector in the deployment archive.
     # Operators may use it on a build host to stage DMG/ZIP releases without
@@ -223,7 +206,7 @@ try {
             "$folderName/vendor/cloudflared.exe",
             "$folderName/scripts/collect-macos-distribution.ps1",
             "$folderName/mobile/SyncWatch同步观影-v2.1.5.apk", "$folderName/SyncWatch同步观影-Client-v2.1.5.exe", "$folderName/server-standalone.js",
-            "$folderName/$deploymentGuideName", "$folderName/$architectureGuideName", "$folderName/MACOS-BUILD.md", "$folderName/mac-distribution.example.json",
+            "$folderName/README.md", "$folderName/docs/server-deployment-guide.md", "$folderName/docs/architecture.md", "$folderName/docs/macos-build.md", "$folderName/mac-distribution.example.json",
             "$folderName/node_modules/compression/package.json", "$folderName/node_modules/express/package.json", "$folderName/node_modules/nodemailer/package.json",
             "$folderName/node_modules/ffmpeg-static/package.json", "$folderName/node_modules/ffprobe-static/package.json",
             "$folderName/SyncWatch同步观影-Data/README.txt"

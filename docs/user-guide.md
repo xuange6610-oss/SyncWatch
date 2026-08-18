@@ -96,7 +96,7 @@
 
 正式发布目录 `release/server-deployment/SyncWatch同步观影-Server-v2.1.5.zip` 中的文件是不含测试、构建缓存、Android 签名密钥和 Electron 文件的纯服务器包，已经内置锁定的 Windows x64 生产依赖。解压后编辑 `SyncWatch同步观影-Data/server-config.json`，Windows 双击 `start-server.cmd` 即可离线启动。Linux x64 可执行 `./start-server.sh`，脚本会在首次启动时自动安装锁定的 Linux 生产依赖；Linux x64 云服务器更推荐直接使用 Docker Compose。本版本已验证 Windows x64 与 Linux x64/`linux/amd64`，不直接支持 Linux ARM64。直接部署需要 Node.js 22 或更高版本，推荐 Node.js 24 LTS；Docker 镜像已自带 Node.js 24。
 
-Windows Server、Linux、Docker Compose、自定义端口、安全组、域名 HTTPS、Nginx/Caddy WebSocket、内网穿透、QQ 邮箱找回、数据备份迁移和升级步骤，请阅读 [服务器部署与使用教程.md](服务器部署与使用教程.md)。该教程也会随独立服务器 ZIP 一起打包。
+Windows Server、Linux、Docker Compose、自定义端口、安全组、域名 HTTPS、Nginx/Caddy WebSocket、内网穿透、QQ 邮箱找回、数据备份迁移和升级步骤，请阅读 [服务器部署与使用教程](server-deployment-guide.md)。该教程也会随独立服务器 ZIP 一起打包。
 
 服务器数据统一位于包根目录的 `SyncWatch同步观影-Data/`。停止服务后请整体复制服务器包目录，不能只复制 `config.json`；QQ 邮箱授权码还依赖 `SyncWatch同步观影-Data/.secrets/mail.key`。运行地址、房主入口和实际监听端口写入 `SyncWatch同步观影-Data/服务器运行信息.txt`。端口可在 `SyncWatch同步观影-Data/server-config.json`、`PORT` 环境变量或 `--port` 参数中设置，优先级依次为命令行、环境变量、配置文件。
 
@@ -120,7 +120,7 @@ Windows Server、Linux、Docker Compose、自定义端口、安全组、域名 H
 环境要求：Windows x64、Node.js 24 LTS（包含 npm），以及 Android Studio JBR/JDK、Android SDK 35、Build Tools 35.0.0、已缓存的 Gradle 8.13 与 Android Gradle Plugin 8.11.1。首次准备依赖时需要网络；正式发布脚本会离线构建并校验签名 APK。
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\生成EXE.ps1
+powershell -ExecutionPolicy Bypass -File .\build-windows.ps1
 ```
 
 脚本会先使用保留在 `mobile/.keys` 的发布密钥构建并验证 Android v2.1.5 APK，再执行主接口集成检查、服务端硬化回归、真实 FFmpeg/中文字幕测试、Electron 多尺寸渲染测试、双窗口真实播放/画面同步测试、主入口与公网隧道测试，以及完整/生产依赖安全审计。便携 EXE 会先生成到临时目录；只有在确认 APK 位于 `app.asar.unpacked`，且候选成品通过 HTTP、版本、polling、真实 WebSocket/network-ping、Cookie 会话及 APK 下载校验后，才会原子替换 `release/windows-server`、`release/windows-client` 和 `release/server-deployment` 中的正式成品，并自动更新本文 SHA256。
@@ -130,7 +130,7 @@ powershell -ExecutionPolicy Bypass -File .\生成EXE.ps1
 - `public/`：完全本地化的响应式界面。
 - `mobile/`：Android WebView 客户端、离线签名构建脚本及最终 APK；请妥善备份 `.keys`，否则后续版本无法覆盖安装。
 - `tests/`：接口、真实媒体、Electron 和隧道验收。
-- `技术架构与依赖说明.md`：桌面端、服务端、前端、Android、数据、依赖版本、构建和测试的详细说明。
+- [技术架构与依赖说明](architecture.md)：桌面端、服务端、前端、Android、数据、依赖版本、构建和测试的详细说明。
 
 版权所有 © xuan
 

@@ -55,7 +55,7 @@ async function main() {
     const clientLauncherSource = fs.readFileSync(path.resolve(__dirname, '..', 'client-launcher.html'), 'utf8');
     const electronServerSource = fs.readFileSync(path.resolve(__dirname, '..', 'electron-pink.js'), 'utf8');
     const electronClientSource = fs.readFileSync(path.resolve(__dirname, '..', 'electron-client.js'), 'utf8');
-    const releaseScriptSource = fs.readFileSync(path.resolve(__dirname, '..', '生成EXE.ps1'), 'utf8');
+    const releaseScriptSource = fs.readFileSync(path.resolve(__dirname, '..', 'build-windows.ps1'), 'utf8');
     const serverPackageScriptSource = fs.readFileSync(path.resolve(__dirname, '..', 'build-server-package.ps1'), 'utf8');
     const serverLauncherBytes = fs.readFileSync(path.resolve(__dirname, '..', 'start-server.ps1'));
     const packageManifest = JSON.parse(fs.readFileSync(path.resolve(__dirname, '..', 'package.json'), 'utf8'));

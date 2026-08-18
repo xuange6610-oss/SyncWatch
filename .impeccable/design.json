@@ -1,0 +1,82 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-08-18T13:55:00Z",
+  "title": "Design System: SyncWatch同步观影",
+  "extensions": {
+    "colorMeta": {
+      "cinema-ink": { "role": "neutral", "displayName": "影院墨黑", "canonical": "#101318", "tonalRamp": ["#080a0d", "#101318", "#1a2027", "#323b44", "#59636d", "#89949b", "#c6d1d5", "#f8f7f2"] },
+      "paper": { "role": "neutral", "displayName": "说明纸面", "canonical": "#f2f0ea", "tonalRamp": ["#1c252b", "#53616a", "#89949b", "#b9c2c9", "#c7cec9", "#e2e5e1", "#f2f0ea", "#ffffff"] },
+      "sync-green": { "role": "primary", "displayName": "同步信号绿", "canonical": "#28d490", "tonalRamp": ["#062a1c", "#0c4a33", "#0c6d4b", "#159566", "#28d490", "#5ce2ad", "#9ceecb", "#e7f7ef"] },
+      "action-coral": { "role": "secondary", "displayName": "行动珊瑚", "canonical": "#ff755f", "tonalRamp": ["#39100b", "#662217", "#943b2c", "#c95743", "#ff755f", "#ff9f90", "#ffc8bf", "#fff0ed"] },
+      "focus-amber": { "role": "tertiary", "displayName": "焦点琥珀", "canonical": "#f2b84a", "tonalRamp": ["#2f2105", "#5c410b", "#8c6418", "#bc892c", "#f2b84a", "#f8ce7b", "#fce4ad", "#fff6df"] }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "产品首屏", "purpose": "首屏产品名称，手机端缩小到 42px。" },
+      "headline": { "displayName": "章节标题", "purpose": "主要内容区标题。" },
+      "body": { "displayName": "说明正文", "purpose": "面向新手的连续阅读文本。" },
+      "code": { "displayName": "命令与路径", "purpose": "启动命令、文件路径和代码标识。" }
+    },
+    "shadows": [
+      { "name": "action-low", "value": "3px 6px 18px rgba(0, 0, 0, 0.25)", "purpose": "主要按钮。" },
+      { "name": "tool-panel", "value": "3px 10px 30px rgba(21, 27, 31, 0.16)", "purpose": "命令面板。" },
+      { "name": "modal", "value": "4px 16px 50px rgba(0, 0, 0, 0.56)", "purpose": "截图灯箱。" }
+    ],
+    "motion": [
+      { "name": "hero-arrive", "value": "700ms cubic-bezier(0.16, 1, 0.3, 1)", "purpose": "首屏文案一次性进入；减少动态偏好时禁用。" }
+    ],
+    "breakpoints": [
+      { "name": "compact", "value": "700px" },
+      { "name": "stacked", "value": "940px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "主要下载和开始操作。",
+      "html": "<button class=\"ds-button-primary\">前往下载</button>",
+      "css": ".ds-button-primary{min-height:44px;padding:10px 18px;border:1px solid transparent;border-radius:6px;background:var(--green,#28d490);color:#07120e;font:800 16px/1.4 'Microsoft YaHei',sans-serif;box-shadow:3px 6px 18px rgba(0,0,0,.25);cursor:pointer}.ds-button-primary:hover{background:#5ce2ad}.ds-button-primary:focus-visible{outline:3px solid var(--amber,#f2b84a);outline-offset:3px}.ds-button-primary:active{transform:translateY(1px)}"
+    },
+    {
+      "name": "Quiet Button",
+      "kind": "button",
+      "refersTo": "button-quiet",
+      "description": "次要文档和源码跳转。",
+      "html": "<button class=\"ds-button-quiet\">阅读完整说明</button>",
+      "css": ".ds-button-quiet{min-height:44px;padding:10px 18px;border:1px solid #7f8b92;border-radius:6px;background:rgba(16,19,24,.78);color:#fff;font:800 16px/1.4 'Microsoft YaHei',sans-serif;cursor:pointer}.ds-button-quiet:hover{border-color:#fff;background:#1a2027}.ds-button-quiet:focus-visible{outline:3px solid var(--amber,#f2b84a);outline-offset:3px}.ds-button-quiet:active{transform:translateY(1px)}"
+    },
+    {
+      "name": "Screenshot Item",
+      "kind": "card",
+      "description": "带功能说明的真实产品截图入口。",
+      "html": "<button class=\"ds-shot\"><span class=\"ds-shot-media\">产品截图</span><strong>同步播放控制</strong><small>房主控制播放、暂停与进度</small></button>",
+      "css": ".ds-shot{width:280px;overflow:hidden;padding:0;border:1px solid #323b44;border-radius:6px;background:#0b0e12;color:#f8f7f2;text-align:left;cursor:zoom-in}.ds-shot-media{height:150px;display:grid;place-items:center;background:#101318;color:#b9c2c9}.ds-shot strong,.ds-shot small{display:block;padding-inline:16px}.ds-shot strong{padding-top:14px;font:700 16px/1.5 'Microsoft YaHei',sans-serif}.ds-shot small{padding-bottom:14px;color:#b9c2c9;font:400 13px/1.5 'Microsoft YaHei',sans-serif}.ds-shot:hover{border-color:#28d490;box-shadow:3px 8px 24px rgba(0,0,0,.3)}.ds-shot:focus-visible{outline:3px solid #f2b84a;outline-offset:3px}"
+    },
+    {
+      "name": "Command Panel",
+      "kind": "custom",
+      "description": "新手快速开始命令。",
+      "html": "<section class=\"ds-command\"><header>PowerShell <button>复制</button></header><pre>npm ci\nnpm start</pre></section>",
+      "css": ".ds-command{width:320px;overflow:hidden;border:1px solid #2f3a42;border-radius:6px;background:#101318;color:#f8f7f2;box-shadow:3px 10px 30px rgba(21,27,31,.16)}.ds-command header{min-height:48px;display:flex;align-items:center;justify-content:space-between;padding:8px 14px;border-bottom:1px solid #323b44;color:#b9c2c9;font:400 13px/1.5 'Microsoft YaHei',sans-serif}.ds-command button{border:1px solid #687781;border-radius:4px;background:transparent;color:#f8f7f2}.ds-command button:hover{border-color:#28d490}.ds-command button:focus-visible{outline:3px solid #f2b84a;outline-offset:3px}.ds-command pre{margin:0;padding:24px;color:#d9f7e9;font:400 14px/1.9 'Cascadia Code',monospace}"
+    },
+    {
+      "name": "Sticky Navigation",
+      "kind": "nav",
+      "description": "保持主要章节和源码入口可见。",
+      "html": "<nav class=\"ds-nav\"><strong><i></i>SyncWatch同步观影</strong><a href=\"#\">快速开始</a><a href=\"#\">下载</a></nav>",
+      "css": ".ds-nav{min-height:64px;display:flex;align-items:center;gap:22px;padding:10px 20px;border-bottom:1px solid #323b44;background:rgba(16,19,24,.96);color:#f8f7f2;font:700 14px/1.5 'Microsoft YaHei',sans-serif}.ds-nav strong{margin-right:auto;font-size:16px}.ds-nav i{width:12px;height:12px;display:inline-block;margin-right:10px;border-radius:50%;background:#28d490;box-shadow:3px 4px 12px rgba(40,212,144,.32)}.ds-nav a{color:#b9c2c9;text-decoration:none}.ds-nav a:hover{color:#fff}.ds-nav a:focus-visible{outline:3px solid #f2b84a;outline-offset:3px}"
+    }
+  ],
+  "narrative": {
+    "northStar": "放映控制台与使用手册",
+    "overview": "真实影院界面建立产品感，浅色说明区帮助新手理解启动、连接和数据目录。设计克制、可扫描，并始终明确静态展示与完整服务的能力边界。",
+    "keyCharacteristics": ["深浅分区", "真实截图", "小圆角细边框", "双断点响应式布局"],
+    "rules": [
+      { "name": "稀缺强调规则", "body": "绿色、珊瑚色和琥珀色各自只表达一种状态。", "section": "colors" },
+      { "name": "默认扁平规则", "body": "普通内容依靠色块和边框分层，阴影留给交互状态和覆盖层。", "section": "elevation" }
+    ],
+    "dos": ["使用真实且去隐私化的产品截图。", "保留明显键盘焦点和减少动态效果支持。", "在手机端把多列内容转换为单列。"],
+    "donts": ["不要把静态 Pages 描述成完整运行服务器。", "不要使用装饰性渐变、光斑或嵌套卡片。", "不要在截图或示例中暴露真实个人数据。"]
+  }
+}

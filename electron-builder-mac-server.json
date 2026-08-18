@@ -17,7 +17,7 @@
     "server/macos-distribution.js",
     "public/**/*",
     "package.json",
-    "同步观影图标2026.png"
+    "assets/app-icon.png"
   ],
   "asarUnpack": [
     "node_modules/ffmpeg-static/**/*",
@@ -32,7 +32,7 @@
       { "target": "dmg", "arch": ["x64", "arm64"] },
       { "target": "zip", "arch": ["x64", "arm64"] }
     ],
-    "icon": "同步观影图标2026.png",
+    "icon": "assets/app-icon.png",
     "category": "public.app-category.entertainment",
     "hardenedRuntime": true,
     "gatekeeperAssess": false,

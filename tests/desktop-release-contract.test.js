@@ -16,7 +16,7 @@ const electronServer = read('electron-pink.js');
 const electronClient = read('electron-client.js');
 const clientPreload = read('electron-client-preload.js');
 const launcher = read('client-launcher.html');
-const windowsBuildPath = path.join(root, '生成EXE.ps1');
+const windowsBuildPath = path.join(root, 'build-windows.ps1');
 const windowsBuildBytes = fs.readFileSync(windowsBuildPath);
 const windowsBuild = windowsBuildBytes.toString('utf8').replace(/^\uFEFF/, '');
 

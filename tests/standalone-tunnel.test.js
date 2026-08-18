@@ -6,6 +6,7 @@ const os = require('os');
 const http = require('http');
 const path = require('path');
 const { createStandaloneTunnelManager, extractPublicUrl, connectorRegistered, sanitizeEnvironment, requestPublicConfig } = require('../server/standalone-tunnel');
+const { cloudflaredRuntime, ensureCloudflaredBinary } = require('../server/cloudflared-installer');
 
 assert.equal(extractPublicUrl('INF https://api.trycloudflare.com/provision https://bright-river-123.trycloudflare.com'), 'https://bright-river-123.trycloudflare.com');
 assert.equal(extractPublicUrl('https://api.trycloudflare.com'), '');
@@ -44,6 +45,41 @@ if (originalProxy === undefined) delete process.env.HTTP_PROXY; else process.env
     assert.equal(unchanged.bypassProxy, false, 'omitted bypass setting should not silently toggle the proxy mode');
     const startup = await manager.startupSettings();
     assert.equal(startup.bypassProxy, false);
+
+    const installerRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'syncwatch-cloudflared-installer-'));
+    const payload = Buffer.alloc(1024 * 1024 + 17, 0x51);
+    const digest = require('crypto').createHash('sha256').update(payload).digest('hex');
+    const runtime = cloudflaredRuntime('win32', 'x64');
+    let requestCount = 0;
+    const fakeFetch = async (url) => {
+      requestCount += 1;
+      if (String(url).includes('/releases/latest')) {
+        return new Response(JSON.stringify({
+          tag_name: 'test-release',
+          assets: [{
+            name: runtime.assetName, size: payload.length, digest: `sha256:${digest}`,
+            browser_download_url: `https://downloads.example.test/${runtime.assetName}`
+          }]
+        }), { status: 200, headers: { 'content-type': 'application/json' } });
+      }
+      return new Response(payload, { status: 200 });
+    };
+    try {
+      const installed = await ensureCloudflaredBinary({
+        dataDir: installerRoot, platform: 'win32', arch: 'x64', fetchImpl: fakeFetch
+      });
+      assert.equal(path.basename(installed), 'cloudflared.exe');
+      assert.deepEqual(fs.readFileSync(installed), payload);
+      assert.equal(requestCount, 2);
+      const cached = await ensureCloudflaredBinary({
+        dataDir: installerRoot, platform: 'win32', arch: 'x64',
+        fetchImpl: async () => { throw new Error('verified cache should be reused'); }
+      });
+      assert.equal(cached, installed);
+      assert.equal(requestCount, 2);
+    } finally {
+      fs.rmSync(installerRoot, { recursive: true, force: true });
+    }
     console.log('standalone tunnel supervisor contract passed.');
   } finally {
     await new Promise((resolve) => probeServer.close(resolve));
