@@ -248,8 +248,8 @@ async function testDataDirectorySingleInstanceLock() {
       () => startSyncWatchServer({
         host: '127.0.0.1', port: first.port + 1, strictPort: true, dataDir: sharedDataDir, publicDir, ffprobePath: '', ffmpegPath: ''
       }),
-      (error) => /数据目录.*正在被另一个 SyncWatch 实例占用/.test(error.message)
-        && error.message.includes(`PID ${process.pid}`) && /不同的 SyncWatch-Data 目录/.test(error.message)
+      (error) => /数据目录.*正在被另一个 SyncWatch同步观影 实例占用/.test(error.message)
+        && error.message.includes(`PID ${process.pid}`) && /不同的 SyncWatch同步观影-Data 目录/.test(error.message)
     );
 
     independent = await startSyncWatchServer({
@@ -280,7 +280,7 @@ async function testDataDirectorySingleInstanceLock() {
     assert.notEqual(recoveredOwner.token, 'crashed-instance-token-1234567890');
     await replacement.close(); replacement = null;
     assert.equal(fs.existsSync(lockPath), false, '回收崩溃遗留锁后的实例仍须正常释放锁');
-    console.log('✓ 同一 SyncWatch-Data 在不同端口也只允许单实例写入，独立数据目录可并行，正常关闭释放且崩溃遗留锁可安全回收');
+    console.log('✓ 同一 SyncWatch同步观影-Data 在不同端口也只允许单实例写入，独立数据目录可并行，正常关闭释放且崩溃遗留锁可安全回收');
   } finally {
     await first?.close().catch(() => {});
     await independent?.close().catch(() => {});
@@ -903,8 +903,8 @@ async function testRoomsTunnelVoiceAndTrash() {
 
 async function testTrashUndoSurvivesDirectoryMove() {
   const portableRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'syncwatch-portable-trash-'));
-  const oldDataDir = path.join(portableRoot, 'old-server', 'SyncWatch-Data');
-  const newDataDir = path.join(portableRoot, 'moved-server', 'SyncWatch-Data');
+  const oldDataDir = path.join(portableRoot, 'old-server', 'SyncWatch同步观影-Data');
+  const newDataDir = path.join(portableRoot, 'moved-server', 'SyncWatch同步观影-Data');
   let server; let client;
   try {
     server = await startSyncWatchServer({

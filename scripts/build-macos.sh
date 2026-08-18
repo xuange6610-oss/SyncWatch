@@ -25,10 +25,10 @@ for architecture in x64 arm64; do
   npm_config_arch="$architecture" npm ci --no-audit --no-fund
   node_modules/.bin/electron-builder --config electron-builder-mac-client.json --mac --"$architecture"
   node_modules/.bin/electron-builder --config electron-builder-mac-server.json --mac --"$architecture"
-  client_dmg="dist-mac-client/SyncWatch-客户端-v${VERSION}-${architecture}.dmg"
-  server_dmg="dist-mac-server/SyncWatch-服务器-v${VERSION}-${architecture}.dmg"
-  client_zip="dist-mac-client/SyncWatch-客户端-v${VERSION}-${architecture}.zip"
-  server_zip="dist-mac-server/SyncWatch-服务器-v${VERSION}-${architecture}.zip"
+  client_dmg="dist-mac-client/SyncWatch同步观影-客户端-v${VERSION}-${architecture}.dmg"
+  server_dmg="dist-mac-server/SyncWatch同步观影-服务器-v${VERSION}-${architecture}.dmg"
+  client_zip="dist-mac-client/SyncWatch同步观影-客户端-v${VERSION}-${architecture}.zip"
+  server_zip="dist-mac-server/SyncWatch同步观影-服务器-v${VERSION}-${architecture}.zip"
   if [[ ! -s "$client_dmg" || ! -s "$server_dmg" || ! -s "$client_zip" || ! -s "$server_zip" ]]; then
     echo "macOS ${architecture} 构建完成但缺少预期 DMG 或 ZIP。" >&2
     exit 3

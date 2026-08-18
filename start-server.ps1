@@ -47,6 +47,6 @@ if (-not $dependenciesReady) {
     if ($LASTEXITCODE -ne 0) { throw 'Production dependency installation failed.' }
 }
 
-Write-Host 'Starting the standalone SyncWatch server. Press Ctrl+C for a safe shutdown.' -ForegroundColor Green
+Write-Host 'Starting the standalone SyncWatch同步观影 server. Press Ctrl+C for a safe shutdown.' -ForegroundColor Green
 & node '.\server-standalone.js'
 exit $LASTEXITCODE

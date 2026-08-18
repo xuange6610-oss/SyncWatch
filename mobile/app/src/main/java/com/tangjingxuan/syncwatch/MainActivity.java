@@ -320,7 +320,7 @@ public final class MainActivity extends Activity implements ScreenCaptureService
         TextView mark = textView("▶", 25, COLOR_ACCENT, Typeface.BOLD);
         mark.setGravity(Gravity.CENTER);
         brand.addView(mark, new LinearLayout.LayoutParams(dp(34), dp(40)));
-        TextView title = textView("SyncWatch", 23, COLOR_TEXT, Typeface.BOLD);
+        TextView title = textView("SyncWatch同步观影", 23, COLOR_TEXT, Typeface.BOLD);
         title.setGravity(Gravity.CENTER_VERTICAL);
         LinearLayout.LayoutParams titleParams = new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.WRAP_CONTENT, dp(40));
@@ -1092,7 +1092,7 @@ public final class MainActivity extends Activity implements ScreenCaptureService
         if (requestedBefore && !canExplain) {
             new AlertDialog.Builder(this)
                     .setTitle("允许获取位置")
-                    .setMessage("位置权限已被系统关闭。请在应用权限中允许位置访问，然后返回 SyncWatch。")
+                    .setMessage("位置权限已被系统关闭。请在应用权限中允许位置访问，然后返回 SyncWatch同步观影。")
                     .setPositiveButton("打开权限设置", (dialog, which) -> openLocationSettings())
                     .setNegativeButton("取消", null)
                     .show();
@@ -1772,7 +1772,7 @@ public final class MainActivity extends Activity implements ScreenCaptureService
             String filename = URLUtil.guessFileName(download.url, download.contentDisposition, download.mimeType);
             DownloadManager.Request request = new DownloadManager.Request(uri);
             request.setTitle(filename);
-            request.setDescription("SyncWatch 文件下载");
+            request.setDescription("SyncWatch同步观影 文件下载");
             request.setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED);
             request.setAllowedOverMetered(true);
             request.setAllowedOverRoaming(false);
@@ -2245,7 +2245,7 @@ public final class MainActivity extends Activity implements ScreenCaptureService
             webView.goBack();
         } else {
             new AlertDialog.Builder(this)
-                    .setTitle("SyncWatch")
+                    .setTitle("SyncWatch同步观影")
                     .setMessage("要退出应用，还是更换服务器？")
                     .setPositiveButton("退出", (dialog, which) -> finish())
                     .setNeutralButton("更换服务器", (dialog, which) -> {

@@ -14,27 +14,27 @@ const dataDir = process.env.SYNCWATCH_DATA_DIR;
 
 const { _test: electronSettings } = require('../electron-pink');
 
-const driveDRoot = electronSettings.resolveApplicationRoot({ portableExecutableFile: 'D:\\SyncWatch\\SyncWatch同步观影-v2.1.5.exe' });
-const driveERoot = electronSettings.resolveApplicationRoot({ portableExecutableFile: 'E:\\SyncWatch\\SyncWatch同步观影-v2.1.5.exe' });
-assert.equal(driveDRoot, path.resolve('D:\\SyncWatch'));
-assert.equal(driveERoot, path.resolve('E:\\SyncWatch'));
+const driveDRoot = electronSettings.resolveApplicationRoot({ portableExecutableFile: 'D:\\SyncWatch同步观影\\SyncWatch同步观影-v2.1.5.exe' });
+const driveERoot = electronSettings.resolveApplicationRoot({ portableExecutableFile: 'E:\\SyncWatch同步观影\\SyncWatch同步观影-v2.1.5.exe' });
+assert.equal(driveDRoot, path.resolve('D:\\SyncWatch同步观影'));
+assert.equal(driveERoot, path.resolve('E:\\SyncWatch同步观影'));
 assert.notEqual(driveDRoot, driveERoot);
 assert.equal(electronSettings.resolveApplicationRoot({
-  isPackaged: true, platform: 'darwin', execPath: '/Applications/SyncWatch.app/Contents/MacOS/SyncWatch',
-  userDataPath: '/Users/example/Library/Application Support/SyncWatch-服务器'
-}), path.resolve('/Users/example/Library/Application Support/SyncWatch-服务器'));
+  isPackaged: true, platform: 'darwin', execPath: '/Applications/SyncWatch同步观影.app/Contents/MacOS/SyncWatch同步观影',
+  userDataPath: '/Users/example/Library/Application Support/SyncWatch同步观影-服务器'
+}), path.resolve('/Users/example/Library/Application Support/SyncWatch同步观影-服务器'));
 fs.mkdirSync(dataDir, { recursive: true });
 const packagedServerPath = path.join(dataDir, 'SyncWatch同步观影-v2.1.5.exe');
-const packagedClientPath = path.join(dataDir, 'SyncWatch-Client-v2.1.5.exe');
+const packagedClientPath = path.join(dataDir, 'SyncWatch同步观影-Client-v2.1.5.exe');
 fs.writeFileSync(packagedClientPath, 'smoke-client');
 assert.equal(electronSettings.resolveClientDownloadPath({ isPackaged: true, portableExecutableFile: packagedServerPath }), packagedClientPath);
 assert.equal(electronSettings.resolveClientDownloadPath({ isPackaged: true, portableExecutableFile: path.join(dataDir, 'missing', 'SyncWatch同步观影-v2.1.5.exe') }), '');
 const macArtifacts = path.join(dataDir, 'mac');
 fs.mkdirSync(macArtifacts);
-const macServerArm64 = path.join(macArtifacts, 'SyncWatch-服务器-v2.1.5-arm64.dmg');
-const macServerX64Zip = path.join(macArtifacts, 'SyncWatch-服务器-v2.1.5-x64.zip');
-const macClientX64 = path.join(macArtifacts, 'SyncWatch-客户端-v2.1.5-x64.dmg');
-const macClientX64Zip = path.join(macArtifacts, 'SyncWatch-客户端-v2.1.5-x64.zip');
+const macServerArm64 = path.join(macArtifacts, 'SyncWatch同步观影-服务器-v2.1.5-arm64.dmg');
+const macServerX64Zip = path.join(macArtifacts, 'SyncWatch同步观影-服务器-v2.1.5-x64.zip');
+const macClientX64 = path.join(macArtifacts, 'SyncWatch同步观影-客户端-v2.1.5-x64.dmg');
+const macClientX64Zip = path.join(macArtifacts, 'SyncWatch同步观影-客户端-v2.1.5-x64.zip');
 fs.writeFileSync(macServerArm64, 'server-arm64');
 fs.writeFileSync(macServerX64Zip, 'server-x64-zip');
 fs.writeFileSync(macClientX64, 'client-x64');
@@ -51,7 +51,7 @@ assert.doesNotMatch(electronSource, /首次加载需要生成数据库/);
 const portableStorageCall = electronSource.indexOf('configurePortableStorage();');
 assert.ok(portableStorageCall >= 0);
 assert.doesNotMatch(electronSource, /requestSingleInstanceLock\(/,
-  '不同 SyncWatch 数据目录应允许并行运行，不能再使用全局单实例锁');
+  '不同 SyncWatch同步观影 数据目录应允许并行运行，不能再使用全局单实例锁');
 assert.match(electronSource, /\[DEFAULT_DATA_DIR, LEGACY_USER_DATA_ROOT\]/);
 console.log('✓ Electron 便携根目录按 EXE 所在文件夹隔离，不同数据目录可并行运行，恢复出厂覆盖新旧应用数据');
 

@@ -1,7 +1,7 @@
 node_modules/
 dist*/
 release/
-SyncWatch-Data/
+SyncWatch同步观影-Data/
 
 # Local runtime and release credentials
 .env
@@ -34,5 +34,6 @@ vendor/
 # Editor and OS files
 .idea/
 .vscode/
+.playwright-cli/
 .DS_Store
 Thumbs.db

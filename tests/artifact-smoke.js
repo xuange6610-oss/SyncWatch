@@ -204,7 +204,7 @@ async function main() {
 
     const baseUrl = `http://127.0.0.1:${port}`;
     const config = await waitForHttp(baseUrl, child, () => output, () => launchError);
-    assert.equal(config.name, 'SyncWatch');
+    assert.equal(config.name, 'SyncWatch同步观影');
     assert.equal(config.version, expectedPublicVersion, '成品公开版本与 package.json 不一致');
     assert.equal(config.port, port, '成品未监听指定的随机测试端口');
     assert.equal(config.androidApkAvailable, false, '主 EXE 不应内嵌 Android APK');

@@ -65,7 +65,7 @@ async function uploadVideo(baseUrl, token, filename) {
 
 async function main() {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'syncwatch-v215-backend-'));
-  const dataDir = path.join(root, 'SyncWatch-Data');
+  const dataDir = path.join(root, 'SyncWatch同步观影-Data');
   const sentMails = [];
   const sockets = [];
   let server;
@@ -179,7 +179,7 @@ async function main() {
       action: 'set-mail-settings', adminPassword: 'admin888', enabled: true,
       host: 'smtp.example.com', port: 587, secure: false, useTls: true,
       user: 'smtp-user@example.com', password: 'SMTP_SECRET_2026', recoveryEmail: 'admin-recovery@example.com',
-      fromEmail: 'noreply@example.com', fromName: 'SyncWatch 测试'
+      fromEmail: 'noreply@example.com', fromName: 'SyncWatch同步观影 测试'
     });
     assert.equal(mailSaved.success, true, mailSaved.error);
 
@@ -202,7 +202,7 @@ async function main() {
 
     const serverInfo = await (await fetch(`${baseUrl}/api/server-info`, { headers: { Authorization: `Bearer ${adminLogin.token}` } })).json();
     assert.equal(serverInfo.version, 'v2.1.5');
-    console.log('SyncWatch v2.1.5 backend admin/mail/media regression passed');
+    console.log('SyncWatch同步观影 v2.1.5 backend admin/mail/media regression passed');
   } finally {
     for (const socket of sockets) socket.close();
     await server?.close().catch(() => {});
@@ -211,6 +211,6 @@ async function main() {
 }
 
 main().catch((error) => {
-  console.error('SyncWatch v2.1.5 backend regression failed:', error);
+  console.error('SyncWatch同步观影 v2.1.5 backend regression failed:', error);
   process.exitCode = 1;
 });

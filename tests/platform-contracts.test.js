@@ -28,7 +28,7 @@ assert.match(clientPreload, /readClipboardText:\s*\(\)\s*=>\s*ipcRenderer\.invok
 assert.match(electronServer, /ipcMain\.handle\(['"]syncwatch:read-clipboard-text['"]/);
 assert.match(electronClient, /ipcMain\.handle\(['"]syncwatch-client:read-clipboard-text['"]/);
 assert.match(electronClient, /async function verifySyncWatchServer\(/);
-assert.match(electronClient, /config\?\.name !== ['"]SyncWatch['"]/);
+assert.match(electronClient, /\[['"]SyncWatch同步观影['"], ['"]SyncWatch['"]\]\.includes\(config\?\.name\)/);
 assert.match(electronClient, /if \(!isLauncherSender\(_event\)\)/);
 assert.match(electronClient, /if \(!isTrustedServerSender\(event\)\)/);
 assert.match(electronClient, /function permissionRequestIsTrusted\(/);
@@ -60,7 +60,7 @@ assert.ok(macServerConfig.files.includes('server/macos-distribution.js'));
 assert.equal(macDistributionExample.manifestVersion, 1);
 assert.ok(macDistributionExample.server.arm64.dmg.startsWith('https://'));
 assert.match(read('MACOS-BUILD.md'), /mac-distribution\.json/);
-assert.ok(!packageManifest.build.extraResources.some((entry) => ['mac', 'mobile', 'SyncWatch-Client-v2.1.5.exe'].includes(String(entry.from || ''))),
+assert.ok(!packageManifest.build.extraResources.some((entry) => ['mac', 'mobile', 'SyncWatch同步观影-Client-v2.1.5.exe'].includes(String(entry.from || ''))),
   'Windows server EXE must keep client, Android and macOS downloads as separate release artifacts');
 assert.match(embeddedMacReadme, /scripts\/build-macos\.sh/);
 assert.match(windowsBuild, /collect-macos-distribution\.ps1/,
@@ -69,11 +69,11 @@ assert.match(windowsBuild, /release[\\/]macos/,
   'Windows packaging must publish macOS artifacts beside the Windows executable');
 assert.doesNotMatch(windowsBuild, /win-unpacked\\resources\\mac/,
   'Windows packaging must not copy macOS payloads into the Windows executable');
-assert.match(standalone, /SyncWatch-服务器-v2\.1\.5/);
-assert.match(standalone, /SyncWatch-客户端-v2\.1\.5/);
-assert.match(dockerfile, /COPY SyncWatch-Client-v2\.1\.5\.exe \.\/client\/SyncWatch-Client-v2\.1\.5\.exe/,
+assert.match(standalone, /SyncWatch同步观影-服务器-v2\.1\.5/);
+assert.match(standalone, /SyncWatch同步观影-客户端-v2\.1\.5/);
+assert.match(dockerfile, /COPY SyncWatch同步观影-Client-v2\.1\.5\.exe \.\/client\/SyncWatch同步观影-Client-v2\.1\.5\.exe/,
   'Docker deployment must include the Windows client download artifact');
-assert.ok(dockerignore.indexOf('!SyncWatch-Client-v2.1.5.exe') > dockerignore.indexOf('*.exe'),
+assert.ok(dockerignore.indexOf('!SyncWatch同步观影-Client-v2.1.5.exe') > dockerignore.indexOf('*.exe'),
   'Docker ignore rules must re-include the canonical Windows client after the executable wildcard');
 
 for (const [config, main] of [[macServerConfig, 'electron-pink.js'], [macClientConfig, 'electron-client.js']]) {

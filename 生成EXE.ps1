@@ -1,4 +1,4 @@
-$ErrorActionPreference = 'Stop'
+﻿$ErrorActionPreference = 'Stop'
 Set-Location -LiteralPath $PSScriptRoot
 Remove-Item Env:ELECTRON_RUN_AS_NODE -ErrorAction SilentlyContinue
 $buildManifest = Get-Content -Raw -Encoding UTF8 -LiteralPath (Join-Path $PSScriptRoot 'package.json') | ConvertFrom-Json
@@ -160,7 +160,7 @@ function Ensure-MediaTools {
 }
 
 $androidBuildScript = Join-Path $PSScriptRoot 'mobile\build-apk.ps1'
-$androidApk = Join-Path $PSScriptRoot 'mobile\SyncWatch-v2.1.5.apk'
+$androidApk = Join-Path $PSScriptRoot 'mobile\SyncWatch同步观影-v2.1.5.apk'
 $powerShellExecutable = Join-Path $PSHOME 'powershell.exe'
 if (-not (Test-Path -LiteralPath $androidBuildScript) -or -not (Test-Path -LiteralPath $powerShellExecutable)) {
     throw 'The Android build script or system PowerShell executable is missing.'
@@ -169,7 +169,7 @@ if (-not (Test-Path -LiteralPath $androidBuildScript) -or -not (Test-Path -Liter
 Write-Host 'Building and verifying the signed Android v2.1.5 APK...' -ForegroundColor Cyan
 & $powerShellExecutable -NoProfile -NonInteractive -ExecutionPolicy Bypass -File $androidBuildScript
 if ($LASTEXITCODE -ne 0) { throw 'Android APK build failed; EXE packaging stopped.' }
-if (-not (Test-Path -LiteralPath $androidApk)) { throw 'Android build completed without mobile\SyncWatch-v2.1.5.apk.' }
+if (-not (Test-Path -LiteralPath $androidApk)) { throw 'Android build completed without mobile\SyncWatch同步观影-v2.1.5.apk.' }
 $androidApkInfo = Get-Item -LiteralPath $androidApk
 if ($androidApkInfo.Length -lt 10KB) { throw 'The Android APK is unexpectedly small; EXE packaging stopped.' }
 $androidApkHash = (Get-FileHash -Algorithm SHA256 -LiteralPath $androidApk).Hash
@@ -230,7 +230,7 @@ if ($packagedFiles -notcontains 'electron-settings-preload.js') {
     throw 'package.json must include electron-settings-preload.js for the portable settings window.'
 }
 foreach ($entry in @($packagedFiles) + @($unpackedFiles) + @($package.build.extraResources | ForEach-Object { [string]$_.from })) {
-    if ($entry -match '(^|[\\/])(?:mobile|mac)(?:[\\/]|$)|SyncWatch-Client-v2\.1\.5\.exe') {
+    if ($entry -match '(^|[\\/])(?:mobile|mac)(?:[\\/]|$)|SyncWatch同步观影-Client-v2\.1\.5\.exe') {
         throw "The main Windows EXE must not embed separately released client, Android or macOS payloads: $entry"
     }
 }
@@ -274,9 +274,9 @@ $electronDistPath = Ensure-ElectronRuntime -ExpectedVersion ([string]$package.de
 
 $clientConfigPath = Join-Path $PSScriptRoot 'electron-builder-client.json'
 if (-not (Test-Path -LiteralPath $clientConfigPath -PathType Leaf)) {
-    throw 'The SyncWatch client packaging configuration is missing.'
+    throw 'The SyncWatch同步观影 client packaging configuration is missing.'
 }
-$clientArtifactName = 'SyncWatch-Client-v2.1.5.exe'
+$clientArtifactName = 'SyncWatch同步观影-Client-v2.1.5.exe'
 $clientDelivery = Join-Path $releaseWindowsClient $clientArtifactName
 $clientBuildRoot = Join-Path ([System.IO.Path]::GetTempPath()) ('syncwatch-client-build-' + [Guid]::NewGuid().ToString('N'))
 $clientStage = Join-Path $PSScriptRoot ('.syncwatch-client-' + [Guid]::NewGuid().ToString('N') + '.tmp')
@@ -377,7 +377,7 @@ try {
     }
     $asarEntries = @(& $node $asarCli list $asarPath)
     if ($LASTEXITCODE -ne 0) { throw 'Unable to inspect the packaged app.asar.' }
-    if (($asarEntries -join "`n") -match '(?im)(^|[\\/])(?:mobile|mac)(?:[\\/]|$)|SyncWatch-Client-v2\.1\.5\.exe') {
+    if (($asarEntries -join "`n") -match '(?im)(^|[\\/])(?:mobile|mac)(?:[\\/]|$)|SyncWatch同步观影-Client-v2\.1\.5\.exe') {
         throw 'The main app.asar embeds a separately released client, Android or macOS payload.'
     }
 
@@ -490,7 +490,7 @@ if (-not (Test-Path -LiteralPath $serverPackageScript)) { throw 'The standalone 
 Write-Host 'Building the portable standalone server package...' -ForegroundColor Cyan
 & $powerShellExecutable -NoProfile -NonInteractive -ExecutionPolicy Bypass -File $serverPackageScript -OutputDirectory $releaseServerDeployment
 if ($LASTEXITCODE -ne 0) { throw 'Standalone server package build failed.' }
-$serverPackageDelivery = Join-Path $releaseServerDeployment "SyncWatch-Server-v$([string]$package.version).zip"
+$serverPackageDelivery = Join-Path $releaseServerDeployment "SyncWatch同步观影-Server-v$([string]$package.version).zip"
 if (-not (Test-Path -LiteralPath $serverPackageDelivery -PathType Leaf)) {
     throw "The standalone server package was not published to the split release folder: $serverPackageDelivery"
 }

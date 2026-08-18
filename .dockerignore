@@ -3,8 +3,8 @@ dist
 mobile/app/build
 mobile/.gradle
 mobile/.keys
-SyncWatch-Data
+SyncWatch同步观影-Data
 *.exe
-!SyncWatch-Client-v2.1.5.exe
+!SyncWatch同步观影-Client-v2.1.5.exe
 *.zip
 .git

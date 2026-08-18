@@ -40,7 +40,7 @@ function verificationCode(message) {
 
 async function main() {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'syncwatch-registration-email-required-'));
-  const dataDir = path.join(root, 'SyncWatch-Data');
+  const dataDir = path.join(root, 'SyncWatch同步观影-Data');
   const sockets = [];
   const sentMails = [];
   let server;
@@ -82,7 +82,7 @@ async function main() {
     const configured = await ack(manager, 'admin-action', {
       action: 'set-mail-settings', adminPassword: 'admin888', enabled: true,
       host: 'smtp.example.com', port: 465, secure: true, useTls: true,
-      user: 'sender@example.com', password: 'smtp-secret', fromEmail: 'sender@example.com', fromName: 'SyncWatch',
+      user: 'sender@example.com', password: 'smtp-secret', fromEmail: 'sender@example.com', fromName: 'SyncWatch同步观影',
       registrationVerificationEnabled: false, bindingVerificationEnabled: true,
       accountRecoveryEnabled: true, adminRecoveryEnabled: true
     });

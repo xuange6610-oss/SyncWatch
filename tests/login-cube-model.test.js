@@ -98,7 +98,7 @@ async function uploadModel(baseUrl, token, buffer, name = 'cinema.glb', type = '
     }));
     assert.equal(adminLogin.success, true, adminLogin.error);
 
-    const validGlb = makeGlb({ asset: { version: '2.0', generator: 'SyncWatch test' }, scene: 0, scenes: [{ nodes: [0] }], nodes: [{}] });
+    const validGlb = makeGlb({ asset: { version: '2.0', generator: 'SyncWatch同步观影 test' }, scene: 0, scenes: [{ nodes: [0] }], nodes: [{}] });
     let attempt = await uploadModel(baseUrl, ordinaryLogin.token, validGlb);
     assert.equal(attempt.response.status, 403, 'ordinary members must not upload the login model');
 

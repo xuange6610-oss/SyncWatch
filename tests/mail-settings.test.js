@@ -68,7 +68,7 @@ function codeFrom(message) {
     const saved = await emitAck(manager, 'admin-action', {
       action: 'set-mail-settings', adminPassword: 'admin888', enabled: true,
       host: 'smtp.example.com', port: 587, secure: false, useTls: true,
-      user: 'smtp-user@example.com', password: secret, recoveryEmail: 'admin-recovery@example.com', fromEmail: 'noreply@example.com', fromName: 'SyncWatch 测试',
+      user: 'smtp-user@example.com', password: secret, recoveryEmail: 'admin-recovery@example.com', fromEmail: 'noreply@example.com', fromName: 'SyncWatch同步观影 测试',
       registrationVerificationEnabled: true, bindingVerificationEnabled: true,
       accountRecoveryEnabled: true, adminRecoveryEnabled: true, defaultLocale: 'zh-CN', templates
     });
@@ -108,7 +108,7 @@ function codeFrom(message) {
     const fallbackSettings = await emitAck(manager, 'admin-action', {
       action: 'set-mail-settings', adminPassword: 'admin888', enabled: true,
       host: 'smtp.example.com', port: 587, secure: false, useTls: true,
-      user: 'smtp-user@example.com', fromEmail: 'noreply@example.com', recoveryEmail: '', fromName: 'SyncWatch 测试',
+      user: 'smtp-user@example.com', fromEmail: 'noreply@example.com', recoveryEmail: '', fromName: 'SyncWatch同步观影 测试',
       registrationVerificationEnabled: true, bindingVerificationEnabled: true,
       accountRecoveryEnabled: true, adminRecoveryEnabled: true, defaultLocale: 'zh-CN', templates: saved.mail.templates
     });
@@ -145,7 +145,7 @@ function codeFrom(message) {
     const unsafe = await emitAck(manager, 'admin-action', {
       action: 'set-mail-settings', adminPassword: 'admin888', enabled: true,
       host: 'smtp.example.com', port: 587, secure: false, useTls: true,
-      user: 'smtp-user@example.com', fromEmail: 'noreply@example.com', fromName: 'SyncWatch 测试',
+      user: 'smtp-user@example.com', fromEmail: 'noreply@example.com', fromName: 'SyncWatch同步观影 测试',
       registrationVerificationEnabled: true, templates: {
         ...saved.mail.templates,
         'verification:zh-CN': { subject: 'unsafe', html: '<script>alert(1)</script>' }

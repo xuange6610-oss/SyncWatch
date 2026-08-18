@@ -65,7 +65,7 @@ async function waitFor(predicate, label, timeout = 10000) {
 
 async function main() {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'syncwatch-guest-member-parity-'));
-  const dataDir = path.join(root, 'SyncWatch-Data');
+  const dataDir = path.join(root, 'SyncWatch同步观影-Data');
   const sockets = [];
   let server;
   try {

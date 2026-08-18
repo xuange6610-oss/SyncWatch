@@ -49,7 +49,7 @@ const customFaces = [
   { id: 'right', icon: '💬', title: '一起交流', text: '聊天与弹幕实时送达', image: '' },
   { id: 'left', icon: '🎙️', title: '实时语音', text: '观影时自然交流', image: '' },
   { id: 'top', icon: '☁️', title: '多端连接', text: '电脑网页手机同步', image: '' },
-  { id: 'bottom', icon: '✨', title: 'SyncWatch', text: '轻扫立方体查看每一面', image: '' }
+  { id: 'bottom', icon: '✨', title: 'SyncWatch同步观影', text: '轻扫立方体查看每一面', image: '' }
 ];
 
 (async () => {

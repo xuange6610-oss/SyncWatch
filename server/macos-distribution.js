@@ -16,7 +16,7 @@ function macArtifactFilename(kind, architecture, format, version = '2.1.5') {
   const label = kind === 'server' ? '服务器' : '客户端';
   if (!MAC_ARCHITECTURES.includes(architecture)) throw new Error(`不支持的 macOS 架构：${architecture}`);
   if (!MAC_FORMATS.includes(format)) throw new Error(`不支持的 macOS 产物格式：${format}`);
-  return `SyncWatch-${label}-v${releaseVersion(version)}-${architecture}.${format}`;
+  return `SyncWatch同步观影-${label}-v${releaseVersion(version)}-${architecture}.${format}`;
 }
 
 function emptyDistribution() {

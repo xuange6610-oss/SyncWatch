@@ -13,7 +13,7 @@ const mobileRoot = path.join(repositoryRoot, 'mobile');
 const appRoot = path.join(mobileRoot, 'app');
 const sourceOnly = process.argv.includes('--source-only');
 const explicitApk = process.argv.find((argument) => /\.apk$/i.test(argument));
-const apkPath = path.resolve(explicitApk || path.join(mobileRoot, 'SyncWatch-v2.1.5.apk'));
+const apkPath = path.resolve(explicitApk || path.join(mobileRoot, 'SyncWatch同步观影-v2.1.5.apk'));
 
 const NODE_MOBILE = Object.freeze({
   version: '18.20.4',
@@ -81,6 +81,8 @@ function productionDependencyClosure() {
 
 function verifySources() {
   const buildScript = read('mobile/build-apk.ps1');
+  assert.match(buildScript, /\$aaptExitCode\s*=\s*\$LASTEXITCODE[\s\S]{0,200}\$aaptExitCode\s+-ne\s+0/,
+    'APK metadata verification must capture aapt exit status before piping its output');
   assert.match(buildScript, new RegExp(NODE_MOBILE.version.replace(/\./g, '\\.')));
   assert.ok(buildScript.includes(NODE_MOBILE.sourceRevision), 'build script does not pin the 16 KB Node.js Mobile source revision');
   assert.ok(buildScript.includes(NODE_MOBILE.archiveUrl), 'build script does not pin the official Node.js Mobile URL');
@@ -343,7 +345,7 @@ function verifyApk(dependencyClosure) {
   assert.match(routeText, /const ID_START = \/\^\[\$_A-Za-z\]\$\//);
   assert.match(routeText, /const ID_CONTINUE = \/\^\[\$_A-Za-z0-9\]\$\//);
   assert.match(routeText, /const ID = \/\^\[\$_A-Za-z\]\[\$_A-Za-z0-9\]\*\$\//);
-  assert.ok(![...apk.entries.keys()].some((name) => /^assets\/syncwatch\/(?:mobile\/)?SyncWatch-v2\.1\.5\.apk$/.test(name)), 'APK recursively embeds itself');
+  assert.ok(![...apk.entries.keys()].some((name) => /^assets\/syncwatch\/(?:mobile\/)?SyncWatch同步观影-v2\.1\.5\.apk$/.test(name)), 'APK recursively embeds itself');
 }
 
 const dependencyClosure = verifySources();

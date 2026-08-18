@@ -27,10 +27,10 @@ const {
   desktopCapturer, session, screen, net
 } = require('electron');
 
-const { APP_VERSION, startSyncWatchServer } = require('./server');
+const { APP_VERSION, startSyncWatchServer, resolveDefaultDataDir } = require('./server');
 
-const APP_NAME = '同步观影';
-app.setName('同步观影');
+const APP_NAME = 'SyncWatch同步观影';
+app.setName(APP_NAME);
 if (process.platform === 'win32') app.setAppUserModelId('com.tangjingxuan.syncwatch.server');
 app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required');
 
@@ -126,7 +126,7 @@ function resolveMacDownloadPaths(kind, {
     siblingDirectory, developmentDirectory ? path.join(developmentDirectory, 'mac') : '', developmentDirectory
   ].filter(Boolean))];
   const find = (architecture, format) => {
-    const filename = `SyncWatch-${label}-v${releaseVersion}-${architecture}.${format}`;
+    const filename = `SyncWatch同步观影-${label}-v${releaseVersion}-${architecture}.${format}`;
     return roots.map((root) => path.join(root, filename)).find((candidate) => {
       try {
         const stats = fs.statSync(candidate);
@@ -143,7 +143,7 @@ function resolveMacDownloadPaths(kind, {
 function resolveClientDownloadPath({ isPackaged = false, resourcesPath = '', portableExecutableDir = '', portableExecutableFile = '', developmentClientPath = '' } = {}) {
   const siblingDirectory = portableExecutableDir || (portableExecutableFile ? path.dirname(portableExecutableFile) : '');
   const candidates = isPackaged
-    ? [resourcesPath ? path.join(resourcesPath, 'client', 'SyncWatch-Client-v2.1.5.exe') : '', siblingDirectory ? path.join(siblingDirectory, 'SyncWatch-Client-v2.1.5.exe') : '']
+    ? [resourcesPath ? path.join(resourcesPath, 'client', 'SyncWatch同步观影-Client-v2.1.5.exe') : '', siblingDirectory ? path.join(siblingDirectory, 'SyncWatch同步观影-Client-v2.1.5.exe') : '']
     : [developmentClientPath];
   return candidates.find((candidate) => candidate && fs.existsSync(candidate)) || '';
 }
@@ -157,7 +157,7 @@ const APPLICATION_ROOT = resolveApplicationRoot({
   platform: process.platform,
   userDataPath: app.getPath('userData')
 });
-const DEFAULT_DATA_DIR = path.join(APPLICATION_ROOT, 'SyncWatch-Data');
+const DEFAULT_DATA_DIR = resolveDefaultDataDir(APPLICATION_ROOT);
 const LEGACY_SERVER_SETTINGS_FILE = path.join(APPLICATION_ROOT, 'server-config.json');
 const SERVER_SETTINGS_FILE = path.join(DEFAULT_DATA_DIR, 'server-config.json');
 const FACTORY_RESET_MARKER = path.join(APPLICATION_ROOT, '.syncwatch-factory-reset.json');
@@ -234,7 +234,7 @@ async function showDataLockConflict(error) {
     try { sendDataLockCommand(details, action === 'focus' ? 'focus' : 'shutdown'); }
     catch (commandError) { return setStatus(`无法发送指令：${commandError.message}`); }
     if (action === 'focus') {
-      setStatus('正在打开已运行的 SyncWatch…');
+      setStatus('正在打开已运行的 SyncWatch同步观影…');
       return setTimeout(() => app.exit(0), 1000);
     }
     setStatus('正在安全退出旧实例，完成后会自动重试启动…');
@@ -513,7 +513,7 @@ function serverSettingsHtml() {
   const data = (serverController?.dataDir || DEFAULT_DATA_DIR).replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]);
   return `<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'"><style>
     *{box-sizing:border-box}body{margin:0;background:#140e1d;color:#f9edf7;font-family:"Microsoft YaHei",sans-serif}main{padding:26px;display:grid;gap:15px}h1{margin:0;font-size:21px}p{margin:0;color:#c9b6c9;font-size:12px;line-height:1.7}.card{display:grid;gap:11px;padding:15px;background:#ffffff09;border:1px solid #ffffff16;border-radius:12px}label{display:grid;gap:6px;font-size:12px}input,textarea{width:100%;padding:11px 12px;border:1px solid #ffffff20;border-radius:9px;background:#0d0913;color:#fff;font:14px "Microsoft YaHei",sans-serif}textarea{min-height:78px;resize:vertical}.check-line{display:flex;align-items:center;gap:8px;margin:2px 0}.check-line input[type="checkbox"]{width:18px;height:18px;margin:0;padding:0;flex:0 0 18px;accent-color:#d64f92}.hint{color:#aa98ad}.path{word-break:break-all;color:#e7b8d7}footer{display:flex;gap:9px;justify-content:flex-end}button{border:0;border-radius:9px;padding:10px 16px;color:#fff;background:#513b59;cursor:pointer}button.primary{background:#d64f92}#status{min-height:20px;color:#ffb6d6}
-  </style></head><body><main><div><h1>服务器启动设置</h1><p>修改后重启程序生效。端口必须为 1–65535，云服务器还需在防火墙放行同一端口。</p></div><form id="form" class="card"><label>监听端口<input id="port" type="number" min="1" max="65535" required value="${port}"></label><label>公网根地址（选填）<input id="publicUrl" type="url" value="${publicUrl}" placeholder="例如 https://movie.example.com"></label><p class="hint">使用第三方内网穿透或反向代理时填写完整公网根地址；程序会自动允许这个域名连接。</p><label>额外允许域名（选填，每行一个）<textarea id="allowedHosts" placeholder="例如 movie.example.com&#10;movie.example.com:8443">${allowedHosts}</textarea></label><label class="check-line"><input id="autostart" type="checkbox" ${autostart ? 'checked' : ''}> 随系统登录自动启动 SyncWatch</label><p class="hint">关闭后不会影响已经运行的服务器，仅取消下次登录系统时自动启动。</p><p>程序根目录：<span class="path">${root}</span></p><p>全部服务器数据与缓存：<span class="path">${data}</span></p><p id="status"></p><footer><button id="cancel" type="button">取消</button><button class="primary" type="submit">保存并重启</button></footer></form></main><script>
+  </style></head><body><main><div><h1>服务器启动设置</h1><p>修改后重启程序生效。端口必须为 1–65535，云服务器还需在防火墙放行同一端口。</p></div><form id="form" class="card"><label>监听端口<input id="port" type="number" min="1" max="65535" required value="${port}"></label><label>公网根地址（选填）<input id="publicUrl" type="url" value="${publicUrl}" placeholder="例如 https://movie.example.com"></label><p class="hint">使用第三方内网穿透或反向代理时填写完整公网根地址；程序会自动允许这个域名连接。</p><label>额外允许域名（选填，每行一个）<textarea id="allowedHosts" placeholder="例如 movie.example.com&#10;movie.example.com:8443">${allowedHosts}</textarea></label><label class="check-line"><input id="autostart" type="checkbox" ${autostart ? 'checked' : ''}> 随系统登录自动启动 SyncWatch同步观影</label><p class="hint">关闭后不会影响已经运行的服务器，仅取消下次登录系统时自动启动。</p><p>程序根目录：<span class="path">${root}</span></p><p>全部服务器数据与缓存：<span class="path">${data}</span></p><p id="status"></p><footer><button id="cancel" type="button">取消</button><button class="primary" type="submit">保存并重启</button></footer></form></main><script>
     const form=document.getElementById('form'),port=document.getElementById('port'),publicUrl=document.getElementById('publicUrl'),allowedHosts=document.getElementById('allowedHosts'),autostart=document.getElementById('autostart'),status=document.getElementById('status');
     document.getElementById('cancel').addEventListener('click',()=>window.syncWatchServerSettings.close());
     form.addEventListener('submit',async(event)=>{event.preventDefault();status.textContent='正在保存…';const result=await window.syncWatchServerSettings.saveSettings({port:Number(port.value),publicUrl:publicUrl.value,allowedHosts:allowedHosts.value,autostart:autostart.checked});status.textContent=result?.message||result?.error||'';});
@@ -774,7 +774,7 @@ function probeHttpsDetailed(url, { localAddress = '' } = {}) {
         }
         try {
           const result = JSON.parse(body);
-          finish({ ok: result?.name === 'SyncWatch' && typeof result.version === 'string', statusCode: response.statusCode });
+          finish({ ok: result?.name === 'SyncWatch同步观影' && typeof result.version === 'string', statusCode: response.statusCode });
         } catch (_) { finish({ ok: false, statusCode: response.statusCode }); }
       });
       response.on('aborted', () => finish({ ok: false }));
@@ -1102,13 +1102,13 @@ function tunnelRepairRecommendations({ failureCode = '', fakeIpDns = false, tunA
   if (failureCode === 'QUICK_API_TIMEOUT' || failureCode === 'DNS_RESOLUTION_FAILED' || failureCode === 'VPN_TUN_FAKE_IP' || fakeIpDns) {
     recommendations.push({
       code: 'DNS_AND_ROUTER_REPAIR', severity: 'warning', title: '修复家庭路由器 DNS 与连接超时',
-      detail: '先重启光猫和路由器，将电脑或路由器 DNS 改为 1.1.1.1/1.0.0.1 或 8.8.8.8/8.8.4.4，再执行 DNS 缓存刷新。SyncWatch 的“网络诊断与修复”会自动刷新本机 DNS 并用备用连接策略重试。'
+      detail: '先重启光猫和路由器，将电脑或路由器 DNS 改为 1.1.1.1/1.0.0.1 或 8.8.8.8/8.8.4.4，再执行 DNS 缓存刷新。SyncWatch同步观影 的“网络诊断与修复”会自动刷新本机 DNS 并用备用连接策略重试。'
     });
   }
   if (failureCode === 'QUIC_BLOCKED' || failureCode === 'EDGE_CONNECTIVITY_FAILED' || failureCode === 'EDGE_PORT_7844_BLOCKED' || failureCode === 'QUICK_API_TIMEOUT') {
     recommendations.push({
       code: 'FIREWALL_EGRESS', severity: 'info', title: '检查家庭网络出站规则',
-      detail: '允许 cloudflared 出站访问 TCP 443、TCP 7844 与 UDP 7844。路由器或运营商屏蔽 UDP 7844 时，SyncWatch 会自动降级到 HTTP/2。'
+      detail: '允许 cloudflared 出站访问 TCP 443、TCP 7844 与 UDP 7844。路由器或运营商屏蔽 UDP 7844 时，SyncWatch同步观影 会自动降级到 HTTP/2。'
     });
   }
   if (!bypassProxy) {
@@ -1956,7 +1956,7 @@ function createSplash() {
   const html = `<!doctype html><meta charset="utf-8"><style>
     *{box-sizing:border-box}body{margin:0;height:100vh;display:grid;place-items:center;background:radial-gradient(circle at 20% 20%,#71365f,#24142f 48%,#120c19);font-family:"Microsoft YaHei",sans-serif;color:#fff}
     main{text-align:center;padding:32px}.mark{font-size:58px}h1{font-size:25px;margin:10px 0 6px}p{margin:6px;color:#e9cde2}.bar{width:250px;height:5px;margin:30px auto 0;background:#ffffff28;border-radius:8px;overflow:hidden}.bar i{display:block;height:100%;background:#ff75b5;animation:load 1.4s ease-in-out infinite}@keyframes load{0%{width:0}60%{width:80%}100%{width:100%}}small{display:block;margin-top:20px;color:#bca9c6}
-  </style><main><div class="mark">🎬</div><h1>SyncWatch</h1><p>正在启动 SyncWatch 服务器…</p><div class="bar"><i></i></div><small>${COPYRIGHT}</small></main>`;
+  </style><main><div class="mark">🎬</div><h1>SyncWatch同步观影</h1><p>正在启动 SyncWatch同步观影 服务器…</p><div class="bar"><i></i></div><small>${COPYRIGHT}</small></main>`;
   splashWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(html)}`);
 }
 
@@ -1968,7 +1968,7 @@ async function showRuntimeInformation() {
     copyright = String(config?.branding?.notice || config?.branding?.owner && `版权所有 © ${config.branding.owner}，保留所有权利。` || COPYRIGHT);
   } catch (_) {}
   return dialog.showMessageBox(mainWindow, {
-    type: 'info', title: '运行信息', message: `SyncWatch ${APP_VERSION}`,
+    type: 'info', title: '运行信息', message: `SyncWatch同步观影 ${APP_VERSION}`,
     detail: `局域网地址：${primaryLanUrl()}\n房主在“管理设置”中可开启公网访问。\n数据目录：${serverController.dataDir}\n\n${copyright}`,
     buttons: ['确定'], icon: iconPath()
   });
@@ -2007,7 +2007,7 @@ function dataDirectoryMenuItems() {
 
 function createTray() {
   tray = new Tray(iconPath());
-  tray.setToolTip('同步观影');
+  tray.setToolTip(APP_NAME);
   tray.setContextMenu(Menu.buildFromTemplate([
     { label: '显示主窗口', click: () => { mainWindow?.show(); mainWindow?.focus(); } },
     { label: '复制局域网地址', click: () => clipboard.writeText(primaryLanUrl()) },
@@ -2079,7 +2079,7 @@ function configureWebPermissions() {
 function createMainWindow() {
   mainWindow = new BrowserWindow({
     width: 1320, height: 840, minWidth: 920, minHeight: 640, center: true, show: false,
-    title: '同步观影', icon: iconPath(), backgroundColor: '#100c16', autoHideMenuBar: false,
+    title: APP_NAME, icon: iconPath(), backgroundColor: '#100c16', autoHideMenuBar: false,
     webPreferences: { preload: path.join(__dirname, 'electron-main-preload.js'), nodeIntegration: false, contextIsolation: true, sandbox: true, webSecurity: true, spellcheck: false, backgroundThrottling: false }
   });
   const allowedOrigin = new URL(localUrl()).origin;
@@ -2135,9 +2135,9 @@ async function startApplication() {
   const startPort = resolvedStartPort(activeServerSettings);
   const dataDir = process.env.SYNCWATCH_DATA_DIR || DEFAULT_DATA_DIR;
   const androidApkPath = app.isPackaged
-    ? path.join(process.resourcesPath, 'app.asar.unpacked', 'mobile', 'SyncWatch-v2.1.5.apk')
-    : path.join(__dirname, 'mobile', 'SyncWatch-v2.1.5.apk');
-  const developmentClientPath = path.join(__dirname, 'SyncWatch-Client-v2.1.5.exe');
+    ? path.join(process.resourcesPath, 'app.asar.unpacked', 'mobile', 'SyncWatch同步观影-v2.1.5.apk')
+    : path.join(__dirname, 'mobile', 'SyncWatch同步观影-v2.1.5.apk');
+  const developmentClientPath = path.join(__dirname, 'SyncWatch同步观影-Client-v2.1.5.exe');
   const clientDownloadPath = resolveClientDownloadPath({
     isPackaged: app.isPackaged,
     resourcesPath: process.resourcesPath,
@@ -2189,7 +2189,7 @@ async function startApplication() {
 }
 
 app.whenReady().then(startApplication).catch(async (error) => {
-  const message = userFacingDesktopError(error, 'SyncWatch 服务无法启动，请检查端口、网络和数据目录', '应用启动失败');
+  const message = userFacingDesktopError(error, 'SyncWatch同步观影 服务无法启动，请检查端口、网络和数据目录', '应用启动失败');
   if (dataLockConflictDetails(error)) {
     try { await showDataLockConflict(error); return; }
     catch (conflictError) { console.error('无法显示实例冲突窗口:', conflictError); }

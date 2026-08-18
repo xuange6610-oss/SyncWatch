@@ -76,7 +76,7 @@ async function logout(baseUrl, token) {
 
 async function main() {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'syncwatch-guest-login-'));
-  const dataDir = path.join(root, 'SyncWatch-Data');
+  const dataDir = path.join(root, 'SyncWatch同步观影-Data');
   const sockets = [];
   let server;
   try {

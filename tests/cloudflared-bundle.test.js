@@ -41,7 +41,7 @@ for (const architecture of ['x64', 'arm64']) {
 assert.match(source, /net\.fetch\(/);
 assert.match(source, /Readable\.fromWeb\(response\.body\)/);
 assert.match(source, /cloudflared\.verified\.json/);
-assert.doesNotMatch(source, /requestSingleInstanceLock/, '不同程序目录的 SyncWatch 服务器不应被全局单实例锁互相阻止');
+assert.doesNotMatch(source, /requestSingleInstanceLock/, '不同程序目录的 SyncWatch同步观影 服务器不应被全局单实例锁互相阻止');
 assert.match(source, /tunnel-startup\.json/);
 assert.match(source, /autoStartTunnel/);
 assert.match(source, /startConfiguredTunnel/);

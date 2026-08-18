@@ -1,4 +1,4 @@
-param(
+﻿param(
     [Parameter(Mandatory = $true)][string]$SourceRoot,
     [Parameter(Mandatory = $true)][string]$Destination,
     [Parameter(Mandatory = $true)][string]$Version
@@ -17,7 +17,7 @@ $example = Get-Content -Raw -Encoding UTF8 -LiteralPath $examplePath | ConvertFr
 if ([int]$example.manifestVersion -ne 1) { throw 'Unsupported macOS distribution example manifest version.' }
 
 $allowedNames = [Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
-$expectedPattern = '^SyncWatch-.+-v' + [Regex]::Escape($Version) + '-(x64|arm64)\.(dmg|zip)$'
+$expectedPattern = '^SyncWatch同步观影-.+-v' + [Regex]::Escape($Version) + '-(x64|arm64)\.(dmg|zip)$'
 foreach ($kind in @('server', 'client')) {
     $kindConfig = $example.$kind
     foreach ($architecture in @('x64', 'arm64')) {
@@ -44,6 +44,13 @@ function Ensure-DestinationDirectory {
     }
 }
 
+function Get-Sha256([string]$Path) {
+    $stream = [IO.File]::OpenRead($Path)
+    $sha = [Security.Cryptography.SHA256]::Create()
+    try { return ([BitConverter]::ToString($sha.ComputeHash($stream))).Replace('-', '') }
+    finally { $sha.Dispose(); $stream.Dispose() }
+}
+
 $candidateRoots = @(
     $source,
     (Join-Path $source 'dist-mac-server'),
@@ -58,8 +65,8 @@ foreach ($root in $candidateRoots) {
         Ensure-DestinationDirectory
         $target = Join-Path $destinationRoot $artifact.Name
         if (Test-Path -LiteralPath $target -PathType Leaf) {
-            $sourceHash = (Get-FileHash -Algorithm SHA256 -LiteralPath $artifact.FullName).Hash
-            $targetHash = (Get-FileHash -Algorithm SHA256 -LiteralPath $target).Hash
+            $sourceHash = Get-Sha256 $artifact.FullName
+            $targetHash = Get-Sha256 $target
             if ($sourceHash -ne $targetHash) {
                 throw "Conflicting macOS artifacts share the same filename: $($artifact.Name)"
             }
@@ -77,4 +84,3 @@ if (Test-Path -LiteralPath $manifestPath -PathType Leaf) {
     Ensure-DestinationDirectory
     Copy-Item -LiteralPath $manifestPath -Destination (Join-Path $destinationRoot 'mac-distribution.json') -Force
 }
-

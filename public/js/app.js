@@ -2,12 +2,12 @@
 
 const HOST_TOKEN_SESSION_KEY = 'syncwatchHostToken';
 const LOGIN_CUBE_FACE_DEFAULTS = Object.freeze([
-  { id: 'front', label: '正面', icon: '🎬', title: '同一帧，共此刻', text: '局域网 / 公网 · 智能同步 · SyncWatch 为您带来极致的观影体验', image: '' },
+  { id: 'front', label: '正面', icon: '🎬', title: '同一帧，共此刻', text: '局域网 / 公网 · 智能同步 · SyncWatch同步观影 为您带来极致的观影体验', image: '' },
   { id: 'back', label: '背面', icon: '📺', title: '稳定同步', text: '播放、暂停、进度与倍速保持一致', image: '' },
   { id: 'right', label: '右侧', icon: '💬', title: '一起交流', text: '聊天、私聊、弹幕与表情实时送达', image: '' },
   { id: 'left', label: '左侧', icon: '🎙️', title: '实时语音', text: '观影时也能自然地说说话', image: '' },
   { id: 'top', label: '顶部', icon: '☁️', title: '多端连接', text: '电脑、网页与手机保持同步', image: '' },
-  { id: 'bottom', label: '底部', icon: '✨', title: 'SyncWatch', text: '多端设备，随时连接', image: '' }
+  { id: 'bottom', label: '底部', icon: '✨', title: 'SyncWatch同步观影', text: '多端设备，随时连接', image: '' }
 ]);
 const SYNCWATCH_SUPPORT_EMAIL = '2590813506@qq.com';
 const PLAYBACK_RATE_PROMPT_KEY = 'syncwatchPlaybackRatePrompt';
@@ -2736,7 +2736,7 @@ async function loginAsServerAdmin() {
 function requireAgreement(agreement = state.publicConfig.legalAgreement) {
   if (!agreement?.version) return Promise.resolve(true);
   if (state.agreementResolver) return Promise.resolve(false);
-  elements.agreementTitle.textContent = agreement.title || 'SyncWatch 使用协议';
+  elements.agreementTitle.textContent = agreement.title || 'SyncWatch同步观影 使用协议';
   elements.agreementVersion.textContent = `协议版本：${agreement.version}`;
   elements.agreementText.textContent = agreement.text || '';
   elements.agreementCheck.checked = false;
@@ -4689,7 +4689,7 @@ async function downloadAndroidApk() {
   if (window.SyncWatchAndroid) {
     const link = document.createElement('a');
     link.href = new URL('/api/android-apk', location.href).href;
-    link.download = 'SyncWatch-v2.1.5.apk';
+    link.download = 'SyncWatch同步观影-v2.1.5.apk';
     link.rel = 'noopener'; document.body.appendChild(link); link.click(); link.remove();
     toast('已交给安卓下载管理器处理', 'success');
     return;
@@ -4706,7 +4706,7 @@ async function downloadAndroidApk() {
     const blob = await response.blob();
     if (!blob.size) throw new Error('服务器返回的安装包为空');
     const url = URL.createObjectURL(blob); const link = document.createElement('a');
-    link.href = url; link.download = 'SyncWatch-v2.1.5.apk';
+    link.href = url; link.download = 'SyncWatch同步观影-v2.1.5.apk';
     document.body.appendChild(link); link.click(); link.remove(); setTimeout(() => URL.revokeObjectURL(url), 60000);
     toast('安卓安装包已开始下载', 'success');
   } catch (error) { toast(`安卓安装包下载失败：${localizedError(error, '请稍后重试')}`, 'error'); }
@@ -4753,7 +4753,7 @@ async function loadRoomInfo() {
 function showAuthMode(mode) {
   const registering = mode === 'register';
   elements.loginForm.classList.toggle('is-hidden', registering); elements.registerForm.classList.toggle('is-hidden', !registering);
-  elements.authTitle.textContent = registering ? '创建 SyncWatch 账号' : '加入观影房间';
+  elements.authTitle.textContent = registering ? '创建 SyncWatch同步观影 账号' : '加入观影房间';
   elements.authHint.textContent = registering ? '注册账号不需要房间密码，注册后会自动生成 SW 用户 ID。' : '一个账号同一时间只能在一台设备登录哦~';
   if (registering && elements.requestRegistrationBtn) {
     elements.requestRegistrationBtn.classList.remove('is-hidden');
@@ -5253,14 +5253,14 @@ async function batchDeleteManagedVideos() {
 
 function exportVideoManagement() {
   const files = manageableMediaFiles().map((file) => ({ id: file.id, originalName: file.originalName, collection: fileCollectionName(file), note: file.note || '', uploadedAt: file.uploadedAt, size: file.size }));
-  downloadJsonFile(`SyncWatch-影片管理-${new Date().toISOString().slice(0, 10)}.json`, { version: '2.1.5', type: 'syncwatch-media-management', files });
+  downloadJsonFile(`SyncWatch同步观影-影片管理-${new Date().toISOString().slice(0, 10)}.json`, { version: '2.1.5', type: 'syncwatch-media-management', files });
 }
 
 async function importVideoManagement() {
   const file = elements.importVideoManagementInput.files?.[0]; if (!file) return;
   try {
     const parsed = JSON.parse(await file.text());
-    if (parsed?.type !== 'syncwatch-media-management' || !Array.isArray(parsed.files)) throw new Error('不是有效的 SyncWatch 影片管理文件');
+    if (parsed?.type !== 'syncwatch-media-management' || !Array.isArray(parsed.files)) throw new Error('不是有效的 SyncWatch同步观影 影片管理文件');
     const local = new Map(manageableMediaFiles().map((item) => [item.id, item])); let updated = 0;
     for (const item of parsed.files.slice(0, 500)) {
       if (!local.has(String(item.id || ''))) continue;
@@ -8394,7 +8394,7 @@ async function refreshNativeAudioSources() {
   select.replaceChildren(...existing);
   const sources = (result.sources || []).filter((source) => source?.id && source?.name);
   state.nativeAudioSources = sources;
-  const windowSources = sources.filter((source) => ['window', 'process'].includes(source.kind) && !/SyncWatch|Electron/i.test(source.name));
+  const windowSources = sources.filter((source) => ['window', 'process'].includes(source.kind) && !/SyncWatch同步观影|Electron/i.test(source.name));
   const screenSources = sources.filter((source) => source.kind === 'screen');
   if (windowSources.length) {
     const group = document.createElement('optgroup'); group.label = '当前运行的电脑程序（桌面客户端可直接选择）';
@@ -9249,12 +9249,12 @@ function floatingPlayerErrorMessage(errors = []) {
   const names = new Set(errors.map((error) => String(error?.name || '')));
   if (names.has('NotAllowedError')) return '浏览器拒绝打开悬浮播放。请先点击画面开始播放，再直接点击“悬浮播放”；仍失败时请检查浏览器的画中画权限。';
   if (names.has('InvalidStateError')) return '视频还没有准备好，等画面开始播放后再点击“悬浮播放”。';
-  if (names.has('SecurityError')) return '当前网页地址的安全策略阻止了悬浮播放，请改用 HTTPS 地址、SyncWatch 客户端或安卓客户端。';
-  if (names.has('NotSupportedError')) return '当前浏览器没有启用画中画，请改用最新版 Chrome、Edge、SyncWatch 客户端或安卓客户端。';
+  if (names.has('SecurityError')) return '当前网页地址的安全策略阻止了悬浮播放，请改用 HTTPS 地址、SyncWatch同步观影 客户端或安卓客户端。';
+  if (names.has('NotSupportedError')) return '当前浏览器没有启用画中画，请改用最新版 Chrome、Edge、SyncWatch同步观影 客户端或安卓客户端。';
   const lastError = errors[errors.length - 1];
   return lastError
     ? `${localizedError(lastError, '无法打开悬浮播放')}。请确认视频已开始播放，并检查浏览器画中画权限。`
-    : '当前系统不支持悬浮播放，请改用最新版 Chrome、Edge、SyncWatch 客户端或安卓客户端。';
+    : '当前系统不支持悬浮播放，请改用最新版 Chrome、Edge、SyncWatch同步观影 客户端或安卓客户端。';
 }
 
 async function openDanmakuPictureInPicture(video) {
@@ -10134,7 +10134,7 @@ async function loadAdminSettings({ silent = false } = {}) {
     elements.mailUser.value = mail.user || '';
     elements.mailRecoveryEmail.value = mail.recoveryEmail || '';
     elements.mailFromEmail.value = mail.fromEmail || mail.user || '';
-    elements.mailFromName.value = mail.fromName || 'SyncWatch';
+    elements.mailFromName.value = mail.fromName || 'SyncWatch同步观影';
     elements.mailAuthCode.value = '';
     elements.mailUseTls.checked = mail.useTls !== false;
     elements.mailSecure.checked = mail.secure !== false;
@@ -10267,7 +10267,7 @@ function applyMailTemplatePreset() {
   if (!preset || !elements.mailTemplateSubject || !elements.mailTemplateHtml) return;
   const resetFlow = elements.mailTemplateEvent?.value === 'passwordReset';
   const english = elements.mailTemplateLanguage?.value === 'en-US';
-  const title = english ? (resetFlow ? 'Reset your SyncWatch password' : 'Verify your SyncWatch email') : (resetFlow ? '重置您的 SyncWatch 密码' : '验证您的 SyncWatch 邮箱');
+  const title = english ? (resetFlow ? 'Reset your SyncWatch同步观影 password' : 'Verify your SyncWatch同步观影 email') : (resetFlow ? '重置您的 SyncWatch同步观影 密码' : '验证您的 SyncWatch同步观影 邮箱');
   const intro = english ? `Hello {{recipient_name}}, you requested to ${resetFlow ? 'reset the password for {{account_name}}' : '{{action_name}}'}.` : `您好，{{recipient_name}}。您正在${resetFlow ? '重置 {{account_name}} 的密码' : '进行“{{action_name}}”'}。`;
   const reminder = english ? 'This one-time code expires in {{expires_in_minutes}} minutes. If this was not you, ignore this email.' : '验证码将在 {{expires_in_minutes}} 分钟后失效且仅可使用一次。如非本人操作，请忽略本邮件。';
   elements.mailTemplateSubject.value = english ? `[{{site_name}}] ${title}` : `【{{site_name}}】${title}`;
@@ -10384,7 +10384,7 @@ function switchMailTemplateEditor() {
 function previewMailTemplate() {
   if (!elements.mailTemplatePreview || !elements.mailTemplateSubject || !elements.mailTemplateHtml) return;
   const samples = {
-    site_name: 'SyncWatch', recipient_name: '张三', recipient_email: 'user@example.com',
+    site_name: 'SyncWatch同步观影', recipient_name: '张三', recipient_email: 'user@example.com',
     verification_code: '123456', expires_in_minutes: '10', action_name: '邮箱验证', account_name: '账号 ZhangSan'
   };
   const replace = (value) => String(value || '').replace(/\{\{\s*([a-z_]+)\s*\}\}/gi, (_match, key) => samples[key] || '');
@@ -10989,7 +10989,7 @@ async function exportServerData() {
   try {
     const response = await fetchWithTimeout(`/api/host/data/export?scopes=${encodeURIComponent(scopes.join(','))}${includesMedia ? '&format=binary' : ''}`, { headers: authHeaders() }, includesMedia ? 30 * 60 * 1000 : 2 * 60 * 1000);
     if (!response.ok) throw new Error((await response.text()) || `导出失败（${response.status}）`);
-    const blob = await readBackupResponseWithProgress(response); const link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = `SyncWatch-v2.1.5-${scope}-${new Date().toISOString().slice(0, 10)}.${includesMedia ? 'swbackup' : 'json'}`; document.body.appendChild(link); link.click(); link.remove(); setTimeout(() => URL.revokeObjectURL(link.href), 60000);
+    const blob = await readBackupResponseWithProgress(response); const link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = `SyncWatch同步观影-v2.1.5-${scope}-${new Date().toISOString().slice(0, 10)}.${includesMedia ? 'swbackup' : 'json'}`; document.body.appendChild(link); link.click(); link.remove(); setTimeout(() => URL.revokeObjectURL(link.href), 60000);
     elements.dataBackupStatus.textContent = '备份已生成并下载'; toast('数据备份已导出', 'success');
   } catch (error) { elements.dataBackupStatus.textContent = localizedError(error, '导出备份失败'); updateBackupExportProgress({ label: '备份导出失败', failed: true }); if (elements.dataBackupProgressDetail) elements.dataBackupProgressDetail.textContent = elements.dataBackupStatus.textContent; toast(elements.dataBackupStatus.textContent, 'error'); }
   finally { elements.exportDataBtn.disabled = false; }
@@ -13099,7 +13099,7 @@ async function profileDeleteSelected(kind) {
 
 function exportProfileCollection(kind) {
   const p = state.profile || {}; const data = kind === 'room' ? p.recentRooms : kind === 'favorites' ? p.favoriteFiles : kind === 'history' ? p.history : p.myFiles;
-  downloadJsonFile(`SyncWatch-${kind}-${new Date().toISOString().slice(0, 10)}.json`, { type: `syncwatch-profile-${kind}`, version: '2.1.5', data, meta: { favoriteMeta: p.favoriteMeta, roomMeta: p.roomMeta } });
+  downloadJsonFile(`SyncWatch同步观影-${kind}-${new Date().toISOString().slice(0, 10)}.json`, { type: `syncwatch-profile-${kind}`, version: '2.1.5', data, meta: { favoriteMeta: p.favoriteMeta, roomMeta: p.roomMeta } });
 }
 
 async function importProfileCollection(kind, file) {

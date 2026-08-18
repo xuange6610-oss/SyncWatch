@@ -73,7 +73,7 @@ async function launch(dataDir) {
 
 async function main() {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'syncwatch-media-processing-'));
-  const dataDir = path.join(root, 'SyncWatch-Data');
+  const dataDir = path.join(root, 'SyncWatch同步观影-Data');
   const html = fs.readFileSync(path.resolve(__dirname, '..', 'public', 'index.html'), 'utf8');
   const app = fs.readFileSync(path.resolve(__dirname, '..', 'public', 'js', 'app.js'), 'utf8');
   const preload = fs.readFileSync(path.resolve(__dirname, '..', 'electron-main-preload.js'), 'utf8');

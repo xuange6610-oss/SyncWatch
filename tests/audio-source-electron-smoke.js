@@ -49,7 +49,7 @@ async function run() {
 
   const webServer = http.createServer((_request, response) => {
     response.writeHead(200, { 'content-type': 'text/html; charset=utf-8' });
-    response.end('<!doctype html><meta charset="utf-8"><title>SyncWatch audio capture smoke</title>');
+    response.end('<!doctype html><meta charset="utf-8"><title>SyncWatch同步观影 audio capture smoke</title>');
   });
   const port = await listen(webServer);
   session.defaultSession.setPermissionCheckHandler(() => true);

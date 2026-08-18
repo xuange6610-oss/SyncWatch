@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#111418">
-  <title>SyncWatch</title>
+  <title>SyncWatch同步观影</title>
   <script src="/js/first-paint-theme.js"></script>
   <link rel="stylesheet" href="/css/style.css">
   <link rel="stylesheet" href="/css/avatar-tools.css">
@@ -12,7 +12,7 @@
 </head>
 <body>
   <header class="topbar">
-    <div class="brand"><span class="brand-mark">▶</span><div><strong>SyncWatch</strong><small>多人观影空间</small></div></div>
+    <div class="brand"><span class="brand-mark">▶</span><div><strong>SyncWatch同步观影</strong><small>多人观影空间</small></div></div>
     <button id="mobileMenuBtn" class="mobile-menu-button" type="button" aria-label="打开功能菜单" aria-expanded="false"><span aria-hidden="true">☰</span></button>
     <div id="roomHeader" class="room-header is-hidden">
       <span><small>房间</small><strong id="headerRoomName">私人影院</strong></span>
@@ -34,7 +34,7 @@
       <button id="noticeCenterBtn" class="ghost-button header-feature-button is-hidden" type="button" title="发送屏幕公告与管理权限"><span aria-hidden="true">!</span><span class="button-label">通知与权限</span></button>
       <button id="themeBtn" class="ghost-button header-feature-button topbar-context-action" type="button" title="切换界面风格"><span aria-hidden="true">◐</span><span class="button-label">界面风格</span></button>
       <button id="adminContactBtn" class="ghost-button header-feature-button topbar-context-action" type="button" title="联系服务器管理员"><span aria-hidden="true">☎</span><span class="button-label">联系管理员</span></button>
-      <button id="copyrightBtn" class="ghost-button header-feature-button topbar-context-action" type="button" title="关于 SyncWatch"><span aria-hidden="true">ⓘ</span><span class="button-label">关于</span></button>
+      <button id="copyrightBtn" class="ghost-button header-feature-button topbar-context-action" type="button" title="关于 SyncWatch同步观影"><span aria-hidden="true">ⓘ</span><span class="button-label">关于</span></button>
       </div>
       <div class="topbar-fixed-actions" aria-label="连接与账户">
       <button id="serverSettingsLoginBtn" class="ghost-button header-feature-button topbar-context-action is-hidden" type="button" title="服务器设置"><span aria-hidden="true">⚙</span><span class="button-label">服务器设置</span></button>
@@ -62,12 +62,12 @@
         <div id="loginCubeScene" class="login-cube-scene">
           <canvas id="loginCubeModel" class="login-cube-model" aria-hidden="true"></canvas>
           <div id="loginCube" class="login-cube">
-            <section class="login-cube-face login-cube-front" data-login-cube-face="front"><i class="sync-scan-line"></i><span class="login-cube-face-icon">🎬</span><strong class="login-cube-face-title">同一帧，共此刻</strong><small class="login-cube-face-text">局域网 / 公网 · 智能同步 · SyncWatch 为您带来极致的观影体验</small><div class="sync-frame-meter"><b></b><b></b><b></b><b></b><b></b></div></section>
+            <section class="login-cube-face login-cube-front" data-login-cube-face="front"><i class="sync-scan-line"></i><span class="login-cube-face-icon">🎬</span><strong class="login-cube-face-title">同一帧，共此刻</strong><small class="login-cube-face-text">局域网 / 公网 · 智能同步 · SyncWatch同步观影 为您带来极致的观影体验</small><div class="sync-frame-meter"><b></b><b></b><b></b><b></b><b></b></div></section>
             <section class="login-cube-face login-cube-back" data-login-cube-face="back"><span class="login-cube-face-icon">📺</span><strong class="login-cube-face-title">稳定同步</strong><small class="login-cube-face-text">播放、暂停、进度与倍速保持一致</small></section>
             <section class="login-cube-face login-cube-right" data-login-cube-face="right"><span class="login-cube-face-icon">💬</span><strong class="login-cube-face-title">一起交流</strong><small class="login-cube-face-text">聊天、私聊、弹幕与表情实时送达</small></section>
             <section class="login-cube-face login-cube-left" data-login-cube-face="left"><span class="login-cube-face-icon">🎙️</span><strong class="login-cube-face-title">实时语音</strong><small class="login-cube-face-text">观影时也能自然地说说话</small></section>
             <section class="login-cube-face login-cube-top" data-login-cube-face="top"><span class="login-cube-face-icon">☁️</span><strong class="login-cube-face-title">多端连接</strong><small class="login-cube-face-text">电脑、网页与手机保持同步</small></section>
-            <section class="login-cube-face login-cube-bottom" data-login-cube-face="bottom"><span class="login-cube-face-icon">✨</span><strong class="login-cube-face-title">SyncWatch</strong><small class="login-cube-face-text">多端设备，随时连接</small></section>
+            <section class="login-cube-face login-cube-bottom" data-login-cube-face="bottom"><span class="login-cube-face-icon">✨</span><strong class="login-cube-face-title">SyncWatch同步观影</strong><small class="login-cube-face-text">多端设备，随时连接</small></section>
           </div>
         </div>
       </div>
@@ -354,7 +354,7 @@
 
             <div id="lanAccessCard" class="settings-card is-hidden" data-management-panel="server">
               <h3>局域网端口访问</h3>
-              <p>控制其他设备能否通过本机局域网 IP 和端口访问 SyncWatch。关闭后公网地址仍可使用，当前通过内网地址连接的设备会立即断开。</p>
+              <p>控制其他设备能否通过本机局域网 IP 和端口访问 SyncWatch同步观影。关闭后公网地址仍可使用，当前通过内网地址连接的设备会立即断开。</p>
               <label class="check-line"><input id="lanAccessEnabled" type="checkbox" checked> 允许通过局域网地址访问服务器</label>
               <button id="saveLanAccessBtn" class="secondary-button" type="button">保存局域网访问设置</button>
               <p id="lanAccessStatus" class="setting-status">当前允许局域网地址访问</p>
@@ -372,7 +372,7 @@
                   <label>密码找回邮箱（选填）<input id="mailRecoveryEmail" type="email" maxlength="254" autocomplete="email" placeholder="留空使用 SMTP 用户名邮箱"></label>
                   <label>SMTP 密码 / 授权码<input id="mailAuthCode" type="password" maxlength="512" autocomplete="new-password" placeholder="留空保留已保存的凭据"></label>
                   <label>发件人邮箱<input id="mailFromEmail" type="email" maxlength="254" autocomplete="email" placeholder="2590813506@qq.com"></label>
-                  <label>发件人名称<input id="mailFromName" maxlength="60" value="SyncWatch"></label>
+                  <label>发件人名称<input id="mailFromName" maxlength="60" value="SyncWatch同步观影"></label>
                 </div>
                 <div class="mail-toggle-grid">
                   <label class="check-line"><input id="mailUseTls" type="checkbox" checked> 使用 TLS / STARTTLS 加密</label>
@@ -398,7 +398,7 @@
                     <label>HTML 模板<textarea id="mailTemplateHtml" rows="18" maxlength="100000" spellcheck="false"></textarea></label>
                     <div class="mail-placeholder-list" aria-label="可用占位符"><span>可用占位符</span><button type="button" data-mail-placeholder="{{site_name}}">{{site_name}}</button><button type="button" data-mail-placeholder="{{recipient_name}}">{{recipient_name}}</button><button type="button" data-mail-placeholder="{{recipient_email}}">{{recipient_email}}</button><button type="button" data-mail-placeholder="{{verification_code}}">{{verification_code}}</button><button type="button" data-mail-placeholder="{{expires_in_minutes}}">{{expires_in_minutes}}</button><button type="button" data-mail-placeholder="{{action_name}}">{{action_name}}</button><button type="button" data-mail-placeholder="{{account_name}}">{{account_name}}</button></div>
                   </div>
-                  <div class="mail-template-preview-wrap"><div><strong>实时安全预览</strong><small id="mailTemplatePreviewSubject">SyncWatch 邮件</small></div><iframe id="mailTemplatePreview" title="邮件模板安全预览" sandbox="" style="width:100%;min-height:420px;background:#f4f4f5;border:0"></iframe></div>
+                  <div class="mail-template-preview-wrap"><div><strong>实时安全预览</strong><small id="mailTemplatePreviewSubject">SyncWatch同步观影 邮件</small></div><iframe id="mailTemplatePreview" title="邮件模板安全预览" sandbox="" style="width:100%;min-height:420px;background:#f4f4f5;border:0"></iframe></div>
                 </div>
               </section>
               <section class="mail-settings-section mail-test-section" aria-labelledby="mailTestTitle">
@@ -558,7 +558,7 @@
 
             <div id="dataBackupCard" class="settings-card is-hidden" data-management-panel="server">
               <h3>数据导入与导出</h3>
-              <p>可按模块导出配置、账号、房间、影片索引和聊天记录，也可以导入 SyncWatch JSON 备份。导入后会自动校验并保存。</p>
+              <p>可按模块导出配置、账号、房间、影片索引和聊天记录，也可以导入 SyncWatch同步观影 JSON 备份。导入后会自动校验并保存。</p>
               <label class="backup-scope-select">备份范围<select id="dataBackupScope"><option value="all">全部数据与配置</option><option value="config">服务器配置</option><option value="accounts">账号与权限</option><option value="rooms">房间与播放状态</option><option value="media-index">影片索引与视频文件</option><option value="chat">聊天记录</option></select></label>
               <fieldset id="dataBackupScopes" class="backup-scope-grid"><legend>也可以多选导出或导入模块</legend><label class="check-line"><input type="checkbox" value="config" checked>服务器配置</label><label class="check-line"><input type="checkbox" value="accounts" checked>账号与权限</label><label class="check-line"><input type="checkbox" value="rooms" checked>房间与播放状态</label><label class="check-line"><input type="checkbox" value="media-index" checked>影片索引、原视频与转码文件</label><label class="check-line"><input type="checkbox" value="chat" checked>聊天记录</label></fieldset>
               <div class="setting-actions"><button id="exportDataBtn" class="secondary-button" type="button">导出备份</button><button id="importDataBtn" class="secondary-button" type="button">导入备份</button></div>
@@ -598,7 +598,7 @@
     <div class="live-voice-floating-body"><small id="voiceFloatingStatus">语音已连接</small><div><button id="voiceFloatingMuteBtn" class="secondary-button" type="button">麦克风静音</button><button id="voicePushToTalkBtn" class="secondary-button" type="button" title="按住期间临时开麦">按住开麦</button><button id="voiceFloatingLeaveBtn" class="danger-button" type="button">退出语音</button></div></div>
   </aside>
 
-  <div id="copyrightModal" class="modal is-hidden"><div class="modal-card"><button id="closeCopyrightBtn" class="modal-close" type="button">×</button><p class="eyebrow">关于软件</p><h2>SyncWatch</h2><p>版本 <span id="versionText">v2.1.5</span></p><p>仅共享您有权使用的内容。聊天历史和存档房间数据保存在服务器数据目录。</p><p><strong id="copyrightNotice">版权所有 © xuan，保留所有权利。</strong></p></div></div>
+  <div id="copyrightModal" class="modal is-hidden"><div class="modal-card"><button id="closeCopyrightBtn" class="modal-close" type="button">×</button><p class="eyebrow">关于软件</p><h2>SyncWatch同步观影</h2><p>版本 <span id="versionText">v2.1.5</span></p><p>仅共享您有权使用的内容。聊天历史和存档房间数据保存在服务器数据目录。</p><p><strong id="copyrightNotice">版权所有 © xuan，保留所有权利。</strong></p></div></div>
   <div id="accountModal" class="modal is-hidden"><div class="modal-card account-modal-card"><button id="closeAccountBtn" class="modal-close" type="button">×</button><div class="account-layout"><nav id="accountNav" class="account-nav"><button class="active" data-account-page="home" type="button">我的主页</button><button data-account-page="room" type="button">我的房间</button><button data-account-page="media" type="button">我的影片</button><button data-account-page="favorites" type="button">我的收藏</button><button data-account-page="history" type="button">观影记录</button><button data-account-page="devices" type="button">设备管理</button><button data-account-page="friends" type="button">好友</button><button data-account-page="security" type="button">安全设置</button></nav><section id="accountContent" class="account-content"><p class="muted">正在加载账户资料…</p></section></div></div></div>
 
   <div id="mediaBatchModal" class="modal is-hidden"><div class="modal-card management-modal-card media-batch-modal-card"><button id="closeMediaBatchBtn" class="modal-close" type="button" aria-label="关闭批量移动">×</button><div class="settings-title"><div><p class="eyebrow">影片库管理</p><h2>批量移动影片</h2></div><span id="mediaBatchCount" class="count-pill">已选 0</span></div><div class="manage-toolbar"><label class="search-field">搜索影片<input id="mediaBatchSearch" type="search" placeholder="按名称、分类或上传者筛选"></label><label class="check-line"><input id="mediaBatchSelectAll" type="checkbox"> 全选当前结果</label></div><div id="mediaBatchList" class="manage-list media-batch-list"><p class="muted">正在读取影片…</p></div><div class="media-batch-footer"><label>移动到分类<select id="mediaBatchCategory"><option value="">请选择分类</option></select></label><button id="mediaBatchConfirmBtn" class="primary-button" type="button" disabled>移动所选影片</button></div></div></div>
@@ -649,9 +649,9 @@
       </form>
     </div>
   </div>
-  <div id="agreementModal" class="modal agreement-modal is-hidden" role="dialog" aria-modal="true"><div class="modal-card agreement-card"><h2 id="agreementTitle">SyncWatch 使用协议</h2><small id="agreementVersion"></small><div id="agreementText" class="agreement-text"></div><label class="check-line"><input id="agreementCheck" type="checkbox"> 我已完整阅读并同意遵守本协议</label><button id="acceptAgreementBtn" class="primary-button full" type="button" disabled>同意并进入</button><button id="declineAgreementBtn" class="secondary-button full" type="button">不同意并退出登录</button></div></div>
+  <div id="agreementModal" class="modal agreement-modal is-hidden" role="dialog" aria-modal="true"><div class="modal-card agreement-card"><h2 id="agreementTitle">SyncWatch同步观影 使用协议</h2><small id="agreementVersion"></small><div id="agreementText" class="agreement-text"></div><label class="check-line"><input id="agreementCheck" type="checkbox"> 我已完整阅读并同意遵守本协议</label><button id="acceptAgreementBtn" class="primary-button full" type="button" disabled>同意并进入</button><button id="declineAgreementBtn" class="secondary-button full" type="button">不同意并退出登录</button></div></div>
   <div id="ownerExitModal" class="modal is-hidden" role="dialog" aria-modal="true" aria-labelledby="ownerExitTitle"><div class="modal-card owner-exit-card"><p class="eyebrow">房主退出</p><h2 id="ownerExitTitle">请选择如何处理当前房间</h2><p class="muted">意外断线只会让您的账号离开，不会关闭或删除房间。</p><div class="owner-exit-actions"><button data-owner-exit="leave" class="secondary-button" type="button"><strong>只退出房间</strong><small>房间继续保留并允许其他成员观看</small></button><button data-owner-exit="close" class="warning-button" type="button"><strong>关闭并存档</strong><small>成员退出，完整保留影片、聊天和进度</small></button><button data-owner-exit="delete" class="danger-button" type="button"><strong>永久删除房间</strong><small>删除全部媒体和记录，无法恢复</small></button><button data-owner-exit="cancel" class="text-button" type="button">取消</button></div></div></div>
-  <div id="desktopCloseModal" class="modal desktop-close-modal is-hidden" role="dialog" aria-modal="true" aria-labelledby="desktopCloseTitle"><div class="modal-card desktop-close-card"><div class="desktop-close-heading"><span aria-hidden="true">SW</span><div><p class="eyebrow">SyncWatch 服务器</p><h2 id="desktopCloseTitle">请选择关闭方式</h2></div></div><p class="desktop-close-description">最小化到托盘后，服务器、房间和临时公网连接会继续运行；退出程序会停止本机服务。</p><div class="desktop-close-actions"><button data-desktop-close="minimize" class="primary-button" type="button"><strong>最小化到托盘</strong><small>保持服务器和当前房间在线</small></button><button data-desktop-close="restart" class="secondary-button" type="button"><strong>重新启动</strong><small>安全关闭服务后重新打开程序</small></button><button data-desktop-close="quit" class="danger-button" type="button"><strong>退出程序</strong><small>停止本机服务器与公网连接</small></button><button data-desktop-close="cancel" class="text-button" type="button">取消</button></div><p id="desktopCloseStatus" class="setting-status" aria-live="polite"></p></div></div>
+  <div id="desktopCloseModal" class="modal desktop-close-modal is-hidden" role="dialog" aria-modal="true" aria-labelledby="desktopCloseTitle"><div class="modal-card desktop-close-card"><div class="desktop-close-heading"><span aria-hidden="true">SW</span><div><p class="eyebrow">SyncWatch同步观影 服务器</p><h2 id="desktopCloseTitle">请选择关闭方式</h2></div></div><p class="desktop-close-description">最小化到托盘后，服务器、房间和临时公网连接会继续运行；退出程序会停止本机服务。</p><div class="desktop-close-actions"><button data-desktop-close="minimize" class="primary-button" type="button"><strong>最小化到托盘</strong><small>保持服务器和当前房间在线</small></button><button data-desktop-close="restart" class="secondary-button" type="button"><strong>重新启动</strong><small>安全关闭服务后重新打开程序</small></button><button data-desktop-close="quit" class="danger-button" type="button"><strong>退出程序</strong><small>停止本机服务器与公网连接</small></button><button data-desktop-close="cancel" class="text-button" type="button">取消</button></div><p id="desktopCloseStatus" class="setting-status" aria-live="polite"></p></div></div>
   <div id="screenNoticeOverlay" class="screen-notice-overlay is-hidden" role="alert"><div><small id="screenNoticeSender"></small><p id="screenNoticeText"></p><button id="closeScreenNoticeBtn" type="button">关闭</button></div></div>
   <div id="roomSwitchSuccessOverlay" class="room-switch-success-overlay is-hidden" role="status"><div><button id="closeRoomSwitchSuccessBtn" class="notice-close-button" type="button" aria-label="关闭房间切换提示" title="关闭提示">×</button><strong>房间切换成功</strong><span id="roomSwitchSuccessText"></span></div></div>
   <div id="f11PromptModal" class="modal f11-prompt-modal is-hidden" role="dialog" aria-modal="true" aria-labelledby="f11PromptTitle"><div class="modal-card f11-prompt-card"><button id="closeF11PromptBtn" class="modal-close" type="button" aria-label="关闭全屏提示">×</button><p class="eyebrow">观影提示</p><h2 id="f11PromptTitle">按 F11 进入全屏观影</h2><p class="muted">全屏后仍可发送弹幕、聊天和私聊。<span id="f11PromptCountdown">提示将在 10 秒后自动关闭。</span></p><div class="f11-prompt-actions"><button id="enterF11NowBtn" class="primary-button" type="button">立即全屏</button><button id="ignoreF11OnceBtn" class="secondary-button" type="button">本次忽略</button></div><label class="f11-prompt-preference">下次提示<select id="f11PromptPreference"><option value="next">下次继续提示</option><option value="day">一天内不提示</option><option value="week">一周内不提示</option><option value="never">永久不提示</option></select></label><button id="saveF11PreferenceBtn" class="text-button" type="button">保存提示设置</button></div></div>
@@ -661,7 +661,7 @@
     <div class="modal-card app-dialog-card">
       <button id="appDialogCloseBtn" class="modal-close" type="button" aria-label="关闭窗口">×</button>
       <form id="appDialogForm" novalidate>
-        <p class="eyebrow">SyncWatch</p>
+        <p class="eyebrow">SyncWatch同步观影</p>
         <h2 id="appDialogTitle">请输入</h2>
         <p id="appDialogDescription" class="muted"></p>
         <label id="appDialogInputGroup"><span id="appDialogInputLabel">内容</span><span class="password-field"><input id="appDialogInput" type="text" autocomplete="off"><button id="appDialogPasswordToggle" class="password-toggle is-hidden" type="button" aria-label="显示密码" aria-pressed="false">显示</button></span></label>

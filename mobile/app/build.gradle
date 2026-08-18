@@ -100,7 +100,7 @@ tasks.register('prepareMobileServerAssets', Sync) {
 
         // Node.js Mobile is built without the Unicode property tables used by the
         // current path-to-regexp package. Express loads these expressions while
-        // booting, so use ASCII route-parameter names (all SyncWatch routes do).
+        // booting, so use ASCII route-parameter names (all SyncWatch同步观影 routes do).
         def routeRegexFile = new File(runtimeRoot, 'node_modules/path-to-regexp/dist/index.js')
         def routeRegexText = routeRegexFile.getText('UTF-8')
         def idStartLine = routeRegexText.readLines().find { it.startsWith('const ID_START = ') }
@@ -315,7 +315,7 @@ gradle.taskGraph.whenReady { graph ->
         task.project == project && (task.name ==~ /(?i).*(assemble|bundle|package).*release.*/)
     }
     if (requestsReleaseArtifact && !releaseSigningReady) {
-        throw new GradleException('A real SyncWatch release keystore is required. Debug signing is never used for release APK/AAB artifacts.')
+        throw new GradleException('A real SyncWatch同步观影 release keystore is required. Debug signing is never used for release APK/AAB artifacts.')
     }
 }
 

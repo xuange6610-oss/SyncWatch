@@ -303,12 +303,12 @@
         <p class="visual-kicker">Synchronized cinema</p>
         <div id="loginCubeScene" class="login-cube-scene" tabindex="0" aria-label="可拖动的登录立方体">
           <div id="loginCube" class="login-cube">
-            <section class="login-cube-face login-cube-front" data-login-cube-face="front"><span class="login-cube-face-icon">🎬</span><strong class="login-cube-face-title">同一帧，共此刻</strong><small class="login-cube-face-text">局域网 / 公网 · 智能同步 · SyncWatch 为您带来极致的观影体验</small></section>
+            <section class="login-cube-face login-cube-front" data-login-cube-face="front"><span class="login-cube-face-icon">🎬</span><strong class="login-cube-face-title">同一帧，共此刻</strong><small class="login-cube-face-text">局域网 / 公网 · 智能同步 · SyncWatch同步观影 为您带来极致的观影体验</small></section>
             <section class="login-cube-face login-cube-back" data-login-cube-face="back"><span class="login-cube-face-icon">📺</span><strong class="login-cube-face-title">稳定同步</strong><small class="login-cube-face-text">播放、暂停、进度与倍速保持一致</small></section>
             <section class="login-cube-face login-cube-right" data-login-cube-face="right"><span class="login-cube-face-icon">💬</span><strong class="login-cube-face-title">一起交流</strong><small class="login-cube-face-text">聊天、私聊、弹幕与表情实时送达</small></section>
             <section class="login-cube-face login-cube-left" data-login-cube-face="left"><span class="login-cube-face-icon">🎙️</span><strong class="login-cube-face-title">实时语音</strong><small class="login-cube-face-text">观影时也能自然地说说话</small></section>
             <section class="login-cube-face login-cube-top" data-login-cube-face="top"><span class="login-cube-face-icon">☁️</span><strong class="login-cube-face-title">多端连接</strong><small class="login-cube-face-text">电脑、网页与手机保持同步</small></section>
-            <section class="login-cube-face login-cube-bottom" data-login-cube-face="bottom"><span class="login-cube-face-icon">✨</span><strong class="login-cube-face-title">SyncWatch</strong><small class="login-cube-face-text">多端设备，随时连接</small></section>
+            <section class="login-cube-face login-cube-bottom" data-login-cube-face="bottom"><span class="login-cube-face-icon">✨</span><strong class="login-cube-face-title">SyncWatch同步观影</strong><small class="login-cube-face-text">多端设备，随时连接</small></section>
           </div>
           <canvas id="loginCubeModel" class="login-cube-model" aria-label="服务器自定义 3D 登录模型"></canvas>
         </div>
@@ -319,14 +319,14 @@
         <div class="brand"><span class="brand-mark">▶</span><div><strong>同步观影</strong><small>SYNCWATCH DESKTOP</small></div></div>
         <p class="eyebrow">独立客户端 · v2.1.5</p>
         <h1>连接此刻</h1>
-        <p class="intro">输入服务器或带房间号的网址。客户端会先验证 SyncWatch 服务，并同步服务器的登录视觉设置。</p>
+        <p class="intro">输入服务器或带房间号的网址。客户端会先验证 SyncWatch同步观影 服务，并同步服务器的登录视觉设置。</p>
         <form id="form">
           <label for="address">服务器地址</label>
           <div class="input-wrap"><input id="address" type="text" inputmode="url" autocomplete="url" spellcheck="false" placeholder="例如 https://watch.example.com/?room=ADMIN" required></div>
           <button id="open" type="submit">连接服务器</button>
           <small id="status" role="alert" aria-live="polite"></small>
         </form>
-        <footer>首次连接时会在本机创建 SyncWatch-Data。连接信息仅保存在当前电脑。</footer>
+        <footer>首次连接时会在本机创建 SyncWatch同步观影-Data。连接信息仅保存在当前电脑。</footer>
       </section>
     </main>
   </div>
@@ -337,12 +337,12 @@
     const DEFAULT_LOGIN_CUBE = Object.freeze({
       displayMode: 'cube', rotationDirection: 'right', autoRotate: true, inertia: true, rotationSpeed: 16,
       faces: [
-        { id: 'front', icon: '🎬', title: '同一帧，共此刻', text: '局域网 / 公网 · 智能同步 · SyncWatch 为您带来极致的观影体验', image: '' },
+        { id: 'front', icon: '🎬', title: '同一帧，共此刻', text: '局域网 / 公网 · 智能同步 · SyncWatch同步观影 为您带来极致的观影体验', image: '' },
         { id: 'back', icon: '📺', title: '稳定同步', text: '播放、暂停、进度与倍速保持一致', image: '' },
         { id: 'right', icon: '💬', title: '一起交流', text: '聊天、私聊、弹幕与表情实时送达', image: '' },
         { id: 'left', icon: '🎙️', title: '实时语音', text: '观影时也能自然地说说话', image: '' },
         { id: 'top', icon: '☁️', title: '多端连接', text: '电脑、网页与手机保持同步', image: '' },
-        { id: 'bottom', icon: '✨', title: 'SyncWatch', text: '多端设备，随时连接', image: '' }
+        { id: 'bottom', icon: '✨', title: 'SyncWatch同步观影', text: '多端设备，随时连接', image: '' }
       ]
     });
 

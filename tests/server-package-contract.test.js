@@ -40,8 +40,8 @@ assert.match(buildScript, /scripts\\collect-macos-distribution\.ps1/);
 assert.match(buildScript, /-SourceRoot\s+\$PSScriptRoot\s+-Destination\s+\$macDirectory\s+-Version\s+\$version/);
 assert.match(buildScript, /server\\standalone-tunnel\.js/);
 assert.match(buildScript, /vendor\\cloudflared\.exe/);
-assert.match(buildScript, /Join-Path\s+\$PSScriptRoot\s+['"]release\\windows-client\\SyncWatch-Client-v2\.1\.5\.exe['"]/);
-assert.doesNotMatch(buildScript, /Join-Path\s+\$PSScriptRoot\s+['"]SyncWatch-Client-v2\.1\.5\.exe['"]/,
+assert.match(buildScript, /Join-Path\s+\$PSScriptRoot\s+['"]release\\windows-client\\SyncWatch同步观影-Client-v2\.1\.5\.exe['"]/);
+assert.doesNotMatch(buildScript, /Join-Path\s+\$PSScriptRoot\s+['"]SyncWatch同步观影-Client-v2\.1\.5\.exe['"]/,
   'the server package must never fall back to a stale root-level client EXE');
 
 const compressionVersion = packageJson.dependencies.compression;
@@ -80,7 +80,7 @@ try {
   fs.mkdirSync(path.join(source, 'dist-mac-client'), { recursive: true });
   fs.writeFileSync(path.join(source, 'mac', serverZip), 'server-zip');
   fs.writeFileSync(path.join(source, 'dist-mac-client', clientDmg), 'client-dmg');
-  fs.writeFileSync(path.join(source, 'mac', 'SyncWatch-unrelated-v2.1.5-x64.zip'), 'unrelated');
+  fs.writeFileSync(path.join(source, 'mac', 'SyncWatch同步观影-unrelated-v2.1.5-x64.zip'), 'unrelated');
   fs.writeFileSync(path.join(source, 'mac', 'private-key.pem'), 'must-not-leak');
   fs.writeFileSync(path.join(source, 'mac', 'mac-distribution.json'), JSON.stringify({
     manifestVersion: 1,

@@ -24,7 +24,7 @@ function freePort() {
 
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'syncwatch-download-path-'));
   const unicodeRoot = path.join(tempRoot, '中文【服务器目录】');
-  const dataDir = path.join(unicodeRoot, 'SyncWatch-Data');
+  const dataDir = path.join(unicodeRoot, 'SyncWatch同步观影-Data');
   const clientPath = path.join(unicodeRoot, '客户端.exe');
   const apkPath = path.join(unicodeRoot, '安卓客户端.apk');
   const clientPayload = Buffer.from('syncwatch-client-download-payload');

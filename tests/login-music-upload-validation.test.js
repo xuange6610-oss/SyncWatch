@@ -42,7 +42,7 @@ function audioForm(entries) {
 
 async function main() {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'syncwatch-login-music-validation-'));
-  const dataDir = path.join(root, 'SyncWatch-Data');
+  const dataDir = path.join(root, 'SyncWatch同步观影-Data');
   const fixture = path.join(root, 'valid-login-music.wav');
   const generated = spawnSync(ffmpegPath, [
     '-y', '-hide_banner', '-loglevel', 'error',

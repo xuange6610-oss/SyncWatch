@@ -141,7 +141,7 @@ async function main() {
     }
     const mailSettings = await socketAck(authSocket, 'admin-action', {
       action: 'set-mail-settings', adminPassword: 'admin888', enabled: true,
-      user: 'browser-ui@qq.com', authCode: 'browser-ui-smtp-secret', fromName: 'SyncWatch 测试'
+      user: 'browser-ui@qq.com', authCode: 'browser-ui-smtp-secret', fromName: 'SyncWatch同步观影 测试'
     });
     assert.equal(mailSettings.success, true, mailSettings.error);
     const novelText = '第一章 同步开始\n\n这是一段通过鉴权 Range 读取的 TXT 小说预览。';

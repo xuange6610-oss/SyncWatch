@@ -909,7 +909,7 @@ async function run() {
   await window.webContents.executeJavaScript(`(() => {
     document.getElementById('mailUser').value = 'electron-sender@qq.com';
     document.getElementById('mailAuthCode').value = 'electron-qq-auth-code';
-    document.getElementById('mailFromName').value = 'Electron SyncWatch';
+    document.getElementById('mailFromName').value = 'Electron SyncWatch同步观影';
     document.getElementById('mailEnabled').checked = true;
     document.getElementById('saveMailSettingsBtn').click();
   })()`, true);

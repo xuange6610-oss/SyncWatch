@@ -29,16 +29,24 @@ const {
   preferredMacArchitecture: distributionPreferredMacArchitecture,
 } = require('./macos-distribution');
 
+function resolveDefaultDataDir(root = process.cwd()) {
+  const preferred = path.resolve(root, 'SyncWatch同步观影-Data');
+  const legacy = path.resolve(root, 'SyncWatch-Data');
+  if (fs.existsSync(preferred) || !fs.existsSync(legacy)) return preferred;
+  try { fs.renameSync(legacy, preferred); return preferred; }
+  catch (_) { return legacy; }
+}
+
 const APP_VERSION = 'v2.1.5';
-const DEFAULT_MARQUEE_TEXT = '欢迎使用SyncWatch~ 此软件由xuan独立开发  SyncWatch为您带来极致的同步观影体验~ 如需更改此公告请前往设置中进行修改哦~';
+const DEFAULT_MARQUEE_TEXT = '欢迎使用SyncWatch同步观影~ 此软件由xuan独立开发  SyncWatch同步观影为您带来极致的同步观影体验~ 如需更改此公告请前往设置中进行修改哦~';
 const LOGIN_CUBE_FACE_IDS = Object.freeze(['front', 'back', 'right', 'left', 'top', 'bottom']);
 const DEFAULT_LOGIN_CUBE_FACES = Object.freeze([
-  { id: 'front', icon: '🎬', title: '同一帧，共此刻', text: '局域网 / 公网 · 智能同步 · SyncWatch 为您带来极致的观影体验', image: '' },
+  { id: 'front', icon: '🎬', title: '同一帧，共此刻', text: '局域网 / 公网 · 智能同步 · SyncWatch同步观影 为您带来极致的观影体验', image: '' },
   { id: 'back', icon: '📺', title: '稳定同步', text: '播放、暂停、进度与倍速保持一致', image: '' },
   { id: 'right', icon: '💬', title: '一起交流', text: '聊天、私聊、弹幕与表情实时送达', image: '' },
   { id: 'left', icon: '🎙️', title: '实时语音', text: '观影时也能自然地说说话', image: '' },
   { id: 'top', icon: '☁️', title: '多端连接', text: '电脑、网页与手机保持同步', image: '' },
-  { id: 'bottom', icon: '✨', title: 'SyncWatch', text: '轻扫立方体，看看每一面', image: '' }
+  { id: 'bottom', icon: '✨', title: 'SyncWatch同步观影', text: '轻扫立方体，看看每一面', image: '' }
 ]);
 const LOGIN_CUBE_IMAGE_LIMIT_BYTES = 2 * 1024 * 1024;
 const LOGIN_CUBE_MODEL_LIMIT_BYTES = 25 * 1024 * 1024;
@@ -152,7 +160,7 @@ function defaultAvatarSvg(id) {
     `<circle cx="${faceX - faceRadius + 3}" cy="${faceY + 5}" r="5" fill="${palette[2]}"/><circle cx="${faceX + faceRadius - 3}" cy="${faceY + 5}" r="5" fill="${palette[2]}"/>`,
     `<path d="M${faceX - 25} ${faceY - 20}q25-18 50 0" fill="none" stroke="${palette[2]}" stroke-width="6" stroke-linecap="round"/>`
   ][variant % 5];
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-labelledby="title-${numericId}" data-avatar-id="${numericId}"><title id="title-${numericId}">SyncWatch 默认头像 ${numericId}</title><rect width="128" height="128" rx="24" fill="${palette[0]}"/>${backdrop}<path d="M18 128c3-31 20-46 46-46s43 15 46 46z" fill="${palette[2]}"/><path d="M42 94c7 8 14 12 22 12s15-4 22-12l8 34H34z" fill="${palette[3]}" opacity=".92"/><circle cx="${faceX}" cy="${faceY}" r="${faceRadius}" fill="${palette[1]}"/>${hair}${eyes}${mouth}${accessory}<circle cx="${badgeX}" cy="104" r="16" fill="${palette[3]}" stroke="${palette[2]}" stroke-width="3"/><text x="${badgeX}" y="109" fill="${palette[0]}" font-family="Segoe UI,Arial,sans-serif" font-size="13" font-weight="800" text-anchor="middle">${numericId}</text></svg>`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-labelledby="title-${numericId}" data-avatar-id="${numericId}"><title id="title-${numericId}">SyncWatch同步观影 默认头像 ${numericId}</title><rect width="128" height="128" rx="24" fill="${palette[0]}"/>${backdrop}<path d="M18 128c3-31 20-46 46-46s43 15 46 46z" fill="${palette[2]}"/><path d="M42 94c7 8 14 12 22 12s15-4 22-12l8 34H34z" fill="${palette[3]}" opacity=".92"/><circle cx="${faceX}" cy="${faceY}" r="${faceRadius}" fill="${palette[1]}"/>${hair}${eyes}${mouth}${accessory}<circle cx="${badgeX}" cy="104" r="16" fill="${palette[3]}" stroke="${palette[2]}" stroke-width="3"/><text x="${badgeX}" y="109" fill="${palette[0]}" font-family="Segoe UI,Arial,sans-serif" font-size="13" font-weight="800" text-anchor="middle">${numericId}</text></svg>`;
 }
 
 function pipeMediaFileResponse(req, res, target, options = {}, onError = () => {}, lifecycle = {}) {
@@ -200,7 +208,7 @@ function attachmentContentDisposition(filename) {
   const original = path.basename(String(filename || 'download')).replace(/[\r\n"]/g, '_') || 'download';
   const extension = path.extname(original).replace(/[^.A-Za-z0-9_-]/g, '');
   let fallback = original.normalize('NFKD').replace(/[^\x20-\x7e]/g, '_').replace(/[\\/";]/g, '_').trim();
-  if (!fallback || !/[A-Za-z0-9]/.test(fallback)) fallback = `SyncWatch-download${extension}`;
+  if (!fallback || !/[A-Za-z0-9]/.test(fallback)) fallback = `syncwatch-download${extension}`;
   if (fallback.length > 180) fallback = `${fallback.slice(0, Math.max(1, 180 - extension.length))}${extension}`;
   const encoded = encodeURIComponent(original).replace(/[!'()*]/g, (character) => `%${character.charCodeAt(0).toString(16).toUpperCase()}`);
   return `attachment; filename="${fallback}"; filename*=UTF-8''${encoded}`;
@@ -444,7 +452,7 @@ function normalizeMailSettings(value = {}) {
     user: legacyUser,
     fromEmail: cleanText(source.fromEmail || legacyUser, 254).toLowerCase(),
     recoveryEmail: /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(recoveryEmail) ? recoveryEmail : '',
-    fromName: cleanText(source.fromName || 'SyncWatch', 60) || 'SyncWatch',
+    fromName: cleanText(source.fromName || 'SyncWatch同步观影', 60) || 'SyncWatch同步观影',
     encryptedAuthCode: String(source.encryptedAuthCode || source.encryptedPassword || ''),
     registrationVerificationEnabled: source.registrationVerificationEnabled === true,
     bindingVerificationEnabled: source.bindingVerificationEnabled !== false,
@@ -587,7 +595,7 @@ function normalizeLegalAgreement(value = {}) {
   const version = sourceVersion === '2026-08-05' ? DEFAULT_LEGAL_AGREEMENT_VERSION : sourceVersion;
   return {
     version: version || DEFAULT_LEGAL_AGREEMENT_VERSION,
-    title: cleanText(source.title || 'SyncWatch 使用协议与合规声明', 80) || 'SyncWatch 使用协议与合规声明',
+    title: cleanText(source.title || 'SyncWatch同步观影 使用协议与合规声明', 80) || 'SyncWatch同步观影 使用协议与合规声明',
     text: cleanText(source.text || [
       '本软件仅用于合法的个人观影、远程协作、内容演示与经授权的媒体共享。',
       '用户不得利用本软件传播侵权、淫秽、暴力恐怖、诈骗、赌博、恶意程序或其他违反法律法规及公序良俗的内容，不得绕过版权保护、访问控制或平台安全措施。',
@@ -1384,7 +1392,7 @@ function acquireDataDirectoryLock(dataDirectory) {
         throw new Error(`数据目录 ${resolvedDirectory} 已被锁定，但锁信息损坏；为避免并发写坏数据，已停止启动。请确认没有其他实例运行后人工删除 ${lockDirectory}`);
       }
       if (activeDataLockOwner(existingOwner, canonicalDirectory)) {
-        const conflict = new Error(`数据目录 ${resolvedDirectory} 正在被另一个 SyncWatch 实例占用（${dataLockDescription(existingOwner)}）。请先关闭原实例，或为新实例指定不同的 SyncWatch-Data 目录`);
+        const conflict = new Error(`数据目录 ${resolvedDirectory} 正在被另一个 SyncWatch同步观影 实例占用（${dataLockDescription(existingOwner)}）。请先关闭原实例，或为新实例指定不同的 SyncWatch同步观影-Data 目录`);
         conflict.code = 'SYNCWATCH_DATA_LOCKED';
         conflict.dataDirectory = resolvedDirectory;
         conflict.lockDirectory = lockDirectory;
@@ -1596,7 +1604,7 @@ function captureProcess(command, args, timeoutMs = 30000, processTracker = null,
 }
 
 function writeDataDirectoryGuide(dataDir) {
-  const guide = `SyncWatch ${APP_VERSION} 数据目录说明
+  const guide = `SyncWatch同步观影 ${APP_VERSION} 数据目录说明
 ============================================================
 
 本目录由程序自动创建。除 cache、logs 和 crash-dumps 外，其余内容都可能包含重要业务数据。
@@ -1704,7 +1712,7 @@ async function startSyncWatchServer(options = {}) {
   // deployment can be moved as one folder without losing accounts, media,
   // chat history, recovery secrets, or caches. Callers can still provide an
   // explicit directory (tests, containers, and Android do this).
-  const dataDir = path.resolve(options.dataDir || process.env.SYNCWATCH_DATA_DIR || path.join(process.cwd(), 'SyncWatch-Data'));
+  const dataDir = path.resolve(options.dataDir || process.env.SYNCWATCH_DATA_DIR || resolveDefaultDataDir());
   const uploadsDir = path.join(dataDir, 'uploads');
   const thumbnailsDir = path.join(dataDir, 'thumbnails');
   const subtitlesDir = path.join(dataDir, 'subtitles');
@@ -1725,7 +1733,7 @@ async function startSyncWatchServer(options = {}) {
   const mailKeyFile = path.join(secretsDir, 'mail.key');
   const hostControlToken = String(options.hostControlToken || '');
   const tunnelManager = options.tunnelManager || null;
-  const androidApkPath = path.resolve(options.androidApkPath || path.join(__dirname, '..', 'mobile', 'SyncWatch-v2.1.5.apk'));
+  const androidApkPath = path.resolve(options.androidApkPath || path.join(__dirname, '..', 'mobile', 'SyncWatch同步观影-v2.1.5.apk'));
   const clientDownloadPath = options.clientDownloadPath ? path.resolve(options.clientDownloadPath) : '';
   const macServerDownloadPaths = normalizeMacDownloadPaths(options.macServerDownloadPaths);
   const macClientDownloadPaths = normalizeMacDownloadPaths(options.macClientDownloadPaths);
@@ -2170,7 +2178,7 @@ async function startSyncWatchServer(options = {}) {
     if (mailKeyCache) return mailKeyCache;
     if (fs.existsSync(mailKeyFile)) {
       const decoded = Buffer.from(fs.readFileSync(mailKeyFile, 'utf8').trim(), 'base64');
-      if (decoded.length !== 32) throw new Error('邮件密钥文件已损坏，请从完整的 SyncWatch-Data 备份恢复');
+      if (decoded.length !== 32) throw new Error('邮件密钥文件已损坏，请从完整的 SyncWatch同步观影-Data 备份恢复');
       mailKeyCache = decoded;
       return mailKeyCache;
     }
@@ -2196,7 +2204,7 @@ async function startSyncWatchServer(options = {}) {
     const [version, ivValue, tagValue, ciphertextValue] = encoded.split('.');
     if (version !== 'v1' || !ivValue || !tagValue || !ciphertextValue) throw new Error('邮件授权码密文格式无效');
     const key = mailEncryptionKey(false);
-    if (!key) throw new Error('邮件密钥缺失，请恢复完整的 SyncWatch-Data/.secrets 目录');
+    if (!key) throw new Error('邮件密钥缺失，请恢复完整的 SyncWatch同步观影-Data/.secrets 目录');
     const decipher = crypto.createDecipheriv('aes-256-gcm', key, Buffer.from(ivValue, 'base64url'));
     decipher.setAuthTag(Buffer.from(tagValue, 'base64url'));
     return Buffer.concat([decipher.update(Buffer.from(ciphertextValue, 'base64url')), decipher.final()]).toString('utf8');
@@ -3168,7 +3176,7 @@ async function startSyncWatchServer(options = {}) {
   function registrationEmailVerificationError() {
     const mail = publicMailSettings();
     if (!mail.enabled) return '服务器当前未启用 SMTP 邮件服务';
-    if (!mail.configured) return '服务器已启用注册邮箱验证，但 SMTP 配置不可用，请检查 SMTP 设置或恢复 SyncWatch-Data/.secrets/mail.key';
+    if (!mail.configured) return '服务器已启用注册邮箱验证，但 SMTP 配置不可用，请检查 SMTP 设置或恢复 SyncWatch同步观影-Data/.secrets/mail.key';
     return '';
   }
 
@@ -3188,10 +3196,10 @@ async function startSyncWatchServer(options = {}) {
     const key = `${safeEvent}:${safeLocale}`;
     const template = mail.templates?.[key] || defaultMailTemplates()[key] || defaultMailTemplates()[`${safeEvent}:zh-CN`];
     const replacements = {
-      site_name: 'SyncWatch', recipient_name: values.recipientName || values.accountName || 'SyncWatch 用户',
+      site_name: 'SyncWatch同步观影', recipient_name: values.recipientName || values.accountName || 'SyncWatch同步观影 用户',
       recipient_email: values.recipientEmail || '', verification_code: values.verificationCode || '123456',
       expires_in_minutes: values.expiresInMinutes || Math.floor(PASSWORD_RESET_CODE_TTL_MS / 60000),
-      action_name: values.actionName || '验证邮箱', account_name: values.accountName || 'SyncWatch 账号'
+      action_name: values.actionName || '验证邮箱', account_name: values.accountName || 'SyncWatch同步观影 账号'
     };
     const replace = (input, escapeValues = true) => String(input || '').replace(/\{\{\s*([a-z_]+)\s*\}\}/gi, (_match, name) => {
       const value = Object.hasOwn(replacements, name) ? replacements[name] : '';
@@ -3457,7 +3465,7 @@ async function startSyncWatchServer(options = {}) {
     try {
       await sendConfiguredMail({ to: email, ...renderMailTemplate('verification', {
         recipientName: cleanText(payload.username, 24) || '新用户', recipientEmail: email,
-        verificationCode: code, actionName: '注册邮箱', accountName: cleanText(payload.username, 24) || 'SyncWatch 账号',
+        verificationCode: code, actionName: '注册邮箱', accountName: cleanText(payload.username, 24) || 'SyncWatch同步观影 账号',
         expiresInMinutes: Math.floor(PASSWORD_RESET_CODE_TTL_MS / 60000)
       }) });
     } catch (error) {
@@ -5291,7 +5299,7 @@ async function startSyncWatchServer(options = {}) {
   app.use((req, res, next) => {
     if (state.admin.lanAccessEnabled !== false || !requestIsLanClient(req)) return next();
     if (req.path.startsWith('/api/')) return res.status(403).json({ success: false, code: 'LAN_ACCESS_DISABLED', error: '服务器已关闭局域网地址访问，请使用公网地址连接' });
-    return res.status(403).type('text/plain').send('SyncWatch 已关闭局域网地址访问，请使用公网地址连接。');
+    return res.status(403).type('text/plain').send('SyncWatch同步观影 已关闭局域网地址访问，请使用公网地址连接。');
   });
   app.use((req, res, next) => {
     res.setHeader('X-Content-Type-Options', 'nosniff');
@@ -5464,7 +5472,7 @@ async function startSyncWatchServer(options = {}) {
       catch (_) { forgetTunnelUrl(); }
     }
     return res.json({
-    name: 'SyncWatch', version: APP_VERSION, roomName: roomConfig(state.defaultRoomId).name, roomId: state.defaultRoomId,
+    name: 'SyncWatch同步观影', version: APP_VERSION, roomName: roomConfig(state.defaultRoomId).name, roomId: state.defaultRoomId,
     defaultRoomId: state.defaultRoomId, roomsEnabled: true,
     accessPasswordRequired: Boolean(roomConfig(state.defaultRoomId).passwordHash), defaultAdminPassword: Boolean(state.admin.mustChangePassword),
     maxUploadBytes: state.admin.uploadLimitBytes || DEFAULT_USER_UPLOAD_LIMIT_BYTES, uploadTimeLimitSeconds: state.admin.uploadTimeLimitSeconds,
@@ -5525,7 +5533,7 @@ async function startSyncWatchServer(options = {}) {
 
   app.get('/api/client-download', httpRateLimit('client-download', 12, 60 * 60 * 1000), (req, res) => {
     if (!clientDownloadPath || !fs.existsSync(clientDownloadPath)) return res.status(404).json({ success: false, error: '电脑客户端安装程序尚未放入服务器部署目录' });
-    return serveFileDownload(req, res, clientDownloadPath, 'SyncWatch-Client-v2.1.5.exe');
+    return serveFileDownload(req, res, clientDownloadPath, 'SyncWatch同步观影-Client-v2.1.5.exe');
   });
 
   app.get('/api/macos-server-download', httpRateLimit('macos-server-download', 12, 60 * 60 * 1000), (req, res) => {
@@ -5535,7 +5543,7 @@ async function startSyncWatchServer(options = {}) {
       availableArchitectures: availableMacArchitectures(macServerDistribution),
       error: '苹果服务器安装包尚未提供。请在 macOS 构建机或 CI 生成 DMG/ZIP，或在 mac/mac-distribution.json 配置 HTTPS 发布地址。'
     });
-    const filename = `SyncWatch-服务器-v2.1.5-${selected.architecture}.${selected.artifact.format}`;
+    const filename = `SyncWatch同步观影-服务器-v2.1.5-${selected.architecture}.${selected.artifact.format}`;
     if (selected.artifact.source === 'remote') {
       res.setHeader('Referrer-Policy', 'no-referrer');
       return res.redirect(302, selected.artifact.url);
@@ -5550,7 +5558,7 @@ async function startSyncWatchServer(options = {}) {
       availableArchitectures: availableMacArchitectures(macClientDistribution),
       error: '苹果客户端安装包尚未提供。请在 macOS 构建机或 CI 生成 DMG/ZIP，或在 mac/mac-distribution.json 配置 HTTPS 发布地址。'
     });
-    const filename = `SyncWatch-客户端-v2.1.5-${selected.architecture}.${selected.artifact.format}`;
+    const filename = `SyncWatch同步观影-客户端-v2.1.5-${selected.architecture}.${selected.artifact.format}`;
     if (selected.artifact.source === 'remote') {
       res.setHeader('Referrer-Policy', 'no-referrer');
       return res.redirect(302, selected.artifact.url);
@@ -5635,7 +5643,7 @@ async function startSyncWatchServer(options = {}) {
 
   app.get('/api/android-apk', httpRateLimit('android-apk-download', 12, 60 * 60 * 1000), (req, res) => {
     if (!fs.existsSync(androidApkPath)) return res.status(404).json({ success: false, error: '安卓安装包尚未生成' });
-    return serveFileDownload(req, res, androidApkPath, 'SyncWatch-v2.1.5.apk');
+    return serveFileDownload(req, res, androidApkPath, 'SyncWatch同步观影-v2.1.5.apk');
   });
 
   const mediaRoute = (req, res) => {
@@ -7057,7 +7065,7 @@ async function startSyncWatchServer(options = {}) {
 
   async function streamBackupArchive(res, metadata, entries) {
     res.type('application/vnd.syncwatch.backup');
-    res.setHeader('Content-Disposition', `attachment; filename="SyncWatch-v2.1.5-${metadata.scope}.swbackup"`);
+    res.setHeader('Content-Disposition', attachmentContentDisposition(`SyncWatch同步观影-v2.1.5-${metadata.scope}.swbackup`));
     const metadataBuffer = Buffer.from(JSON.stringify(metadata), 'utf8');
     const entryBuffers = entries.map((entry) => ({
       entry,
@@ -7098,7 +7106,7 @@ async function startSyncWatchServer(options = {}) {
     try {
       const stats = fs.fstatSync(fd); let position = 0;
       const magic = readBackupChunk(fd, BACKUP_ARCHIVE_MAGIC.length, position); position += magic.length;
-      if (!magic.equals(BACKUP_ARCHIVE_MAGIC)) throw new Error('不是有效的 SyncWatch 二进制备份');
+      if (!magic.equals(BACKUP_ARCHIVE_MAGIC)) throw new Error('不是有效的 SyncWatch同步观影 二进制备份');
       const metadataLength = Number(readBackupChunk(fd, 8, position).readBigUInt64BE()); position += 8;
       if (!Number.isSafeInteger(metadataLength) || metadataLength <= 0 || metadataLength > 512 * 1024 * 1024) throw new Error('备份元数据长度无效');
       const metadata = JSON.parse(readBackupChunk(fd, metadataLength, position).toString('utf8')); position += metadataLength;
@@ -7307,12 +7315,12 @@ async function startSyncWatchServer(options = {}) {
         output.dataManifest = entries.map(({ relativePath, size, sha256, scope }) => ({ relativePath, size, sha256, scope }));
         if (req.query.format !== 'binary') output.dataFiles = entries.map((entry) => ({ relativePath: entry.relativePath, size: entry.size, sha256: entry.sha256, scope: entry.scope, data: fs.readFileSync(entry.path).toString('base64') }));
       }
-      output.note = '导出文件包含所选 SyncWatch 业务数据、配置、秘密密钥与媒体文件；不包含 cache、日志、客户端缓存、运行锁和导入临时文件。';
+      output.note = '导出文件包含所选 SyncWatch同步观影 业务数据、配置、秘密密钥与媒体文件；不包含 cache、日志、客户端缓存、运行锁和导入临时文件。';
       if (req.query.format === 'binary') {
         const entries = fullSnapshot ? backupDataEntries(scopes) : (scopes.includes('media-index') ? backupArtifactEntries(state.files) : []);
         return await streamBackupArchive(res, output, entries);
       }
-      res.setHeader('Content-Disposition', `attachment; filename="SyncWatch-v2.1.5-${output.scope}.json"`);
+      res.setHeader('Content-Disposition', attachmentContentDisposition(`SyncWatch同步观影-v2.1.5-${output.scope}.json`));
       return res.json(output);
     } catch (error) { return next(error); }
   });
@@ -7327,7 +7335,7 @@ async function startSyncWatchServer(options = {}) {
     try {
       await new Promise((resolve, reject) => pipeline(req, fs.createWriteStream(temporary, { flags: 'wx' }), (error) => error ? reject(error) : resolve()));
       const { metadata: payload, artifacts } = parseBackupArchive(temporary);
-      if (!payload || payload.kind !== 'syncwatch-data-export') throw new Error('不是有效的 SyncWatch 备份文件');
+      if (!payload || payload.kind !== 'syncwatch-data-export') throw new Error('不是有效的 SyncWatch同步观影 备份文件');
       const scopes = normalizeBackupScopes(req.query.scopes || payload.scopes || payload.scope);
       const clone = (value) => JSON.parse(JSON.stringify(value));
       if (payload.fullSnapshot && Number(payload.archiveVersion) >= 3 && isFullBackupScope(scopes)) {
@@ -7382,7 +7390,7 @@ async function startSyncWatchServer(options = {}) {
   app.post('/api/host/data/import', requireSession, requireHost, async (req, res, next) => {
     try {
       const payload = req.body && typeof req.body === 'object' ? req.body : null;
-      if (!payload || payload.kind !== 'syncwatch-data-export') return res.status(400).json({ success: false, error: '不是有效的 SyncWatch 备份文件' });
+      if (!payload || payload.kind !== 'syncwatch-data-export') return res.status(400).json({ success: false, error: '不是有效的 SyncWatch同步观影 备份文件' });
       const scopes = normalizeBackupScopes(req.query.scopes || payload.scopes || payload.scope);
       const clone = (value) => JSON.parse(JSON.stringify(value));
       if (payload.fullSnapshot && Number(payload.archiveVersion) >= 3 && isFullBackupScope(scopes)) {
@@ -8171,7 +8179,7 @@ async function startSyncWatchServer(options = {}) {
           success: false, code: 'REGISTRATION_EMAIL_SMTP_UNAVAILABLE',
           error: email
             ? '填写邮箱后必须完成验证码验证；当前 SMTP 服务不可用，请清空邮箱继续注册或联系管理员修复邮件设置'
-            : '服务器要求使用邮箱验证码注册，但 SMTP 配置不可用，请管理员检查邮件设置或恢复 SyncWatch-Data/.secrets/mail.key'
+            : '服务器要求使用邮箱验证码注册，但 SMTP 配置不可用，请管理员检查邮件设置或恢复 SyncWatch同步观影-Data/.secrets/mail.key'
         });
       }
       if (policyRequiresEmail && !email) return finishRegistration({ success: false, code: 'REGISTRATION_EMAIL_REQUIRED', error: '当前服务器要求使用邮箱验证码注册，请先填写邮箱' });
@@ -8222,7 +8230,7 @@ async function startSyncWatchServer(options = {}) {
         recordOperation({ roomId: state.defaultRoomId, actor: username, action: 'account-register', summary: `注册账号：${username}`, scope: 'server' });
         if (state.admin.registrationAccountNoticeEnabled !== false) {
           const registrationNotice = {
-            kind: 'account-registration', actor: 'system', actorName: 'SyncWatch',
+            kind: 'account-registration', actor: 'system', actorName: 'SyncWatch同步观影',
             message: `新账号已注册：${state.accounts[username].displayName || username}（${username}）`,
             username, displayName: state.accounts[username].displayName || username,
             registeredAt: state.accounts[username].createdAt
@@ -11443,7 +11451,7 @@ async function startSyncWatchServer(options = {}) {
         const recoveryEmail = Object.hasOwn(payload, 'recoveryEmail')
           ? cleanText(payload.recoveryEmail, 254).toLowerCase()
           : currentMail.recoveryEmail;
-        const fromName = cleanText(payload.fromName || 'SyncWatch', 60) || 'SyncWatch';
+        const fromName = cleanText(payload.fromName || 'SyncWatch同步观影', 60) || 'SyncWatch同步观影';
         const authCode = String(payload.password ?? payload.authCode ?? '');
         const enabled = Boolean(payload.enabled);
         if (!host || /[^a-z0-9.\-_:]/i.test(host) || /:\/\//.test(host)) return acknowledgement?.({ success: false, error: 'SMTP 主机格式不正确，请只填写域名或 IP 地址' });
@@ -12732,7 +12740,7 @@ async function startSyncWatchServer(options = {}) {
   rememberAllowedUrl(`http://localhost:${actualPort}`);
   rememberAllowedUrl(`http://${os.hostname()}:${actualPort}`);
   for (const address of addresses) rememberAllowedUrl(address);
-  console.log(`SyncWatch ${APP_VERSION} 已启动: http://127.0.0.1:${actualPort}`);
+  console.log(`SyncWatch同步观影 ${APP_VERSION} 已启动: http://127.0.0.1:${actualPort}`);
   for (const address of addresses) console.log(`局域网地址: ${address}`);
   if (requestedPort !== 0 && options.discovery !== false) {
     try {
@@ -12740,7 +12748,7 @@ async function startSyncWatchServer(options = {}) {
       discoverySocket.on('message', (message, remote) => {
         if (!privateOrLoopbackAddress(remote.address) || String(message).trim() !== 'SYNCWATCH_DISCOVER_V1') return;
         const payload = Buffer.from(JSON.stringify({
-          protocol: 'SYNCWATCH_DISCOVER_V1', name: 'SyncWatch-v2.1.5', server: os.hostname(), version: APP_VERSION,
+          protocol: 'SYNCWATCH_DISCOVER_V1', name: 'SyncWatch同步观影-v2.1.5', server: os.hostname(), version: APP_VERSION,
           port: actualPort, addresses: networkAddresses(actualPort),
           rooms: Object.values(state.rooms).filter((room) => visibleRoom(room) && !room.archived).map((room) => ({
             id: room.id, name: room.name, maxUsers: room.maxUsers, online: roomUsers(room.id).length, passwordRequired: Boolean(room.passwordHash)
@@ -12927,7 +12935,7 @@ if (require.main === module) {
 }
 
 module.exports = {
-  APP_VERSION, FILE_TYPES, startSyncWatchServer,
+  APP_VERSION, FILE_TYPES, startSyncWatchServer, resolveDefaultDataDir,
   _test: {
     captureProcess, requestHostHeader, requestUsesForwardedHttps, requestUsesPublicProxy, socketOriginAllowed, pipeMediaFileResponse,
     attachmentContentDisposition, downloadMimeType,

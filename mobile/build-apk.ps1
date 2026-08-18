@@ -1,4 +1,4 @@
-$ErrorActionPreference = 'Stop'
+﻿$ErrorActionPreference = 'Stop'
 Set-Location -LiteralPath $PSScriptRoot
 
 $NodeMobileVersion = '18.20.4'
@@ -60,7 +60,7 @@ function Resolve-NodeMobileRuntime {
 
     $localAppData = [Environment]::GetFolderPath('LocalApplicationData')
     if (-not $localAppData) { throw 'Unable to resolve LocalApplicationData for the Node.js Mobile build cache.' }
-    $cacheRoot = Join-Path $localAppData 'SyncWatch\android-build-cache'
+    $cacheRoot = Join-Path $localAppData 'SyncWatch同步观影\android-build-cache'
     $runtimeRoot = Join-Path $cacheRoot "nodejs-mobile-v$NodeMobileVersion-android-$($NodeMobileArchiveSha256.Substring(0, 12))"
     if (Test-Path -LiteralPath $runtimeRoot -PathType Container) {
         return Assert-NodeMobileRuntime $runtimeRoot
@@ -391,8 +391,8 @@ function Assert-ApkPayload([string]$apkPath, [string]$repositoryRoot) {
             }
         }
 
-        if ($entries.Keys | Where-Object { $_ -match '^assets/syncwatch/(?:mobile/)?SyncWatch-v2\.1\.5\.apk$' }) {
-            throw 'APK recursively contains another SyncWatch Android APK.'
+        if ($entries.Keys | Where-Object { $_ -match '^assets/syncwatch/(?:mobile/)?SyncWatch同步观影-v2\.1\.5\.apk$' }) {
+            throw 'APK recursively contains another SyncWatch同步观影 Android APK.'
         }
 
         Write-Host "APK payload verified: $($productionDependencies.Count) Node packages, $((Get-ChildItem -LiteralPath $publicRoot -Recurse -File).Count) public files, 3 native ABIs." -ForegroundColor Green
@@ -480,7 +480,7 @@ if ($env:SYNCWATCH_ANDROID_OFFLINE -eq '1') { $gradleArgs = @('--offline') + $gr
 if ($LASTEXITCODE -ne 0) { throw 'Android release build failed.' }
 
 $builtApk = Join-Path $PSScriptRoot 'app\build\outputs\apk\release\app-release.apk'
-$deliveryApk = Join-Path $PSScriptRoot 'SyncWatch-v2.1.5.apk'
+$deliveryApk = Join-Path $PSScriptRoot 'SyncWatch同步观影-v2.1.5.apk'
 if (-not (Test-Path -LiteralPath $builtApk)) { throw 'Gradle completed without the expected release APK.' }
 
 $buildTools = Join-Path $sdk 'build-tools\35.0.0'
@@ -491,8 +491,10 @@ $signatureReport = Join-Path ([System.IO.Path]::GetTempPath()) ('syncwatch-signa
 $signatureErrors = Join-Path ([System.IO.Path]::GetTempPath()) ('syncwatch-signature-errors-' + [Guid]::NewGuid().ToString('N') + '.txt')
 try {
     Copy-Item -LiteralPath $builtApk -Destination $verificationApk -Force
-    $badging = (& $aapt dump badging $verificationApk | Select-Object -First 1)
-    if ($LASTEXITCODE -ne 0 -or $badging -notmatch "name='com\.tangjingxuan\.syncwatch'" -or
+    $badgingOutput = & $aapt dump badging $verificationApk
+    $aaptExitCode = $LASTEXITCODE
+    $badging = $badgingOutput | Select-Object -First 1
+    if ($aaptExitCode -ne 0 -or $badging -notmatch "name='com\.tangjingxuan\.syncwatch'" -or
         $badging -notmatch "versionCode='20105'" -or $badging -notmatch "versionName='2\.1\.5'") {
         throw "APK package metadata verification failed: $badging"
     }

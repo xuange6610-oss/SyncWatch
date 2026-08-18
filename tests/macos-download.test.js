@@ -16,10 +16,10 @@ async function main() {
   fs.writeFileSync(emptyArtifact, '');
   fs.writeFileSync(disguisedArtifact, 'not a ZIP');
   const files = {
-    serverX64: path.join(artifactsDir, 'SyncWatch-服务器-v2.1.5-x64.zip'),
-    serverArm64: path.join(artifactsDir, 'SyncWatch-服务器-v2.1.5-arm64.dmg'),
-    clientX64: path.join(artifactsDir, 'SyncWatch-客户端-v2.1.5-x64.dmg'),
-    clientArm64: path.join(artifactsDir, 'SyncWatch-客户端-v2.1.5-arm64.zip')
+    serverX64: path.join(artifactsDir, 'SyncWatch同步观影-服务器-v2.1.5-x64.zip'),
+    serverArm64: path.join(artifactsDir, 'SyncWatch同步观影-服务器-v2.1.5-arm64.dmg'),
+    clientX64: path.join(artifactsDir, 'SyncWatch同步观影-客户端-v2.1.5-x64.dmg'),
+    clientArm64: path.join(artifactsDir, 'SyncWatch同步观影-客户端-v2.1.5-arm64.zip')
   };
   for (const [name, filename] of Object.entries(files)) fs.writeFileSync(filename, `syncwatch-${name}`);
 
@@ -72,7 +72,7 @@ async function main() {
       ffprobePath: '', ffmpegPath: '',
       discoverDefaultMacArtifacts: false,
       macDistributionRoots: [artifactsDir],
-      macClientDownloadUrls: { arm64: { dmg: 'https://downloads.example.test/SyncWatch-客户端-v2.1.5-arm64.dmg' } }
+      macClientDownloadUrls: { arm64: { dmg: 'https://downloads.example.test/SyncWatch同步观影-客户端-v2.1.5-arm64.dmg' } }
     });
     const baseUrl = `http://127.0.0.1:${server.port}`;
     const configResponse = await fetch(`${baseUrl}/api/public-config`);
@@ -84,26 +84,26 @@ async function main() {
 
     const serverResponse = await fetch(`${baseUrl}/api/macos-server-download?arch=arm64`);
     assert.equal(serverResponse.status, 200);
-    assert.match(serverResponse.headers.get('content-disposition') || '', /SyncWatch-[^;]+-arm64\.dmg/i);
+    assert.match(decodeURIComponent(serverResponse.headers.get('content-disposition') || ''), /SyncWatch同步观影-[^;]+-arm64\.dmg/i);
     assert.equal(await serverResponse.text(), 'syncwatch-serverArm64');
 
     const zipResponse = await fetch(`${baseUrl}/api/macos-server-download?arch=x64`);
     assert.equal(zipResponse.status, 200);
-    assert.match(zipResponse.headers.get('content-disposition') || '', /SyncWatch-[^;]+-x64\.zip/i);
+    assert.match(decodeURIComponent(zipResponse.headers.get('content-disposition') || ''), /SyncWatch同步观影-[^;]+-x64\.zip/i);
     assert.equal(await zipResponse.text(), 'syncwatch-serverX64');
 
     const clientResponse = await fetch(`${baseUrl}/api/macos-client-download?arch=arm64`, { redirect: 'manual' });
     assert.equal(clientResponse.status, 302);
-    assert.match(clientResponse.headers.get('location') || '', /downloads\.example\.test\/SyncWatch-.+arm64\.dmg/i);
+    assert.match(decodeURIComponent(clientResponse.headers.get('location') || ''), /downloads\.example\.test\/SyncWatch同步观影-.+arm64\.dmg/i);
     const localClient = await fetch(`${baseUrl}/api/macos-client-download?arch=x64`);
     assert.equal(localClient.status, 200);
-    assert.match(localClient.headers.get('content-disposition') || '', /SyncWatch-[^;]+-x64\.dmg/i);
+    assert.match(decodeURIComponent(localClient.headers.get('content-disposition') || ''), /SyncWatch同步观影-[^;]+-x64\.dmg/i);
     assert.equal(await localClient.text(), 'syncwatch-clientX64');
     const unavailable = await fetch(`${baseUrl}/api/macos-client-download?arch=x64&format=zip`);
     assert.equal(unavailable.status, 404, 'an explicitly unavailable format must not silently change architecture or format');
     const wrongFormat = await fetch(`${baseUrl}/api/macos-client-download?arch=arm64&format=zip`);
     assert.equal(wrongFormat.status, 200, 'local ZIP fallback remains available');
-    assert.match(wrongFormat.headers.get('content-disposition') || '', /SyncWatch-[^;]+-arm64\.zip/i);
+    assert.match(decodeURIComponent(wrongFormat.headers.get('content-disposition') || ''), /SyncWatch同步观影-[^;]+-arm64\.zip/i);
   } finally {
     await server?.close();
     fs.rmSync(dataDir, { recursive: true, force: true });

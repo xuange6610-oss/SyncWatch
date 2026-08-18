@@ -135,7 +135,7 @@ function aiParseConfigText(value) {
   if (plainUrl && plainKey) return aiNormalizeImportedConfig({ baseUrl: plainUrl, apiKey: plainKey });
   if (/^https:\/\//i.test(unfenced) && !/[\s\n]/.test(unfenced)) return aiNormalizeImportedConfig({ baseUrl: unfenced });
   if (/^(?:Bearer\s+)?[A-Za-z0-9._~+/=-]{16,4096}$/i.test(unfenced)) return aiNormalizeImportedConfig({ apiKey: unfenced });
-  throw new Error('无法识别配置。请粘贴 SyncWatch JSON、OpenAI 兼容 .env，或单独的 HTTPS 地址/API 密钥');
+  throw new Error('无法识别配置。请粘贴 SyncWatch同步观影 JSON、OpenAI 兼容 .env，或单独的 HTTPS 地址/API 密钥');
 }
 
 function aiDefaultConfig() {
@@ -209,7 +209,7 @@ function initializeAiWorkbench() {
       <div class="modal-card ai-workbench-card">
         <button id="closeAiWorkbenchBtn" class="modal-close" type="button" aria-label="关闭 AI 工作台">×</button>
         <header class="ai-workbench-header">
-          <div><p class="eyebrow">SyncWatch 智能创作</p><h2 id="aiWorkbenchTitle">AI 聊天</h2><p>通过服务器安全中转连接兼容 API，支持对话、图片和视频生成。</p></div>
+          <div><p class="eyebrow">SyncWatch同步观影 智能创作</p><h2 id="aiWorkbenchTitle">AI 聊天</h2><p>通过服务器安全中转连接兼容 API，支持对话、图片和视频生成。</p></div>
           <div class="ai-mode-switch" role="tablist" aria-label="AI 模式">
             <button class="active" data-ai-mode="chat" type="button">对话</button>
             <button data-ai-mode="image" type="button">生图</button>
@@ -772,7 +772,7 @@ async function aiRefreshModels(testOnly = false) {
 function aiExportHistory() {
   const payload = { format: 'syncwatch-ai-history', version: 2, exportedAt: new Date().toISOString(), conversations: aiNormalizeConversations(state.aiWorkbench?.conversations || []) };
   const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json;charset=utf-8' });
-  const url = URL.createObjectURL(blob); const link = document.createElement('a'); link.href = url; link.download = `SyncWatch-AI-${new Date().toISOString().slice(0, 10)}.json`; link.click();
+  const url = URL.createObjectURL(blob); const link = document.createElement('a'); link.href = url; link.download = `SyncWatch同步观影-AI-${new Date().toISOString().slice(0, 10)}.json`; link.click();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
@@ -781,7 +781,7 @@ async function aiImportHistory(event) {
   if (!file) return;
   try {
     const payload = JSON.parse(await file.text());
-    if (payload?.format !== 'syncwatch-ai-history' || !Array.isArray(payload.conversations)) throw new Error('不是有效的 SyncWatch AI 历史文件');
+    if (payload?.format !== 'syncwatch-ai-history' || !Array.isArray(payload.conversations)) throw new Error('不是有效的 SyncWatch同步观影 AI 历史文件');
     const imported = aiNormalizeConversations(payload.conversations);
     if (!imported.length) throw new Error('导入文件中没有对话记录');
     aiCancelVideoPolls();
@@ -822,7 +822,7 @@ async function aiExportConfig() {
   const config = state.aiWorkbench?.config;
   if (!config) return;
   const exported = aiShareableConfig(config);
-  aiDownloadJson({ format: AI_CONFIG_FORMAT, version: 2, exportedAt: new Date().toISOString(), secretsIncluded: false, config: exported }, `SyncWatch-AI-Config-${new Date().toISOString().slice(0, 10)}.json`);
+  aiDownloadJson({ format: AI_CONFIG_FORMAT, version: 2, exportedAt: new Date().toISOString(), secretsIncluded: false, config: exported }, `SyncWatch同步观影-AI-Config-${new Date().toISOString().slice(0, 10)}.json`);
   if (elements.aiConfigStatus) elements.aiConfigStatus.textContent = '配置已安全导出，文件不包含任何 API 密钥。';
 }
 

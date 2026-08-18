@@ -358,7 +358,7 @@ async function main() {
     const mailAuthCode = 'MAIL_SECRET_QQ_AUTH_2026';
     result = await host.emit('admin-action', {
       action: 'set-mail-settings', adminPassword: 'admin888', user: 'sender@qq.com', authCode: mailAuthCode,
-      fromName: 'SyncWatch 测试', enabled: true
+      fromName: 'SyncWatch同步观影 测试', enabled: true
     });
     assert.equal(result.success, true, result.error);
     assert.equal(result.mail.enabled, true); assert.equal(result.mail.configured, true);

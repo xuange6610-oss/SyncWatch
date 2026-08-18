@@ -12,8 +12,8 @@ const root = path.resolve(process.argv[2] || '');
 if (!root || !fs.existsSync(path.join(root, 'server-standalone.js'))) {
   throw new Error('Usage: node tests/standalone-package-smoke.js <extracted-server-root>');
 }
-if (!/path\.join\(ROOT_DIR,\s*['"]mobile['"],\s*['"]SyncWatch-v2\.1\.5\.apk['"]\)/.test(fs.readFileSync(path.join(root, 'server-standalone.js'), 'utf8'))) {
-  throw new Error('standalone server must expose the packaged SyncWatch-v2.1.5.apk');
+if (!/path\.join\(ROOT_DIR,\s*['"]mobile['"],\s*['"]SyncWatch同步观影-v2\.1\.5\.apk['"]\)/.test(fs.readFileSync(path.join(root, 'server-standalone.js'), 'utf8'))) {
+  throw new Error('standalone server must expose the packaged SyncWatch同步观影-v2.1.5.apk');
 }
 if (!fs.existsSync(path.join(root, 'server', 'standalone-tunnel.js'))
   || !fs.existsSync(path.join(root, 'vendor', 'cloudflared.exe'))) {
@@ -22,11 +22,11 @@ if (!fs.existsSync(path.join(root, 'server', 'standalone-tunnel.js'))
 if (!fs.readFileSync(path.join(root, 'server-standalone.js'), 'utf8').includes('createStandaloneTunnelManager')) {
   throw new Error('standalone server must wire the cloudflared supervisor into startSyncWatchServer');
 }
-const packagedClientPath = path.join(root, 'SyncWatch-Client-v2.1.5.exe');
+const packagedClientPath = path.join(root, 'SyncWatch同步观影-Client-v2.1.5.exe');
 if (!fs.existsSync(packagedClientPath) || fs.statSync(packagedClientPath).size < 1024 * 1024) {
   throw new Error('standalone package must contain the canonical Windows client at its Docker context root');
 }
-if (!fs.readFileSync(path.join(root, 'Dockerfile'), 'utf8').includes('COPY SyncWatch-Client-v2.1.5.exe ./client/SyncWatch-Client-v2.1.5.exe')) {
+if (!fs.readFileSync(path.join(root, 'Dockerfile'), 'utf8').includes('COPY SyncWatch同步观影-Client-v2.1.5.exe ./client/SyncWatch同步观影-Client-v2.1.5.exe')) {
   throw new Error('standalone Dockerfile must copy the packaged Windows client into the runtime client directory');
 }
 
@@ -88,7 +88,7 @@ function stop(child) {
     const expectedClientHash = crypto.createHash('sha256').update(fs.readFileSync(packagedClientPath)).digest('hex');
     const downloadedClientHash = crypto.createHash('sha256').update(downloadedClient).digest('hex');
     if (downloadedClientHash !== expectedClientHash) throw new Error('standalone client download hash mismatch');
-    const dataDir = path.join(activeRoot, 'SyncWatch-Data');
+    const dataDir = path.join(activeRoot, 'SyncWatch同步观影-Data');
     fs.writeFileSync(path.join(dataDir, 'portable-move-marker.txt'), 'portable-data-survives-folder-move\n', 'utf8');
     const firstInfo = fs.readFileSync(path.join(dataDir, '服务器运行信息.txt'), 'utf8');
     if (!firstInfo.includes('数据目录')) throw new Error('runtime info did not record data directory');
@@ -114,23 +114,23 @@ function stop(child) {
     const secondPort = await freePort();
     second = start(activeRoot, secondPort);
     const secondConfig = await waitHttp(secondPort);
-    if (!fs.existsSync(path.join(activeRoot, 'SyncWatch-Data', 'portable-move-marker.txt'))) {
+    if (!fs.existsSync(path.join(activeRoot, 'SyncWatch同步观影-Data', 'portable-move-marker.txt'))) {
       throw new Error('portable marker was lost after moving the complete server folder');
     }
     if (secondConfig.version !== firstConfig.version) throw new Error('version changed after moving the folder');
     const secondHostToken = fs.readFileSync(
-      path.join(activeRoot, 'SyncWatch-Data', '.secrets', 'server-host-token.txt'), 'utf8'
+      path.join(activeRoot, 'SyncWatch同步观影-Data', '.secrets', 'server-host-token.txt'), 'utf8'
     ).trim();
     if (secondHostToken !== firstHostToken) throw new Error('host token changed after moving the folder');
     const secondLockOwner = JSON.parse(fs.readFileSync(
-      path.join(activeRoot, 'SyncWatch-Data', '.syncwatch-instance.lock', 'owner.json'), 'utf8'
+      path.join(activeRoot, 'SyncWatch同步观影-Data', '.syncwatch-instance.lock', 'owner.json'), 'utf8'
     ));
     if (secondLockOwner.pid !== second.child.pid || secondLockOwner.token === firstLockOwner.token) {
       throw new Error('moved server did not acquire a fresh instance lock');
     }
     await stop(second.child);
     second = null;
-    if (process.platform !== 'win32' && fs.existsSync(path.join(activeRoot, 'SyncWatch-Data', '.syncwatch-instance.lock'))) {
+    if (process.platform !== 'win32' && fs.existsSync(path.join(activeRoot, 'SyncWatch同步观影-Data', '.syncwatch-instance.lock'))) {
       throw new Error('instance lock remained after the second clean shutdown');
     }
     console.log(JSON.stringify({

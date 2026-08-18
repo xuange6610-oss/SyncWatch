@@ -539,7 +539,7 @@ public final class MobileServerService extends Service {
                 + "process.on('SIGTERM',()=>shutdown(0)); process.on('SIGINT',()=>shutdown(0));\n"
                 + "process.on('uncaughtException',error=>{report(error);shutdown(1);});\n"
                 + "process.on('unhandledRejection',error=>{report(error);shutdown(1);});\n"
-                + "(async()=>{try{const requestedPort=" + configuredPort + ";await assertPortAvailable(requestedPort);const {startSyncWatchServer}=require(path.join(runtimeRoot,'server','mobile-index.js'));instance=await startSyncWatchServer({host:'0.0.0.0',port:requestedPort,publicDir:path.join(runtimeRoot,'public'),dataDir:dataRoot,hostControlToken:hostToken,tunnelManager,androidApkPath:path.join(dataRoot,'SyncWatch-v2.1.5.apk'),ffprobePath:'',ffmpegPath:''});atomic(readyFile,{port:instance.port,addresses:instance.addresses||[]});}catch(error){report(error);shutdown(1);}})();\n";
+                + "(async()=>{try{const requestedPort=" + configuredPort + ";await assertPortAvailable(requestedPort);const {startSyncWatchServer}=require(path.join(runtimeRoot,'server','mobile-index.js'));instance=await startSyncWatchServer({host:'0.0.0.0',port:requestedPort,publicDir:path.join(runtimeRoot,'public'),dataDir:dataRoot,hostControlToken:hostToken,tunnelManager,androidApkPath:path.join(dataRoot,'SyncWatch同步观影-v2.1.5.apk'),ffprobePath:'',ffmpegPath:''});atomic(readyFile,{port:instance.port,addresses:instance.addresses||[]});}catch(error){report(error);shutdown(1);}})();\n";
     }
 
     private boolean publishReportedStartupError(File runtimeRoot) {
@@ -695,7 +695,7 @@ public final class MobileServerService extends Service {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return;
         NotificationChannel channel = new NotificationChannel(
                 CHANNEL_ID, "手机服务器", NotificationManager.IMPORTANCE_LOW);
-        channel.setDescription("保持局域网 SyncWatch 服务器在后台运行");
+        channel.setDescription("保持局域网 SyncWatch同步观影 服务器在后台运行");
         channel.setShowBadge(false);
         NotificationManager manager = getSystemService(NotificationManager.class);
         if (manager != null) manager.createNotificationChannel(channel);

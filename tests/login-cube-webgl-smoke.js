@@ -72,7 +72,7 @@ function makeVisibleTriangleGlb() {
   ]).buffer);
   const binary = Buffer.concat([positions, normals]);
   return makeGlb({
-    asset: { version: '2.0', generator: 'SyncWatch WebGL smoke' },
+    asset: { version: '2.0', generator: 'SyncWatch同步观影 WebGL smoke' },
     scene: 0,
     scenes: [{ nodes: [0] }],
     nodes: [{ mesh: 0 }],

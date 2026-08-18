@@ -301,7 +301,7 @@ public final class ScreenCaptureService extends Service {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && manager != null) {
             NotificationChannel channel = new NotificationChannel(
                     NOTIFICATION_CHANNEL, "屏幕共享", NotificationManager.IMPORTANCE_LOW);
-            channel.setDescription("SyncWatch 正在共享手机屏幕");
+            channel.setDescription("SyncWatch同步观影 正在共享手机屏幕");
             channel.setShowBadge(false);
             manager.createNotificationChannel(channel);
         }
@@ -317,7 +317,7 @@ public final class ScreenCaptureService extends Service {
                 ? new Notification.Builder(this, NOTIFICATION_CHANNEL)
                 : new Notification.Builder(this);
         builder.setSmallIcon(R.drawable.ic_launcher)
-                .setContentTitle("SyncWatch 正在共享屏幕")
+                .setContentTitle("SyncWatch同步观影 正在共享屏幕")
                 .setContentText("点击“停止共享”可立即结束")
                 .setOngoing(true)
                 .setOnlyAlertOnce(true)

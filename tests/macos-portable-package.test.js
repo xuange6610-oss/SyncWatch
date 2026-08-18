@@ -103,7 +103,7 @@ function findMode(file, name) {
 
 const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'syncwatch-macos-portable-test-'));
 try {
-  const appName = 'SyncWatch-服务器.app';
+  const appName = 'SyncWatch同步观影-服务器.app';
   const fixture = path.join(temp, 'fixture.zip');
   createStoredZip(fixture, [
     { name: `${appName}/Contents/MacOS/Electron`, contents: 'binary', mode: 0o100644 },
@@ -121,7 +121,7 @@ try {
   const info = portable.updateInfoPlist(Buffer.from('<?xml version="1.0"?><plist version="1.0"><dict><key>CFBundleExecutable</key><string>Electron</string></dict></plist>'), 'client');
   const parsed = require('plist').parse(info.toString('utf8'));
   assert.equal(parsed.CFBundleExecutable, 'Electron');
-  assert.equal(parsed.CFBundleDisplayName, 'SyncWatch-客户端');
+  assert.equal(parsed.CFBundleDisplayName, 'SyncWatch同步观影-客户端');
   assert.equal(parsed.CFBundleShortVersionString, portable.VERSION);
   assert.equal(parsed.NSAppTransportSecurity.NSAllowsLocalNetworking, true);
 

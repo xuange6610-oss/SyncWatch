@@ -58,8 +58,8 @@ async function main() {
   assert.doesNotMatch(serverSource, /playbackRequests\s*=\s*runtime\.playbackRequests\.filter[\s\S]{0,160}createdAt/);
   assert.doesNotMatch(serverSource, /themeSyncRequests\s*=\s*\(runtime\.themeSyncRequests[\s\S]{0,160}createdAt/);
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'syncwatch-backend-policy-'));
-  const dataDir = path.join(root, 'SyncWatch-Data');
-  const copiedDir = path.join(root, 'Copied-SyncWatch-Data');
+  const dataDir = path.join(root, 'SyncWatch同步观影-Data');
+  const copiedDir = path.join(root, 'Copied-SyncWatch同步观影-Data');
   let server; let admin; let member;
   try {
     server = await start(dataDir);

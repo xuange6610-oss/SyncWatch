@@ -86,8 +86,8 @@ function writeFile(file, bytes) {
 function updateInfoPlist(bytes, kind) {
   const info = plist.parse(bytes.toString('utf8'));
   const label = labels[kind];
-  info.CFBundleDisplayName = `SyncWatch-${label}`;
-  info.CFBundleName = `SyncWatch-${label}`;
+  info.CFBundleDisplayName = `SyncWatch同步观影-${label}`;
+  info.CFBundleName = `SyncWatch同步观影-${label}`;
   info.CFBundleIdentifier = `com.tangjingxuan.syncwatch.${kind}`;
   info.CFBundleShortVersionString = VERSION;
   info.CFBundleVersion = VERSION;
@@ -98,10 +98,10 @@ function updateInfoPlist(bytes, kind) {
     NSAllowsArbitraryLoads: true,
     NSAllowsLocalNetworking: true
   };
-  info.NSMicrophoneUsageDescription = 'SyncWatch 需要麦克风权限用于房间语音和桌面共享语音。';
-  info.NSCameraUsageDescription = 'SyncWatch 需要摄像头权限用于实时互动。';
-  info.NSLocationWhenInUseUsageDescription = 'SyncWatch 仅在您授权后向当前房间显示位置。';
-  info.NSScreenCaptureUsageDescription = 'SyncWatch 需要屏幕录制权限用于共享桌面画面与声音。';
+  info.NSMicrophoneUsageDescription = 'SyncWatch同步观影 需要麦克风权限用于房间语音和桌面共享语音。';
+  info.NSCameraUsageDescription = 'SyncWatch同步观影 需要摄像头权限用于实时互动。';
+  info.NSLocationWhenInUseUsageDescription = 'SyncWatch同步观影 仅在您授权后向当前房间显示位置。';
+  info.NSScreenCaptureUsageDescription = 'SyncWatch同步观影 需要屏幕录制权限用于共享桌面画面与声音。';
   return Buffer.from(plist.build(info), 'utf8');
 }
 
@@ -166,7 +166,7 @@ function prepareSource(kind, arch, stagingRoot) {
   const ffprobe = path.join(ffprobeRoot, 'darwin', arch, 'ffprobe');
   ensureFile(ffprobe, `Darwin ${arch} ffprobe`);
 
-  const apk = path.join(ROOT, 'mobile', `SyncWatch-v${VERSION}.apk`);
+  const apk = path.join(ROOT, 'mobile', `SyncWatch同步观影-v${VERSION}.apk`);
   if (fs.existsSync(apk)) copyTree(apk, path.join(source, 'mobile', path.basename(apk)));
   return source;
 }
@@ -243,7 +243,7 @@ async function addPayload(sevenZip, archivePath, injectionRoot, paths) {
 
 async function buildArtifact(kind, arch, outputRoot, sevenZip, electronZip) {
   const label = labels[kind];
-  const appName = `SyncWatch-${label}.app`;
+  const appName = `SyncWatch同步观影-${label}.app`;
   const stagingRoot = fs.mkdtempSync(path.join(os.tmpdir(), `syncwatch-mac-${kind}-${arch}-`));
   const workZip = path.join(stagingRoot, `${appName}.zip`);
   const injectionRoot = path.join(stagingRoot, 'inject');
@@ -279,7 +279,7 @@ async function buildArtifact(kind, arch, outputRoot, sevenZip, electronZip) {
     if (names.has(`${appName}/Contents/Resources/default_app.asar`)) fail(`default_app.asar was not replaced in ${workZip}`);
     const executable = entries.find((entry) => entry.fileName === `${appName}/Contents/MacOS/Electron`);
     if (!executable) fail(`Electron executable missing from ${workZip}`);
-    const outputName = `SyncWatch-${label}-v${VERSION}-${arch}.zip`;
+    const outputName = `SyncWatch同步观影-${label}-v${VERSION}-${arch}.zip`;
     const output = path.join(outputRoot, outputName);
     fs.mkdirSync(outputRoot, { recursive: true });
     fs.copyFileSync(workZip, output);

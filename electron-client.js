@@ -5,8 +5,8 @@ const { execFile } = require('child_process');
 const { app, BrowserWindow, clipboard, dialog, shell, session, ipcMain, desktopCapturer } = require('electron');
 
 const APP_VERSION = 'v2.1.5';
-const APP_NAME = '同步观影';
-app.setName('同步观影');
+const APP_NAME = 'SyncWatch同步观影';
+app.setName(APP_NAME);
 if (process.platform === 'win32') app.setAppUserModelId('com.tangjingxuan.syncwatch.client');
 let mainWindow = null;
 let trustedServerOrigin = '';
@@ -120,10 +120,10 @@ async function verifySyncWatchServer(address) {
     headers: { Accept: 'application/json' }, redirect: 'follow', signal: AbortSignal.timeout(10_000)
   });
   if (!response.ok) throw new Error(`服务器验证失败（HTTP ${response.status}）`);
-  if (!/^application\/json\b/i.test(response.headers.get('content-type') || '')) throw new Error('目标地址没有返回 SyncWatch 配置');
+  if (!/^application\/json\b/i.test(response.headers.get('content-type') || '')) throw new Error('目标地址没有返回 SyncWatch同步观影 配置');
   const config = await response.json();
-  if (config?.name !== 'SyncWatch' || typeof config.version !== 'string' || config.roomsEnabled !== true) {
-    throw new Error('目标地址不是可识别的 SyncWatch 服务器');
+  if (!['SyncWatch同步观影', 'SyncWatch'].includes(config?.name) || typeof config.version !== 'string' || config.roomsEnabled !== true) {
+    throw new Error('目标地址不是可识别的 SyncWatch同步观影 服务器');
   }
   const verifiedOrigin = normalizedOrigin(response.url);
   if (!verifiedOrigin) throw new Error('服务器最终地址无效');
@@ -169,7 +169,7 @@ async function fetchConfiguredLoginModel(address) {
 function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1280, height: 820, minWidth: 390, minHeight: 620, show: false,
-    title: '同步观影', icon: iconPath(),
+    title: APP_NAME, icon: iconPath(),
     backgroundColor: '#0d1114', autoHideMenuBar: true,
     webPreferences: { preload: path.join(__dirname, 'electron-client-preload.js'), nodeIntegration: false, contextIsolation: true, sandbox: true }
   });

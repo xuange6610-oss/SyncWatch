@@ -20,7 +20,7 @@ const windowsBuildPath = path.join(root, '生成EXE.ps1');
 const windowsBuildBytes = fs.readFileSync(windowsBuildPath);
 const windowsBuild = windowsBuildBytes.toString('utf8').replace(/^\uFEFF/, '');
 
-const DESKTOP_NAME = '同步观影';
+const DESKTOP_NAME = 'SyncWatch同步观影';
 
 // Windows PowerShell 5.1 decodes BOM-less scripts using the system code page.
 // Keep such scripts ASCII-only, and load localized product metadata as UTF-8.
@@ -35,7 +35,7 @@ assert.match(windowsBuild, /\$expectedProductName\s*=\s*\[string\]\$buildManifes
 
 // Windows/macOS metadata, Electron runtime identity, window titles and tray
 // identity must all present one product name. Artifact filenames remain free to
-// include the SyncWatch brand and version for distribution.
+// include the SyncWatch同步观影 brand and version for distribution.
 for (const config of [manifest.build, clientConfig, macClientConfig, macServerConfig]) {
   assert.equal(config.productName, DESKTOP_NAME);
 }
@@ -44,13 +44,15 @@ assert.equal(manifest.build.win.executableName, DESKTOP_NAME);
 assert.equal(clientConfig.win.executableName, DESKTOP_NAME);
 assert.equal(clientConfig.extraMetadata.description, DESKTOP_NAME);
 assert.equal(macClientConfig.extraMetadata.description, DESKTOP_NAME);
-assert.match(electronServer, /app\.setName\(['"]同步观影['"]\)/);
-assert.match(electronClient, /app\.setName\(['"]同步观影['"]\)/);
-assert.match(electronServer, /tray\.setToolTip\(['"]同步观影['"]\)/);
-assert.match(electronServer, /title:\s*['"]同步观影['"]/);
-assert.match(electronClient, /title:\s*['"]同步观影['"]/);
-assert.doesNotMatch(electronServer, /SyncWatch-服务器/);
-assert.doesNotMatch(electronClient, /SyncWatch-客户端/);
+assert.match(electronServer, /const APP_NAME = ['"]SyncWatch同步观影['"]/);
+assert.match(electronClient, /const APP_NAME = ['"]SyncWatch同步观影['"]/);
+assert.match(electronServer, /app\.setName\(APP_NAME\)/);
+assert.match(electronClient, /app\.setName\(APP_NAME\)/);
+assert.match(electronServer, /tray\.setToolTip\(APP_NAME\)/);
+assert.match(electronServer, /title:\s*APP_NAME/);
+assert.match(electronClient, /title:\s*APP_NAME/);
+assert.doesNotMatch(electronServer, /SyncWatch同步观影-服务器/);
+assert.doesNotMatch(electronClient, /SyncWatch同步观影-客户端/);
 
 // The standalone client launcher renders the same configurable six-face
 // identity as the web login. It asks the main process to read /api/public-config
@@ -84,7 +86,7 @@ for (const required of [
   'server/index.js', 'server/ai-relay.js', 'public/**/*', 'package.json'
 ]) assert.ok(mainFiles.includes(required), `main desktop package missing ${required}`);
 for (const value of [...mainFiles, ...mainUnpacked, ...mainResources]) {
-  assert.doesNotMatch(value, /(^|[\\/])(?:mobile|mac)(?:[\\/]|$)|SyncWatch-Client-v2\.1\.5\.exe/i,
+  assert.doesNotMatch(value, /(^|[\\/])(?:mobile|mac)(?:[\\/]|$)|SyncWatch同步观影-Client-v2\.1\.5\.exe/i,
     `main desktop package embeds a separately released payload: ${value}`);
 }
 assert.match(windowsBuild, /release[\\/]windows-server/i);
@@ -98,7 +100,7 @@ assert.doesNotMatch(windowsBuild, /app\.asar\.unpacked\\mobile/);
 // The deployable server ZIP remains a separate offline artifact and is still
 // built after the two Windows executables have passed their own checks.
 assert.match(windowsBuild, /build-server-package\.ps1/);
-assert.match(windowsBuild, /SyncWatch-Client-v2\.1\.5\.exe/);
-assert.match(windowsBuild, /SyncWatch-Server-v/i);
+assert.match(windowsBuild, /SyncWatch同步观影-Client-v2\.1\.5\.exe/);
+assert.match(windowsBuild, /SyncWatch同步观影-Server-v/i);
 
 console.log('desktop login visual, metadata and split-release contracts passed.');

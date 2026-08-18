@@ -115,7 +115,7 @@ async function runCase(mode) {
         SYNCWATCH_EPIPE_PROBE_FILE: marker,
         SYNCWATCH_SMOKE_MODE: '1',
         SYNCWATCH_SMOKE_EXIT_MS: '1600',
-        SYNCWATCH_DATA_DIR: path.join(root, 'SyncWatch-Data')
+        SYNCWATCH_DATA_DIR: path.join(root, 'SyncWatch同步观影-Data')
       }
     });
 

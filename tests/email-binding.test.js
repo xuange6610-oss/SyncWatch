@@ -78,7 +78,7 @@ function verificationCode(message) {
 
     const mailSettings = await emitAck(owner, 'admin-action', {
       action: 'set-mail-settings', adminPassword: 'admin888', enabled: true,
-      user: 'sender@qq.com', authCode: 'test-qq-smtp-secret', fromName: 'SyncWatch 测试'
+      user: 'sender@qq.com', authCode: 'test-qq-smtp-secret', fromName: 'SyncWatch同步观影 测试'
     });
     assert.equal(mailSettings.success, true, mailSettings.error);
 

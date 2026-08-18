@@ -1,6 +1,6 @@
 # macOS 构建与发布
 
-SyncWatch 的 macOS 服务器和客户端使用 Electron，支持 Intel x64 与 Apple Silicon arm64。macOS 产物必须在 macOS 主机或 macOS CI 上构建，Windows 不能生成可运行、可签名和可 notarize 的 macOS DMG。
+SyncWatch同步观影 的 macOS 服务器和客户端使用 Electron，支持 Intel x64 与 Apple Silicon arm64。macOS 产物必须在 macOS 主机或 macOS CI 上构建，Windows 不能生成可运行、可签名和可 notarize 的 macOS DMG。
 
 ## 构建前
 
@@ -26,10 +26,10 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\build-macos-portab
 
 发布到项目根目录的文件：
 
-- `SyncWatch-服务器-v2.1.5-x64.dmg` / `.zip`
-- `SyncWatch-服务器-v2.1.5-arm64.dmg` / `.zip`
-- `SyncWatch-客户端-v2.1.5-x64.dmg` / `.zip`
-- `SyncWatch-客户端-v2.1.5-arm64.dmg` / `.zip`
+- `SyncWatch同步观影-服务器-v2.1.5-x64.dmg` / `.zip`
+- `SyncWatch同步观影-服务器-v2.1.5-arm64.dmg` / `.zip`
+- `SyncWatch同步观影-客户端-v2.1.5-x64.dmg` / `.zip`
+- `SyncWatch同步观影-客户端-v2.1.5-arm64.dmg` / `.zip`
 
 `dist-mac-server` 与 `dist-mac-client` 中保留相同构建副本；ZIP 适合企业内部分发和自动化部署。当前 Windows 发布机只生成 Windows EXE、APK 和服务器部署包，不会伪造 macOS 文件。
 
@@ -42,11 +42,11 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\build-macos-portab
 - 部署包中的 `mac/` 目录。
 
 文件名必须与以下格式一致：
-`SyncWatch-服务器-v2.1.5-x64.dmg`、`SyncWatch-服务器-v2.1.5-arm64.zip`（客户端同理）。只有真实存在且非空的文件才会出现在下载按钮和 `/api/public-config` 中。
+`SyncWatch同步观影-服务器-v2.1.5-x64.dmg`、`SyncWatch同步观影-服务器-v2.1.5-arm64.zip`（客户端同理）。只有真实存在且非空的文件才会出现在下载按钮和 `/api/public-config` 中。
 
 ### 从 HTTPS 发布站点提供产物
 
-如果不想占用服务器磁盘，在服务器根目录的 `mac/mac-distribution.json` 中配置真实的 HTTPS URL。可从 `mac-distribution.example.json` 复制并修改；示例中的 `downloads.example.com` 不是可用地址，不会被当成产物。也可使用环境变量 `SYNCWATCH_MAC_SERVER_ARM64_DMG_URL` 等单个地址，或 `SYNCWATCH_MAC_RELEASE_BASE_URL` 以标准文件名提供全部八个产物。远程下载使用 302 重定向，不经过 SyncWatch 服务器传输视频或安装包。
+如果不想占用服务器磁盘，在服务器根目录的 `mac/mac-distribution.json` 中配置真实的 HTTPS URL。可从 `mac-distribution.example.json` 复制并修改；示例中的 `downloads.example.com` 不是可用地址，不会被当成产物。也可使用环境变量 `SYNCWATCH_MAC_SERVER_ARM64_DMG_URL` 等单个地址，或 `SYNCWATCH_MAC_RELEASE_BASE_URL` 以标准文件名提供全部八个产物。远程下载使用 302 重定向，不经过 SyncWatch同步观影 服务器传输视频或安装包。
 
 查看可用枞举：`GET /api/public-config`。如果没有真实产物，下载接口会返回 `MACOS_ARTIFACT_UNAVAILABLE` 和构建/配置指引，不会返回一个伪造的 DMG。
 

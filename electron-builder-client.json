@@ -1,6 +1,6 @@
 {
   "appId": "com.tangjingxuan.syncwatch.client",
-  "productName": "同步观影",
+  "productName": "SyncWatch同步观影",
   "copyright": "Copyright © 2026 xuan",
   "asar": true,
   "compression": "maximum",
@@ -17,13 +17,13 @@
     "同步观影图标2026.ico",
     "package.json"
   ],
-  "extraMetadata": { "main": "electron-client.js", "name": "syncwatch-client", "version": "2.1.5", "description": "同步观影" },
+  "extraMetadata": { "main": "electron-client.js", "name": "syncwatch-client", "version": "2.1.5", "description": "SyncWatch同步观影" },
   "win": {
     "target": [{ "target": "portable", "arch": ["x64"] }],
     "icon": "同步观影图标2026.ico",
-    "executableName": "同步观影",
+    "executableName": "SyncWatch同步观影",
     "requestedExecutionLevel": "asInvoker",
     "signExecutable": false
   },
-  "portable": { "artifactName": "SyncWatch-Client-v2.1.5.exe" }
+  "portable": { "artifactName": "SyncWatch同步观影-Client-v2.1.5.exe" }
 }

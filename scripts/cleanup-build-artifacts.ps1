@@ -1,4 +1,4 @@
-$ErrorActionPreference = 'Stop'
+﻿$ErrorActionPreference = 'Stop'
 $workspace = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 $workspacePrefix = $workspace.TrimEnd('\') + '\'
 
@@ -38,11 +38,11 @@ function Remove-WorkspacePath([string]$relativePath) {
     'coverage',
     '.nyc_output',
     'server-verify-temp',
-    'SyncWatch-v2.1.5.exe',
-    'SyncWatch-v1.1.0.exe',
-    'SyncWatch-Client-v1.1.0.exe',
-    'SyncWatch-Server-v1.1.0.zip',
-    'mobile/SyncWatch-v1.1.0.apk'
+    'SyncWatch同步观影-v2.1.5.exe',
+    'SyncWatch同步观影-v1.1.0.exe',
+    'SyncWatch同步观影-Client-v1.1.0.exe',
+    'SyncWatch同步观影-Server-v1.1.0.zip',
+    'mobile/SyncWatch同步观影-v1.1.0.apk'
 ) | ForEach-Object { Remove-WorkspacePath $_ }
 
-Write-Host 'Build artifact cleanup complete. SyncWatch-Data, source files, signing material, and final delivery files were preserved.' -ForegroundColor Green
+Write-Host 'Build artifact cleanup complete. SyncWatch同步观影-Data, source files, signing material, and final delivery files were preserved.' -ForegroundColor Green

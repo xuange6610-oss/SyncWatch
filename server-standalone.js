@@ -12,11 +12,11 @@ for (const stream of [process.stdout, process.stderr]) {
 const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
-const { APP_VERSION, startSyncWatchServer } = require('./server');
+const { APP_VERSION, startSyncWatchServer, resolveDefaultDataDir } = require('./server');
 const { createStandaloneTunnelManager } = require('./server/standalone-tunnel');
 
 const ROOT_DIR = path.resolve(process.env.SYNCWATCH_ROOT || __dirname);
-const DATA_DIR = path.resolve(process.env.SYNCWATCH_DATA_DIR || path.join(ROOT_DIR, 'SyncWatch-Data'));
+const DATA_DIR = path.resolve(process.env.SYNCWATCH_DATA_DIR || resolveDefaultDataDir(ROOT_DIR));
 const LEGACY_SETTINGS_FILE = path.join(ROOT_DIR, 'server-config.json');
 const SETTINGS_FILE = path.join(DATA_DIR, 'server-config.json');
 const HOST_TOKEN_FILE = path.join(DATA_DIR, '.secrets', 'server-host-token.txt');
@@ -129,7 +129,7 @@ function publicBaseUrl(settings) {
 }
 
 async function main() {
-  process.title = `SyncWatch Server ${APP_VERSION}`;
+  process.title = `SyncWatch同步观影 Server ${APP_VERSION}`;
   fs.mkdirSync(DATA_DIR, { recursive: true });
   if (!fs.existsSync(path.join(DATA_DIR, 'config.json'))) console.log('首次加载需要生成数据库，请耐心等待哦~');
   const settings = loadSettings();
@@ -146,10 +146,10 @@ async function main() {
   const token = hostToken();
   const tunnelManager = createStandaloneTunnelManager({ rootDir: ROOT_DIR, dataDir: DATA_DIR, getPort: () => controller?.port || port });
   // Keep the standalone server aligned with the packaged Android artifact.
-  const androidApkPath = path.join(ROOT_DIR, 'mobile', 'SyncWatch-v2.1.5.apk');
+  const androidApkPath = path.join(ROOT_DIR, 'mobile', 'SyncWatch同步观影-v2.1.5.apk');
   const clientDownloadCandidates = [
-    path.join(ROOT_DIR, 'SyncWatch-Client-v2.1.5.exe'),
-    path.join(ROOT_DIR, 'client', 'SyncWatch-Client-v2.1.5.exe')
+    path.join(ROOT_DIR, 'SyncWatch同步观影-Client-v2.1.5.exe'),
+    path.join(ROOT_DIR, 'client', 'SyncWatch同步观影-Client-v2.1.5.exe')
   ];
   const clientDownloadPath = clientDownloadCandidates.find((candidate) => fs.existsSync(candidate)) || '';
   const macArtifactCandidates = (prefix) => ({
@@ -162,8 +162,8 @@ async function main() {
       path.join(ROOT_DIR, 'mac', `${prefix}-arm64.dmg`)
     ].find((candidate) => fs.existsSync(candidate)) || ''
   });
-  const macServerDownloadPaths = macArtifactCandidates('SyncWatch-服务器-v2.1.5');
-  const macClientDownloadPaths = macArtifactCandidates('SyncWatch-客户端-v2.1.5');
+  const macServerDownloadPaths = macArtifactCandidates('SyncWatch同步观影-服务器-v2.1.5');
+  const macClientDownloadPaths = macArtifactCandidates('SyncWatch同步观影-客户端-v2.1.5');
   const controller = await startSyncWatchServer({
     host: '0.0.0.0', port, strictPort: false, portFallbackCount: 20, dataDir: DATA_DIR, publicDir: path.join(ROOT_DIR, 'public'),
     hostControlToken: token, allowedHosts, publicUrl, androidApkPath, clientDownloadPath, tunnelManager,
@@ -174,7 +174,7 @@ async function main() {
   const ownerBase = publicUrl || local;
   const ownerUrl = `${ownerBase}/#host=${encodeURIComponent(token)}`;
   const runtimeInfo = [
-    `SyncWatch ${APP_VERSION}`,
+    `SyncWatch同步观影 ${APP_VERSION}`,
     `启动时间：${new Date().toISOString()}`,
     `程序根目录：${ROOT_DIR}`,
     `数据目录：${DATA_DIR}`,

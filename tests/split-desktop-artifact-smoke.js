@@ -105,7 +105,7 @@ async function main() {
 
     const baseUrl = `http://127.0.0.1:${port}`;
     const config = await waitForPublicConfig(baseUrl, child, () => output);
-    assert.equal(config.name, 'SyncWatch');
+    assert.equal(config.name, 'SyncWatch同步观影');
     assert.equal(config.version, `v${manifest.version}`);
     assert.equal(config.androidApkAvailable, false, '主 EXE 不应内嵌 Android APK');
     assert.equal(config.clientDownloadAvailable, false, '主 EXE 不应内嵌独立 Windows 客户端');

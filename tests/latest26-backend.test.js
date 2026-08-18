@@ -65,7 +65,7 @@ function mailCode(message) {
     const configuredMail = await emitAck(host, 'admin-action', {
       action: 'set-mail-settings', adminPassword: 'admin888', enabled: true,
       host: 'smtp.example.com', port: 465, secure: true, useTls: true,
-      user: 'sender@example.com', password: 'mail-secret', fromEmail: 'sender@example.com', fromName: 'SyncWatch',
+      user: 'sender@example.com', password: 'mail-secret', fromEmail: 'sender@example.com', fromName: 'SyncWatch同步观影',
       registrationVerificationEnabled: false, bindingVerificationEnabled: true,
       accountRecoveryEnabled: true, adminRecoveryEnabled: true
     });

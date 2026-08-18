@@ -219,7 +219,7 @@ function requestPublicConfig(publicUrl, timeoutMs = VERIFY_TIMEOUT_MS, { localAd
 
 function createStandaloneTunnelManager({ rootDir, dataDir, getPort } = {}) {
   const resolvedRoot = path.resolve(rootDir || process.cwd());
-  const resolvedData = path.resolve(dataDir || path.join(resolvedRoot, 'SyncWatch-Data'));
+  const resolvedData = path.resolve(dataDir || path.join(resolvedRoot, 'SyncWatch同步观影-Data'));
   const startupFile = path.join(resolvedData, 'tunnel-startup.json');
   let child = null;
   let generation = 0;

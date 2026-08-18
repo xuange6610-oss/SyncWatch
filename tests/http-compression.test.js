@@ -35,7 +35,7 @@ function decodedBody(response) {
 
 async function main() {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'syncwatch-http-compression-'));
-  const dataDir = path.join(root, 'SyncWatch-Data');
+  const dataDir = path.join(root, 'SyncWatch同步观影-Data');
   const publicDir = path.resolve(__dirname, '..', 'public');
   let server;
   try {

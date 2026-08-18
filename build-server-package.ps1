@@ -1,4 +1,4 @@
-param(
+﻿param(
     [string]$OutputDirectory = ''
 )
 
@@ -44,9 +44,9 @@ if (-not $outputRoot.StartsWith($workspacePrefix, [StringComparison]::OrdinalIgn
 }
 New-Item -ItemType Directory -Path $outputRoot -Force | Out-Null
 
-$clientArtifact = Join-Path $PSScriptRoot 'release\windows-client\SyncWatch-Client-v2.1.5.exe'
+$clientArtifact = Join-Path $PSScriptRoot 'release\windows-client\SyncWatch同步观影-Client-v2.1.5.exe'
 if (-not (Test-Path -LiteralPath $clientArtifact -PathType Leaf)) {
-    throw 'Missing separate Windows client artifact. Build release\windows-client\SyncWatch-Client-v2.1.5.exe first.'
+    throw 'Missing separate Windows client artifact. Build release\windows-client\SyncWatch同步观影-Client-v2.1.5.exe first.'
 }
 
 # Windows PowerShell 5 reads BOM-less script source using the active ANSI code
@@ -82,7 +82,7 @@ $requiredFiles = @(
     'scripts\collect-macos-distribution.ps1',
     $deploymentGuideName, $architectureGuideName,
     'server\index.js', 'server\ai-relay.js', 'server\macos-distribution.js', 'public\index.html', 'public\js\app.js', 'public\css\style.css',
-    'mobile\SyncWatch-v2.1.5.apk',
+    'mobile\SyncWatch同步观影-v2.1.5.apk',
     'tests\standalone-package-smoke.js',
     'node_modules\compression\package.json', 'node_modules\express\package.json', 'node_modules\multer\package.json',
     'node_modules\nodemailer\package.json', 'node_modules\socket.io\package.json',
@@ -136,7 +136,7 @@ $work = [IO.Path]::GetFullPath((Join-Path $tempBase ('syncwatch-server-package-'
 $prefix = $tempBase.TrimEnd([IO.Path]::DirectorySeparatorChar, [IO.Path]::AltDirectorySeparatorChar) + [IO.Path]::DirectorySeparatorChar
 if (-not $work.StartsWith($prefix, [StringComparison]::OrdinalIgnoreCase)) { throw 'Temporary directory validation failed.' }
 
-$folderName = "SyncWatch-Server-v$version"
+$folderName = "SyncWatch同步观影-Server-v$version"
 $stage = Join-Path $work $folderName
 $zipTemp = Join-Path $work "$folderName.zip"
 $destination = Join-Path $outputRoot "$folderName.zip"
@@ -165,8 +165,8 @@ try {
     Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'vendor\cloudflared.exe') -Destination (Join-Path $stage 'vendor\cloudflared.exe') -Force
     Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'public') -Destination (Join-Path $stage 'public') -Recurse
     New-Item -ItemType Directory -Path (Join-Path $stage 'mobile') -Force | Out-Null
-    Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'mobile\SyncWatch-v2.1.5.apk') -Destination (Join-Path $stage 'mobile\SyncWatch-v2.1.5.apk')
-    Copy-Item -LiteralPath $clientArtifact -Destination (Join-Path $stage 'SyncWatch-Client-v2.1.5.exe')
+    Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'mobile\SyncWatch同步观影-v2.1.5.apk') -Destination (Join-Path $stage 'mobile\SyncWatch同步观影-v2.1.5.apk')
+    Copy-Item -LiteralPath $clientArtifact -Destination (Join-Path $stage 'SyncWatch同步观影-Client-v2.1.5.exe')
     $macDirectory = Join-Path $stage 'mac'
     & (Join-Path $PSScriptRoot 'scripts\collect-macos-distribution.ps1') -SourceRoot $PSScriptRoot -Destination $macDirectory -Version $version
 
@@ -208,9 +208,9 @@ try {
     if (Test-Path -LiteralPath $dependencyTestResidue) {
         Remove-Item -LiteralPath $dependencyTestResidue -Recurse -Force
     }
-    New-Item -ItemType Directory -Path (Join-Path $stage 'SyncWatch-Data') -Force | Out-Null
-    Set-Content -LiteralPath (Join-Path $stage 'SyncWatch-Data\README.txt') -Encoding UTF8 -Value @(
-        'This directory stores all SyncWatch server data. Stop the server and move or back up the whole directory.',
+    New-Item -ItemType Directory -Path (Join-Path $stage 'SyncWatch同步观影-Data') -Force | Out-Null
+    Set-Content -LiteralPath (Join-Path $stage 'SyncWatch同步观影-Data\README.txt') -Encoding UTF8 -Value @(
+        'This directory stores all SyncWatch同步观影 server data. Stop the server and move or back up the whole directory.',
         'Do not copy config.json alone. QQ SMTP credentials also require .secrets/mail.key.'
     )
 
@@ -222,11 +222,11 @@ try {
             "$folderName/server/index.js", "$folderName/server/ai-relay.js", "$folderName/server/macos-distribution.js", "$folderName/server/standalone-tunnel.js", "$folderName/public/index.html",
             "$folderName/vendor/cloudflared.exe",
             "$folderName/scripts/collect-macos-distribution.ps1",
-            "$folderName/mobile/SyncWatch-v2.1.5.apk", "$folderName/SyncWatch-Client-v2.1.5.exe", "$folderName/server-standalone.js",
+            "$folderName/mobile/SyncWatch同步观影-v2.1.5.apk", "$folderName/SyncWatch同步观影-Client-v2.1.5.exe", "$folderName/server-standalone.js",
             "$folderName/$deploymentGuideName", "$folderName/$architectureGuideName", "$folderName/MACOS-BUILD.md", "$folderName/mac-distribution.example.json",
             "$folderName/node_modules/compression/package.json", "$folderName/node_modules/express/package.json", "$folderName/node_modules/nodemailer/package.json",
             "$folderName/node_modules/ffmpeg-static/package.json", "$folderName/node_modules/ffprobe-static/package.json",
-            "$folderName/SyncWatch-Data/README.txt"
+            "$folderName/SyncWatch同步观影-Data/README.txt"
         )) {
             if ($entries -notcontains $required) { throw "Package validation failed; missing: $required" }
         }
@@ -243,13 +243,13 @@ try {
                 throw "Package contains dependency test residue: $entry"
             }
             if ($entry.EndsWith('.exe', [StringComparison]::OrdinalIgnoreCase) -and
-                $entry -ne "$folderName/SyncWatch-Client-v2.1.5.exe" -and
+                $entry -ne "$folderName/SyncWatch同步观影-Client-v2.1.5.exe" -and
                 $entry -ne "$folderName/vendor/cloudflared.exe" -and
                 $entry -notmatch '/node_modules/(?:ffmpeg-static/ffmpeg\.exe|ffprobe-static/bin/win32/(?:ia32|x64)/ffprobe\.exe)$') {
                 throw "Package contains an unexpected executable: $entry"
             }
             if (($entry.EndsWith('.dmg', [StringComparison]::OrdinalIgnoreCase) -or $entry.EndsWith('.zip', [StringComparison]::OrdinalIgnoreCase)) -and
-                $entry -notmatch ('/mac/SyncWatch-.+-v' + [Regex]::Escape($version) + '-(?:x64|arm64)\.(?:dmg|zip)$')) {
+                $entry -notmatch ('/mac/SyncWatch同步观影-.+-v' + [Regex]::Escape($version) + '-(?:x64|arm64)\.(?:dmg|zip)$')) {
                 throw "Package contains an unexpected macOS artifact: $entry"
             }
         }

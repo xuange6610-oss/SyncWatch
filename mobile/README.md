@@ -1,6 +1,6 @@
-# SyncWatch Android
+# SyncWatch同步观影 Android
 
-This is the Android client and phone-hosted server for SyncWatch v2.1.5. The APK
+This is the Android client and phone-hosted server for SyncWatch同步观影 v2.1.5. The APK
 embeds the same production `server/index.js`, web UI, Express/Socket.IO stack, and
 an official Node.js Mobile 18.20.4 runtime for arm64-v8a, armeabi-v7a, and x86_64.
 The phone server runs in a dedicated `specialUse` foreground-service process so
@@ -54,7 +54,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\build-apk.ps1
 The script uses Android Studio's bundled JBR, Android SDK platform/build-tools 35,
 and locally cached Gradle 8.13/Android Gradle Plugin 8.11.1. It accepts a verified
 `NODEJS_MOBILE_ANDROID_HOME`, a verified `app/libnode`, or downloads the pinned
-official Node.js Mobile archive into the per-user SyncWatch build cache. The archive,
+official Node.js Mobile archive into the per-user SyncWatch同步观影 build cache. The archive,
 header, and every `libnode.so` ABI are checked against fixed SHA-256 digests.
 
 A pre-existing `.keys/syncwatch-release.jks` and matching `.keys/release.properties`
@@ -65,7 +65,7 @@ replacement key or silently signs a release with Android's debug certificate. Ke
 After Gradle finishes, the script verifies package/version metadata, cryptographic
 signature and signing-certificate identity, all three native ABIs, the embedded Node
 dependency closure, and byte-for-byte freshness of `server/index.js` and `public/**`.
-The verified artifact is written to `SyncWatch-v2.1.5.apk`.
+The verified artifact is written to `SyncWatch同步观影-v2.1.5.apk`.
 
 ## Android 15 / 16 KB pages
 
@@ -85,6 +85,6 @@ runtime):
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\android-package.ps1 -SourceOnly
-powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\android-package.ps1 -ApkPath .\mobile\SyncWatch-v2.1.5.apk
+powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\android-package.ps1 -ApkPath .\mobile\SyncWatch同步观影-v2.1.5.apk
 ```
 
