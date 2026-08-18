@@ -1,0 +1,91 @@
+const assert = require('assert/strict');
+const fs = require('fs');
+const path = require('path');
+
+const root = path.resolve(__dirname, '..');
+const read = (relative) => fs.readFileSync(path.join(root, relative), 'utf8');
+
+const page = read('public/index.html');
+const app = read('public/js/app.js');
+const server = read('server/index.js');
+const standalone = read('server-standalone.js');
+const electronServer = read('electron-pink.js');
+const electronClient = read('electron-client.js');
+const serverPreload = read('electron-main-preload.js');
+const clientPreload = read('electron-client-preload.js');
+const android = read('mobile/app/src/main/java/com/tangjingxuan/syncwatch/MainActivity.java');
+const packageManifest = JSON.parse(read('package.json'));
+const macServerConfig = JSON.parse(read('electron-builder-mac-server.json'));
+const macClientConfig = JSON.parse(read('electron-builder-mac-client.json'));
+const macDistributionExample = JSON.parse(read('mac-distribution.example.json'));
+const embeddedMacReadme = read('mac/README.md');
+const windowsBuild = read('生成EXE.ps1');
+const dockerfile = read('Dockerfile');
+const dockerignore = read('.dockerignore');
+
+assert.match(serverPreload, /readClipboardText:\s*\(\)\s*=>\s*ipcRenderer\.invoke\(['"]syncwatch:read-clipboard-text['"]\)/);
+assert.match(clientPreload, /readClipboardText:\s*\(\)\s*=>\s*ipcRenderer\.invoke\(['"]syncwatch-client:read-clipboard-text['"]\)/);
+assert.match(electronServer, /ipcMain\.handle\(['"]syncwatch:read-clipboard-text['"]/);
+assert.match(electronClient, /ipcMain\.handle\(['"]syncwatch-client:read-clipboard-text['"]/);
+assert.match(electronClient, /async function verifySyncWatchServer\(/);
+assert.match(electronClient, /config\?\.name !== ['"]SyncWatch['"]/);
+assert.match(electronClient, /if \(!isLauncherSender\(_event\)\)/);
+assert.match(electronClient, /if \(!isTrustedServerSender\(event\)\)/);
+assert.match(electronClient, /function permissionRequestIsTrusted\(/);
+assert.match(electronClient, /请求读取系统剪贴板/);
+assert.doesNotMatch(electronClient, /callback\(\[['"]media['"], ['"]display-capture['"], ['"]geolocation['"]/);
+assert.match(android, /readClipboardText:function\(\)/);
+assert.match(android, /public String readClipboardText\(String token\)/);
+assert.match(android, /ClipboardManager/);
+assert.match(app, /readClipboardTextFromAvailableSources/);
+assert.match(app, /document\.execCommand\(['"]paste['"]\)/);
+
+for (const id of ['downloadMacServerBtn', 'downloadMacClientBtn', 'downloadMacServerMainBtn', 'downloadMacClientMainBtn', 'macDownloadModal', 'macDownloadArch', 'macDownloadFormat', 'macDownloadAvailability']) {
+  assert.match(page, new RegExp(`id=["']${id}["']`));
+}
+assert.match(app, /api\/macos-server-download/);
+assert.match(app, /api\/macos-client-download/);
+assert.match(app, /macServerDownloads/);
+assert.match(app, /macClientDownloads/);
+assert.match(app, /format=\$\{encodeURIComponent\(format\)\}/);
+assert.match(server, /macServerDownloadArchitectures/);
+assert.match(server, /macClientDownloadArchitectures/);
+assert.match(server, /app\.get\(['"]\/api\/macos-server-download['"]/);
+assert.match(server, /app\.get\(['"]\/api\/macos-client-download['"]/);
+assert.match(server, /MACOS_ARTIFACT_UNAVAILABLE/);
+assert.match(server, /macServerDownloads/);
+assert.ok(fs.existsSync(path.join(root, 'server', 'macos-distribution.js')));
+assert.ok(packageManifest.build.files.includes('server/macos-distribution.js'));
+assert.ok(macServerConfig.files.includes('server/macos-distribution.js'));
+assert.equal(macDistributionExample.manifestVersion, 1);
+assert.ok(macDistributionExample.server.arm64.dmg.startsWith('https://'));
+assert.match(read('MACOS-BUILD.md'), /mac-distribution\.json/);
+assert.ok(!packageManifest.build.extraResources.some((entry) => ['mac', 'mobile', 'SyncWatch-Client-v2.1.5.exe'].includes(String(entry.from || ''))),
+  'Windows server EXE must keep client, Android and macOS downloads as separate release artifacts');
+assert.match(embeddedMacReadme, /scripts\/build-macos\.sh/);
+assert.match(windowsBuild, /collect-macos-distribution\.ps1/,
+  'Windows packaging must collect canonical macOS artifacts into the split release');
+assert.match(windowsBuild, /release[\\/]macos/,
+  'Windows packaging must publish macOS artifacts beside the Windows executable');
+assert.doesNotMatch(windowsBuild, /win-unpacked\\resources\\mac/,
+  'Windows packaging must not copy macOS payloads into the Windows executable');
+assert.match(standalone, /SyncWatch-服务器-v2\.1\.5/);
+assert.match(standalone, /SyncWatch-客户端-v2\.1\.5/);
+assert.match(dockerfile, /COPY SyncWatch-Client-v2\.1\.5\.exe \.\/client\/SyncWatch-Client-v2\.1\.5\.exe/,
+  'Docker deployment must include the Windows client download artifact');
+assert.ok(dockerignore.indexOf('!SyncWatch-Client-v2.1.5.exe') > dockerignore.indexOf('*.exe'),
+  'Docker ignore rules must re-include the canonical Windows client after the executable wildcard');
+
+for (const [config, main] of [[macServerConfig, 'electron-pink.js'], [macClientConfig, 'electron-client.js']]) {
+  assert.ok(config.files.includes(main));
+  assert.equal(config.mac.icon, '同步观影图标2026.png');
+  const architectures = config.mac.target.flatMap((target) => target.arch || []);
+  assert.ok(architectures.includes('x64'));
+  assert.ok(architectures.includes('arm64'));
+  assert.match(config.artifactName, /\$\{arch\}/);
+}
+assert.match(packageManifest.scripts['build:mac'], /build-macos\.sh/);
+assert.ok(fs.existsSync(path.join(root, '同步观影图标2026.png')));
+assert.ok(fs.existsSync(path.join(root, 'scripts', 'prepare-cloudflared-macos.js')));
+
+console.log('desktop, Android and macOS platform contract tests passed.');

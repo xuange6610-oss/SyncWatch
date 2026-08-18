@@ -1,0 +1,10 @@
+node_modules
+dist
+mobile/app/build
+mobile/.gradle
+mobile/.keys
+SyncWatch-Data
+*.exe
+!SyncWatch-Client-v2.1.5.exe
+*.zip
+.git

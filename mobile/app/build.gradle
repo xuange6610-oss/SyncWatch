@@ -1,0 +1,321 @@
+plugins {
+    id 'com.android.application'
+}
+
+import java.security.MessageDigest
+
+def repositoryRoot = rootProject.projectDir.parentFile
+def generatedServerAssets = layout.buildDirectory.dir('generated/mobileServerAssets').get().asFile
+def bundledRuntimePackages = [
+        '@socket.io/component-emitter', '@types/cors', '@types/node', '@types/ws',
+        'accepts', 'ansi-regex', 'ansi-styles', 'append-field', 'base64id',
+        'body-parser', 'buffer-from', 'busboy', 'bytes', 'call-bind-apply-helpers',
+        'call-bound', 'camelcase', 'cliui', 'color-convert', 'color-name', 'compressible',
+        'compression', 'concat-stream', 'content-disposition', 'content-type', 'cookie',
+        'cookie-signature', 'cors',
+        'debug', 'decamelize', 'depd', 'dijkstrajs', 'dunder-proto', 'ee-first', 'emoji-regex',
+        'encodeurl', 'engine.io', 'engine.io-parser', 'escape-html',
+        'es-define-property', 'es-errors', 'es-object-atoms', 'etag', 'express',
+        'finalhandler', 'find-up', 'forwarded', 'fresh', 'function-bind', 'get-caller-file',
+        'get-intrinsic', 'get-proto', 'gopd', 'hasown', 'has-symbols', 'http-errors',
+        'iconv-lite', 'inherits', 'ipaddr.js', 'is-fullwidth-code-point', 'is-promise', 'locate-path',
+        'math-intrinsics', 'media-typer', 'merge-descriptors', 'mime-db', 'mime-types',
+        'ms', 'multer', 'negotiator', 'nodemailer', 'object-assign', 'object-inspect', 'once',
+        'on-finished', 'on-headers', 'p-limit', 'p-locate', 'p-try', 'parseurl', 'path-exists', 'path-to-regexp', 'pngjs', 'proxy-addr', 'qrcode',
+        'qs', 'range-parser', 'raw-body', 'readable-stream', 'require-directory',
+        'require-main-filename', 'router', 'safe-buffer', 'safer-buffer', 'send', 'serve-static',
+        'set-blocking', 'setprototypeof', 'side-channel', 'side-channel-list', 'side-channel-map',
+        'side-channel-weakmap', 'socket.io', 'socket.io-adapter', 'socket.io-parser',
+        'statuses', 'streamsearch', 'string_decoder', 'string-width', 'strip-ansi',
+        'toidentifier', 'typedarray', 'type-is', 'undici-types', 'unpipe',
+        'util-deprecate', 'vary', 'which-module', 'wrap-ansi', 'wrappy', 'ws', 'y18n', 'yargs',
+        'yargs-parser'
+]
+
+def configuredNodeMobileRoot = System.getenv('NODEJS_MOBILE_ANDROID_HOME')
+def vendoredNodeMobileRoot = file('libnode')
+def preparedNodeMobileRoot = file('C:/Users/Administrator/AppData/Local/Temp/nodejs-mobile-v18.20.4-android')
+def nodeMobileRoot = configuredNodeMobileRoot ? file(configuredNodeMobileRoot) :
+        (vendoredNodeMobileRoot.isDirectory() ? vendoredNodeMobileRoot : preparedNodeMobileRoot)
+def androidSdkRoot = file(System.getenv('ANDROID_SDK_ROOT') ?: System.getenv('ANDROID_HOME') ?:
+        new File(System.getProperty('user.home'), 'AppData/Local/Android/Sdk').absolutePath)
+def androidNdkRoot = new File(androidSdkRoot, 'ndk/28.2.13676358')
+def nativeCacheDigest = MessageDigest.getInstance('SHA-256')
+        .digest(projectDir.absolutePath.getBytes('UTF-8'))
+def nativeCacheKey = (0..<8).collect {
+    String.format('%02x', nativeCacheDigest[it] & 0xff)
+}.join()
+def generatedNodeBridgeLibs = new File(gradle.gradleUserHomeDir,
+        "caches/syncwatch-mobile-native/${nativeCacheKey}/jni")
+
+if (!new File(nodeMobileRoot, 'include/node/node.h').isFile()) {
+    throw new GradleException('Node.js Mobile 18.20.4 was not found. Set NODEJS_MOBILE_ANDROID_HOME or place it in mobile/app/libnode.')
+}
+['arm64-v8a', 'armeabi-v7a', 'x86_64'].each { abi ->
+    if (!new File(nodeMobileRoot, "bin/${abi}/libnode.so").isFile()) {
+        throw new GradleException("Node.js Mobile is missing bin/${abi}/libnode.so")
+    }
+}
+if (!new File(androidNdkRoot, 'toolchains/llvm/prebuilt/windows-x86_64/bin/clang++.exe').isFile()) {
+    throw new GradleException('Android NDK 28.2.13676358 is required for the embedded Node.js bridge.')
+}
+
+tasks.register('prepareMobileServerAssets', Sync) {
+    into generatedServerAssets
+
+    from(new File(repositoryRoot, 'server/index.js')) {
+        into 'syncwatch/server'
+    }
+    from(new File(repositoryRoot, 'public')) {
+        into 'syncwatch/public'
+    }
+    bundledRuntimePackages.each { packageName ->
+        def packageDirectory = new File(repositoryRoot, "node_modules/${packageName}")
+        if (!packageDirectory.isDirectory()) {
+            throw new GradleException("Mobile server dependency is missing: ${packageName}. Run npm ci before building the APK.")
+        }
+        from(packageDirectory) {
+            into "syncwatch/node_modules/${packageName}"
+        }
+    }
+
+    doLast {
+        def runtimeRoot = new File(generatedServerAssets, 'syncwatch')
+        // Keep the production server source byte-for-byte identical in the APK.
+        // Node.js Mobile 18 lacks the Unicode property tables used by one
+        // validation expression, so generate a separate sibling entrypoint for
+        // the embedded runtime instead of rewriting server/index.js in place.
+        def generatedServer = new File(runtimeRoot, 'server/index.js')
+        def generatedMobileServer = new File(runtimeRoot, 'server/mobile-index.js')
+        def serverText = generatedServer.getText('UTF-8')
+        def unicodeValidationLine = serverText.readLines().find {
+            it.startsWith('function validUsername(value)')
+        }
+        if (!unicodeValidationLine) {
+            throw new GradleException('Unable to apply the Node.js Mobile username compatibility patch.')
+        }
+        def mobileValidationLine = 'function validUsername(value) { return /^[A-Za-z0-9_À-ʯͰ-ԯぁ-ヿ㐀-鿿가-힯-]{2,24}$/.test(value); }'
+        generatedMobileServer.setText(
+                serverText.replace(unicodeValidationLine, mobileValidationLine), 'UTF-8')
+
+        // Node.js Mobile is built without the Unicode property tables used by the
+        // current path-to-regexp package. Express loads these expressions while
+        // booting, so use ASCII route-parameter names (all SyncWatch routes do).
+        def routeRegexFile = new File(runtimeRoot, 'node_modules/path-to-regexp/dist/index.js')
+        def routeRegexText = routeRegexFile.getText('UTF-8')
+        def idStartLine = routeRegexText.readLines().find { it.startsWith('const ID_START = ') }
+        def idContinueLine = routeRegexText.readLines().find { it.startsWith('const ID_CONTINUE = ') }
+        def idLine = routeRegexText.readLines().find { it.startsWith('const ID = ') }
+        if (!idStartLine || !idContinueLine || !idLine) {
+            throw new GradleException('Unable to apply the Node.js Mobile path-to-regexp compatibility patch.')
+        }
+        routeRegexText = routeRegexText
+                .replace(idStartLine, 'const ID_START = /^[$_A-Za-z]$/;')
+                .replace(idContinueLine, 'const ID_CONTINUE = /^[$_A-Za-z0-9]$/;')
+                .replace(idLine, 'const ID = /^[$_A-Za-z][$_A-Za-z0-9]*$/;')
+        routeRegexFile.setText(routeRegexText, 'UTF-8')
+
+        def marker = new File(runtimeRoot, 'runtime-version.txt')
+        def digest = MessageDigest.getInstance('SHA-256')
+        fileTree(runtimeRoot).matching { exclude 'runtime-version.txt' }.files
+                .findAll { input ->
+                    if (!input.isFile()) return false
+                    def relative = runtimeRoot.toPath().relativize(input.toPath()).toString().replace('\\', '/')
+                    // Android's asset packager omits dotfiles and files inside
+                    // dot-directories. Keep the marker tied to the bytes that
+                    // are actually installed instead of the larger staging tree.
+                    return !relative.split('/').any { segment -> segment.startsWith('.') }
+                }
+                .sort { left, right -> left.absolutePath <=> right.absolutePath }
+                .each { input ->
+                    def relative = runtimeRoot.toPath().relativize(input.toPath()).toString().replace('\\', '/')
+                    digest.update(relative.getBytes('UTF-8'))
+                    input.withInputStream { stream ->
+                        byte[] buffer = new byte[64 * 1024]
+                        int count
+                        while ((count = stream.read(buffer)) >= 0) {
+                            if (count > 0) digest.update(buffer, 0, count)
+                        }
+                    }
+                }
+        marker.parentFile.mkdirs()
+        marker.setText(digest.digest().collect { String.format('%02x', it & 0xff) }.join(), 'UTF-8')
+    }
+}
+
+tasks.register('compileEmbeddedNodeBridge') {
+    def sourceFile = file('src/main/cpp/native-node.cpp')
+    def arm32RuntimeDirectory = new File(androidNdkRoot,
+            'toolchains/llvm/prebuilt/windows-x86_64/sysroot/usr/lib/arm-linux-androideabi')
+    inputs.file sourceFile
+    inputs.file file('CMakeLists.txt')
+    inputs.dir new File(nodeMobileRoot, 'include/node')
+    inputs.file new File(arm32RuntimeDirectory, 'libc++_static.a')
+    inputs.file new File(arm32RuntimeDirectory, 'libc++abi.a')
+    ['arm64-v8a', 'armeabi-v7a', 'x86_64'].each { abi ->
+        inputs.file new File(nodeMobileRoot, "bin/${abi}/libnode.so")
+    }
+    outputs.dir generatedNodeBridgeLibs
+
+    doLast {
+        delete generatedNodeBridgeLibs.parentFile
+        def nativeSourceDirectory = new File(generatedNodeBridgeLibs.parentFile, 'source')
+        nativeSourceDirectory.mkdirs()
+        def copiedSource = new File(nativeSourceDirectory, 'native-node.cpp')
+        copy {
+            from sourceFile
+            into nativeSourceDirectory
+        }
+
+        def llvmRoot = new File(androidNdkRoot, 'toolchains/llvm/prebuilt/windows-x86_64')
+        def compilerRoot = new File(llvmRoot, 'bin')
+        def sysrootLibraries = new File(llvmRoot, 'sysroot/usr/lib')
+        def targets = [
+                'arm64-v8a'  : [compiler: 'aarch64-linux-android23-clang++.cmd', library: 'aarch64-linux-android'],
+                'armeabi-v7a': [compiler: 'armv7a-linux-androideabi23-clang++.cmd', library: 'arm-linux-androideabi'],
+                'x86_64'     : [compiler: 'x86_64-linux-android23-clang++.cmd', library: 'x86_64-linux-android']
+        ]
+        targets.each { abi, target ->
+            def destination = new File(generatedNodeBridgeLibs, abi)
+            destination.mkdirs()
+            def outputLibrary = new File(destination, 'libsyncwatch-node.so')
+            exec {
+                commandLine new File(compilerRoot, target.compiler).absolutePath,
+                        '-shared', '-fPIC', '-std=c++17', '-fexceptions', '-frtti',
+                        '-Wall', '-Wextra', '-Werror=return-type', '-Wl,--no-undefined',
+                        '-Wl,-z,max-page-size=16384',
+                        '-Wl,-z,common-page-size=16384',
+                        '-Wl,-soname,libsyncwatch-node.so',
+                        "-I${new File(nodeMobileRoot, 'include/node').absolutePath}",
+                        copiedSource.absolutePath,
+                        "-L${new File(nodeMobileRoot, "bin/${abi}").absolutePath}",
+                        '-lnode', '-llog', '-lc++_shared', '-o', outputLibrary.absolutePath
+            }
+            def cppRuntime = new File(sysrootLibraries,
+                    "${target.library}/libc++_shared.so")
+            if (!cppRuntime.isFile()) {
+                throw new GradleException("NDK libc++_shared.so is missing for ${abi}")
+            }
+            if (abi == 'armeabi-v7a') {
+                // NDK r28 still ships its 32-bit shared C++ runtime with 4 KB
+                // LOAD alignment. Relink the matching static archives so every
+                // native library in the APK is loadable on 16 KB page devices.
+                def cppStaticRuntime = new File(arm32RuntimeDirectory, 'libc++_static.a')
+                def cppAbiRuntime = new File(arm32RuntimeDirectory, 'libc++abi.a')
+                if (!cppStaticRuntime.isFile() || !cppAbiRuntime.isFile()) {
+                    throw new GradleException('NDK static C++ runtime is missing for armeabi-v7a')
+                }
+                exec {
+                    commandLine new File(compilerRoot, target.compiler).absolutePath,
+                            '-shared', '-fPIC', '-nostdlib++', '-Wl,--no-undefined',
+                            '-Wl,-z,max-page-size=16384',
+                            '-Wl,-z,common-page-size=16384',
+                            '-Wl,-soname,libc++_shared.so',
+                            '-Wl,--whole-archive',
+                            cppStaticRuntime.absolutePath,
+                            cppAbiRuntime.absolutePath,
+                            '-Wl,--no-whole-archive',
+                            '-lc', '-lm', '-ldl', '-o',
+                            new File(destination, 'libc++_shared.so').absolutePath
+                }
+            } else {
+                copy {
+                    from cppRuntime
+                    into destination
+                }
+            }
+        }
+    }
+}
+
+def releaseStore = System.getenv('SYNCWATCH_ANDROID_KEYSTORE')
+def releaseStorePassword = System.getenv('SYNCWATCH_ANDROID_KEYSTORE_PASSWORD')
+def releaseAlias = System.getenv('SYNCWATCH_ANDROID_KEY_ALIAS')
+def releaseKeyPassword = System.getenv('SYNCWATCH_ANDROID_KEY_PASSWORD')
+def releaseSigningReady = releaseStore && releaseStorePassword && releaseAlias && releaseKeyPassword && file(releaseStore).isFile()
+
+android {
+    namespace 'com.tangjingxuan.syncwatch'
+    compileSdk 35
+    buildToolsVersion '35.0.0'
+    ndkVersion '28.2.13676358'
+
+    defaultConfig {
+        applicationId 'com.tangjingxuan.syncwatch'
+        minSdk 23
+        targetSdk 35
+        versionCode 20105
+        versionName '2.1.5'
+
+        ndk {
+            abiFilters 'arm64-v8a', 'armeabi-v7a', 'x86_64'
+        }
+    }
+
+    if (releaseSigningReady) {
+        signingConfigs {
+            release {
+                storeFile file(releaseStore)
+                storePassword releaseStorePassword
+                keyAlias releaseAlias
+                keyPassword releaseKeyPassword
+                enableV1Signing true
+                enableV2Signing true
+                enableV3Signing true
+                enableV4Signing true
+            }
+        }
+    }
+
+    buildTypes {
+        debug {
+            applicationIdSuffix '.debug'
+            versionNameSuffix '-debug'
+        }
+        release {
+            minifyEnabled false
+            shrinkResources false
+            if (releaseSigningReady) {
+                signingConfig signingConfigs.release
+            }
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    sourceSets {
+        main {
+            assets.srcDir generatedServerAssets
+            jniLibs.srcDirs new File(nodeMobileRoot, 'bin'), generatedNodeBridgeLibs
+        }
+    }
+
+    packaging {
+        jniLibs {
+            // Keep native libraries uncompressed so APK ZIP entries can be 16 KB aligned.
+            useLegacyPackaging = false
+        }
+        resources {
+            excludes += ['/META-INF/{AL2.0,LGPL2.1}']
+        }
+    }
+}
+
+tasks.named('preBuild').configure {
+    dependsOn tasks.named('prepareMobileServerAssets')
+    dependsOn tasks.named('compileEmbeddedNodeBridge')
+}
+
+gradle.taskGraph.whenReady { graph ->
+    def requestsReleaseArtifact = graph.allTasks.any { task ->
+        task.project == project && (task.name ==~ /(?i).*(assemble|bundle|package).*release.*/)
+    }
+    if (requestsReleaseArtifact && !releaseSigningReady) {
+        throw new GradleException('A real SyncWatch release keystore is required. Debug signing is never used for release APK/AAB artifacts.')
+    }
+}
+

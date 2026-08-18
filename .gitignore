@@ -1,0 +1,38 @@
+node_modules/
+dist*/
+release/
+SyncWatch-Data/
+
+# Local runtime and release credentials
+.env
+.env.*
+!.env.example
+**/.secrets/
+**/secrets/
+mobile/.keys/
+mobile/app/libnode/
+mac/mac-distribution.json
+server-config.json
+*.jks
+*.keystore
+*.pem
+*.p12
+*.pfx
+
+# Generated Android and desktop artifacts
+mobile/.gradle/
+mobile/build/
+mobile/app/build/
+mobile/app/.cxx/
+vendor/
+*.exe
+*.apk
+*.zip
+*.dmg
+*.log
+
+# Editor and OS files
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db

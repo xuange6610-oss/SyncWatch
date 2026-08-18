@@ -1,0 +1,13288 @@
+'use strict';
+
+const HOST_TOKEN_SESSION_KEY = 'syncwatchHostToken';
+const LOGIN_CUBE_FACE_DEFAULTS = Object.freeze([
+  { id: 'front', label: '正面', icon: '🎬', title: '同一帧，共此刻', text: '局域网 / 公网 · 智能同步 · SyncWatch 为您带来极致的观影体验', image: '' },
+  { id: 'back', label: '背面', icon: '📺', title: '稳定同步', text: '播放、暂停、进度与倍速保持一致', image: '' },
+  { id: 'right', label: '右侧', icon: '💬', title: '一起交流', text: '聊天、私聊、弹幕与表情实时送达', image: '' },
+  { id: 'left', label: '左侧', icon: '🎙️', title: '实时语音', text: '观影时也能自然地说说话', image: '' },
+  { id: 'top', label: '顶部', icon: '☁️', title: '多端连接', text: '电脑、网页与手机保持同步', image: '' },
+  { id: 'bottom', label: '底部', icon: '✨', title: 'SyncWatch', text: '多端设备，随时连接', image: '' }
+]);
+const SYNCWATCH_SUPPORT_EMAIL = '2590813506@qq.com';
+const PLAYBACK_RATE_PROMPT_KEY = 'syncwatchPlaybackRatePrompt';
+const hostTokenFromHash = new URLSearchParams(location.hash.slice(1)).get('host') || '';
+let windowHostToken = hostTokenFromHash;
+try {
+  if (hostTokenFromHash) sessionStorage.setItem(HOST_TOKEN_SESSION_KEY, hostTokenFromHash);
+  else windowHostToken = sessionStorage.getItem(HOST_TOKEN_SESSION_KEY) || '';
+} catch (_) {}
+
+const state = {
+  socket: null, token: localStorage.getItem('syncwatchToken') || '', user: null,
+  capabilities: { owner: false, serverHost: false, superAdmin: false }, permissions: { control: false, upload: true, delete: false, manageMedia: false, shareScreen: false, shareAudio: false, shareWeb: false, voiceChat: true, manageChat: false, manageRoom: false, sendNotice: false },
+  publicConfig: { version: 'v2.1.5', addresses: [], accessPasswordRequired: false, maxUploadBytes: 10 * 1024 * 1024 * 1024, uploadTimeLimitSeconds: 0, androidApkAvailable: false, clientDownloadAvailable: false, macServerDownloads: [], macClientDownloads: [], serverHostLoginAvailable: false, passwordRecoveryAvailable: false, registrationEmailVerificationRequired: false, emailBindingAvailable: false, lanAccessEnabled: true, defaultPlaybackQuality: 'original', experiencePerMinute: 1, passwordPolicy: { mode: 'unrestricted', minLength: 6, maxLength: 72, expiryDays: 7 }, roomIdPolicy: { enabled: false, mode: 'uppercase_alnum', minLength: 4, maxLength: 32, customPattern: '' }, contact: {}, legalAgreement: {}, branding: { owner: 'xuan', notice: '版权所有 © xuan，保留所有权利。' }, f11PromptEnabled: true, initialPasswordReminderEnabled: true, loginMusic: { enabled: false, showTitle: true, title: '', url: '', volume: 0.3, loop: true }, loginVideo: { enabled: false, url: '', originalName: '' }, loginCube: { displayMode: 'cube', rotationDirection: 'right', autoRotate: true, inertia: true, rotationSpeed: 16, faces: LOGIN_CUBE_FACE_DEFAULTS.map((face) => ({ ...face })), model: { url: '', originalName: '', size: 0, sha256: '' } } },
+  publicConfigKnown: false, publicConfigRetryTimer: null, roomInfoTimer: null, files: new Map(), users: [], room: null, queue: [], currentFile: null,
+  applyingPlayback: false, pendingPlayback: null, playbackAnchor: null, playbackRevision: -1, syncSeekCooldownUntil: 0,
+  expectedSeek: null, expectedPlaybackEvent: null, expectedVolume: null, mediaGeneration: 0,
+  textPreviewGeneration: 0, textPreviewController: null,
+  activeTimedFileId: null, activeTimedSource: '', activeMediaVariant: 'auto', mediaEventBlockUntil: 0, shareMediaSuspended: false,
+  serverClockOffset: 0, serverClockReady: false, serverClockAnchor: null, clockSamples: [], autoplayBlocked: false,
+  localCapture: null, captureTimer: null, captureVideo: null, captureCanvas: null, captureSession: 0,
+  captureInFlight: false, captureSequence: 0, screenShareActive: false, screenShareKey: '', screenShareRequestInFlight: false,
+  screenFrameSendGeneration: 0, screenFrameReliableInFlight: false, screenFrameReliablePending: null, screenFrameReliableLastAt: 0,
+  nativeCapture: null, nativeCaptureSession: 0, nativeCaptureStartTimer: null, nativeCaptureFrameBusy: false, nativeCapturePendingFrame: null,
+  captureRestoreTimer: null, captureRestoreInFlight: false,
+  pendingScreenFrame: null, decodingScreenFrame: false, lastScreenFrameSequence: 0, screenFrameGeneration: 0,
+  chatMode: 'danmaku', messages: [], chatHasMore: true, chatLoading: false, chatBeforeId: '', chatBefore: '',
+  chatViewFilter: { channel: '', username: '', userMode: 'include', query: '' },
+  chatManageAccounts: [], chatManageAccountsLoading: false, chatManageMessages: [], chatManageSelectedUsers: new Set(),
+  chatManageHasMore: true, chatManageLoading: false, chatManageBeforeId: '', chatManageBefore: '', chatManageGeneration: 0,
+  latestDrift: 0, localLatency: null, syncPercent: 100, localBuffering: false, bufferedAheadSeconds: 0, profile: null, adminSettings: null, mailTemplateDrafts: {}, mailTemplateKey: '',
+  verificationCodes: [], verificationCodeSearch: '', verificationCodeType: '', verificationCodeStatus: '', selectedVerificationCodes: new Set(), loginMusicObjectUrl: '', loginVideoObjectUrl: '', loginMusicProgressTimer: null,
+  mediaRecorder: null, voiceChunks: [], voiceStopTimer: null, voiceCapturePending: false, voiceProcessing: false, authenticated: false, socketAuthenticated: false,
+  resumeInFlight: false, resumeNeeded: false, resumeReconnect: false, resumeRetryTimer: null,
+  rememberSession: Boolean(localStorage.getItem('syncwatchToken')), authGeneration: 0,
+  hostToken: windowHostToken, lastWatchReport: Date.now(),
+  lastPlaybackProgress: 0, volumeEmitTimer: null, mediaFailed: false, lastConnectionError: '',
+  mediaNetworkRecovery: { key: '', attempts: 0, timer: null, resume: null },
+  compatibilityFallbackFileId: '', compatibilityFallbackGeneration: -1,
+  uploadBatch: null, libraryCollapsed: localStorage.getItem('syncwatchFilesCollapsed') === '1',
+  uploadProgressBackgrounded: false,
+  playbackQuality: ['auto', 'smooth', 'original'].includes(localStorage.getItem('syncwatchPlaybackQuality')) ? localStorage.getItem('syncwatchPlaybackQuality') : 'original',
+  syncDriftNotice: localStorage.getItem('syncwatchSyncDriftNotice') !== '0',
+  uiTheme: localStorage.getItem('syncwatchUiTheme') || 'silver-screen',
+  uiFont: localStorage.getItem('syncwatchUiFont') || '',
+  topbarDisplayMode: localStorage.getItem('syncwatchTopbarDisplayModeV2') === 'compact' ? 'compact' : 'text',
+  mobileChatCollapsed: localStorage.getItem('syncwatchMobileChatCollapsed') !== '0',
+  fullscreenHideTimer: null, fullscreenRevealTimer: null, f11PromptTimer: null, f11PromptEndsAt: 0, playbackRatePromptTimer: null, lastShownPlaybackRate: 0, appliedPlaybackRate: null, pseudoFullscreen: false, fullscreenMessageId: '', chatContextMessageId: '',
+  chatContextMenuHomeParent: null, chatContextMenuHomeNextSibling: null, lightsInFlight: false, roomSwitchSuccessTimer: null,
+  tunnelPollTimer: null, tunnelPollInFlight: false, tunnelPollGeneration: 0, tunnelLastStatus: null, tunnelStopRequested: false,
+  operationHistory: [], operationHistoryBefore: '', operationHistoryHasMore: false, operationHistoryLoading: false,
+  operationHistoryQuery: '', operationHistoryScope: '', selectedOperations: new Set(), returnToManagementAfterChild: false,
+  managementSection: 'server', managementHomeParent: null, managementHomeNextSibling: null, adminRefreshTimer: null, adminRefreshInFlight: false,
+  controlRequest: null, controlSuppressions: {}, lanRooms: [], onlineRooms: [], lanScanResolver: null,
+  screenPeers: new Map(), remoteScreenPeer: null, remoteScreenStream: null, screenSignalQueues: new Map(),
+  screenAudioContext: null, screenAudioNextTime: 0, screenAudioSequence: 0, screenAudioQueue: [], screenAudioLastSequence: 0, screenAudioLastSequenceAt: 0, screenAudioProcessor: null, screenAudioSource: null,
+  screenAudioSink: null, screenPlaybackAudioContext: null,
+  audioSourceStream: null, audioSourceShareActive: false, audioSourceShare: null, audioSourceVolume: 0.8, nativeAudioSources: [],
+  audioSourcePeers: new Map(), remoteAudioSourcePeer: null, remoteAudioSourceStream: null, audioSourceSignalQueues: new Map(),
+  intentionalLogout: false, roomPasswordPromptActive: false, accountPasswordPromptActive: false, initialAdminPasswordSetupSkipped: false, seekInteractionUntil: 0,
+  memberProfileRefreshTimer: null, memberProfileUsername: '', memberProfileSnapshot: null, memberProfileOpenedAt: 0, memberProfileBaseOnlineSeconds: 0,
+  memberProfileLastFetchAt: 0, memberProfileHighlightUntil: 0,
+  liveVoiceStream: null, liveVoiceMode: '', liveVoiceMuted: false, liveVoicePeers: new Map(), liveVoiceSignalQueues: new Map(), pendingVoiceCallId: '',
+  liveVoiceCollapsed: localStorage.getItem('syncwatchLiveVoiceCollapsed') === '1', liveVoiceFloatingCollapsed: localStorage.getItem('syncwatchVoiceFloatingCollapsed') === '1', liveVoicePushRestoreMuted: null,
+  roomIdTouched: false, agreementResolver: null, screenNoticeTimer: null, viewRotation: 0, viewZoom: 1,
+  webShare: { active: false, url: '', title: '', updatedAt: 0 }, floatingPlayerActive: false, documentPipWindow: null, pipDanmakuLayer: null, ownerExitResolver: null, recentNoticeKeys: new Map(),
+  desktopClosePending: false,
+  pendingJoinRoomId: '', mediaCategoryFilter: '', mediaCategories: [], roomMarquee: null,
+  selectedProfileRooms: new Set(), selectedMediaFiles: new Set(), selectedManagementFiles: new Set(), selectedGlobalRooms: new Set(), selectedRoomMediaPreviewFiles: new Set(), roomMediaPreviewRoomId: '', roomMediaPreviewFiles: [],
+  selectedProfileMedia: new Set(), selectedProfileFavorites: new Set(), selectedProfileHistory: new Set(), profileQueries: {}, profileCategoryFilters: {},
+  mediaManagementSearch: '', mediaManagementCategory: '', videoManagementVisible: false, mediaManagementRequestPending: false,
+  resolvedPlaybackRequests: new Set(), activePlaybackRequestId: '',
+  friendSearch: '', friendDirectory: [], friendDirectoryLoaded: false, friendDirectoryLoading: false,
+  friendDirectoryCollapsed: localStorage.getItem('syncwatchFriendDirectoryCollapsed') === '1',
+  friendChatUser: '', friendMessages: new Map(), friendRequests: [], friendSettings: { messageNotifications: true, allowFriendRequests: true, allowPasswordlessOwnRoomJoin: false }, friendChatManage: false,
+  friendChatSelection: new Set(), friendChatContextMessageId: '', friendReplyTo: null,
+  selectedDevices: new Set(),
+  desktopShareSettings: JSON.parse(localStorage.getItem('syncwatchDesktopShareSettings') || '{"resolution":"native","fps":30,"quality":"high","systemAudio":true}'),
+  masterMuted: localStorage.getItem('syncwatchMasterMuted') === '1', masterMuteStates: new WeakMap(),
+  toastRegionHomeParent: null, toastRegionHomeNextSibling: null,
+  locationPromptDisabled: localStorage.getItem('syncwatchLocationPromptDisabled') === '1', locationAuthorizationMembers: [], locationAuthorizationQuery: '',
+  locationStatusNoticeMuteUntil: Math.max(0, Number(localStorage.getItem('syncwatchLocationStatusNoticeMuteUntil')) || 0),
+  locationStatusNoticeNever: localStorage.getItem('syncwatchLocationStatusNoticeNever') === '1',
+  memberDetailsCollapsed: localStorage.getItem('syncwatchMemberDetailsCollapsed') === '1',
+  memberDetailOverrides: new Map(),
+  selfMemberHighlight: localStorage.getItem('syncwatchSelfMemberHighlight') !== '0',
+  selectedAdminAccounts: new Set(), selectedPermissionGroups: new Set(), accountViewMode: localStorage.getItem('syncwatchAccountViewMode') || 'cards', registrationViewMode: localStorage.getItem('syncwatchRegistrationViewMode') || 'cards', registrationRequests: [],
+  networkUploadBytes: 0, networkDownloadBytes: 0, networkLastUploadBytes: 0, networkLastDownloadBytes: 0, networkSpeedTimer: null,
+  themeSyncQueue: [], themeSyncPromptActive: false, persistentRequests: new Map(), dismissedPersistentRequests: new Set(),
+  accountOverviewQuery: '', accountOverviewPresence: 'all', accountOverviewSort: 'name-asc',
+  accountAdminPresence: 'all', accountAdminSort: 'name-asc', accountAdminSuperOnly: false, lastLoginPassword: '', friendPresence: new Map(),
+  accountAuditLogs: [], accountAuditLogQuery: '', accountAuditLogType: '', selectedAccountAuditLogs: new Set(), accountAuditLogLoading: false,
+  mediaProcessingStatus: null, mediaProcessingLoading: false, mediaProcessingSearch: '', selectedMediaProcessingTasks: new Set(),
+  playerSeekDragging: false, playerSeekTarget: null, lastCommittedSeek: null,
+  roomEntryNotice: null, roomEntryNoticeTimer: null, roomEntryNoticeEndsAt: 0,
+  clipboardPasteFallbacks: new WeakMap(), switchOwnedRoomsLoading: false, switchOwnedRoomSnapshot: [], selectedSwitchOwnedRooms: new Set(),
+  loginRoomSnapshot: [], selectedLoginRooms: new Set(), loginRoomQuota: 1, loginOwnedRoomCount: 0, macDownloadKind: 'client',
+  applicationRefreshInFlight: false, modalLayerCounter: 500,
+  loginCubeRotationX: -12, loginCubeRotationY: 28, loginCubeDragging: false, loginCubePointerId: null,
+  loginCubeLastX: 0, loginCubeLastY: 0, loginCubeLastPointerAt: 0, loginCubeVelocityX: 0, loginCubeVelocityY: 0,
+  loginCubeMotionFrame: 0, loginCubeMotionLastAt: 0, loginCubeEditorObjectUrls: new Map(), loginCubeRandomDirection: 'right', loginCubeRandomDirectionUntil: 0,
+  loginCubeModelRenderer: null, loginCubeModelScene: null, loginCubeModelCamera: null, loginCubeModelRoot: null,
+  loginCubeModelUrl: '', loginCubeModelFailedUrl: '', loginCubeModelGeneration: 0, loginCubeModelResizeObserver: null,
+  loginCubeModelLibraryPromise: null
+};
+
+const MAX_NATIVE_CAPTURE_BYTES = Math.floor(1.5 * 1024 * 1024);
+const MAX_NATIVE_CAPTURE_BASE64_LENGTH = Math.ceil(MAX_NATIVE_CAPTURE_BYTES * 4 / 3);
+const TEXT_PREVIEW_LIMIT_BYTES = 2 * 1024 * 1024;
+const SCREEN_FRAME_RELIABLE_INTERVAL_MS = 1000;
+const SCREEN_FRAME_SEND_ACK_TIMEOUT_MS = 3000;
+const UI_THEMES = [
+  ['original', '原版界面', '当前稳定风格，默认使用', ''],
+  ['cinema-deck', '影院甲板', '宽银幕与沉浸式控制台', '01'],
+  ['command-orbit', '指挥轨道', '紧凑环形导航与冷静蓝绿', '02'],
+  ['living-room', '客厅沉浸', '柔和明亮的家庭观影空间', '03'],
+  ['screening-journal', '放映刊物', '编辑排版与影片目录感', '04'],
+  ['director-console', '导播控制台', '高密度专业导播工作区', '05'],
+  ['timeline-room', '时间线房间', '以播放进度和队列为中心', '06'],
+  ['poster-library', '海报片库', '强调封面浏览与收藏', '07'],
+  ['pure-screening', '纯净放映', '克制留白与安静控件', '08'],
+  ['conversation-first', '对话优先', '强化聊天与共同观看', '09'],
+  ['spatial-room', '空间房间', '分层面板与空间深度', '10'],
+  ['browser-workspace', '浏览器工作区', '桌面标签页式工作空间', '11'],
+  ['ten-foot-tv', '十英尺电视', '适合电视和远距离操作', '12'],
+  ['fluid-desktop', '流畅桌面', '轻量、快速、圆润的桌面感', '13'],
+  ['mono-screening', '黑白放映报', '黑白高对比编辑风格', '14'],
+  ['friends-party', '好友放映会', '轻松活跃的好友聚会氛围', '15'],
+  ['arcade-room', '街机房间', '高对比霓虹游戏厅风格', '16'],
+  ['audio-stage', '音源舞台', '突出声音和共享控制', '17'],
+  ['city-watch', '城市同看', '城市夜景般的明暗层次', '18'],
+  ['modular-windows', '模块化窗口', '清晰的窗口化信息布局', '19'],
+  ['silver-screen', '银幕典藏', '经典影院与典藏质感', '20']
+];
+
+const UI_FONT_PRESETS = [
+  ['system', '系统默认', 'system-ui, -apple-system, "Segoe UI", sans-serif', '默认 通用'],
+  ['microsoft-yahei', '微软雅黑', '"Microsoft YaHei", "微软雅黑", sans-serif', '中文 黑体'],
+  ['microsoft-yahei-ui', '微软雅黑 UI', '"Microsoft YaHei UI", "Microsoft YaHei", sans-serif', '中文 界面'],
+  ['simsun', '宋体', 'SimSun, "宋体", serif', '中文 衬线'],
+  ['nsimsun', '新宋体', 'NSimSun, "新宋体", serif', '中文 衬线'],
+  ['simhei', '黑体', 'SimHei, "黑体", sans-serif', '中文 黑体'],
+  ['kaiti', '楷体', 'KaiTi, "楷体", serif', '中文 书法'],
+  ['fangsong', '仿宋', 'FangSong, "仿宋", serif', '中文 公文'],
+  ['dengxian', '等线', 'DengXian, "等线", sans-serif', '中文 简洁'],
+  ['microsoft-jhenghei', '微软正黑体', '"Microsoft JhengHei", "微软正黑体", sans-serif', '中文 繁体'],
+  ['pingfang', '苹方', '"PingFang SC", "苹方-简", sans-serif', '中文 苹果'],
+  ['hiragino', '冬青黑体', '"Hiragino Sans GB", "冬青黑体简体中文", sans-serif', '中文 苹果'],
+  ['heiti-sc', '华文黑体', '"Heiti SC", "华文黑体", sans-serif', '中文 黑体'],
+  ['songti-sc', '华文宋体', '"Songti SC", "华文宋体", serif', '中文 衬线'],
+  ['kaiti-sc', '华文楷体', '"Kaiti SC", "华文楷体", serif', '中文 书法'],
+  ['stfangsong', '华文仿宋', 'STFangsong, "华文仿宋", serif', '中文 公文'],
+  ['segoe-ui', 'Segoe UI', '"Segoe UI", sans-serif', '英文 Windows 界面'],
+  ['arial', 'Arial', 'Arial, sans-serif', '英文 无衬线'],
+  ['helvetica', 'Helvetica', 'Helvetica, Arial, sans-serif', '英文 无衬线'],
+  ['verdana', 'Verdana', 'Verdana, sans-serif', '英文 易读'],
+  ['tahoma', 'Tahoma', 'Tahoma, sans-serif', '英文 界面'],
+  ['trebuchet', 'Trebuchet MS', '"Trebuchet MS", sans-serif', '英文 活泼'],
+  ['calibri', 'Calibri', 'Calibri, sans-serif', '英文 Office'],
+  ['cambria', 'Cambria', 'Cambria, serif', '英文 Office 衬线'],
+  ['candara', 'Candara', 'Candara, sans-serif', '英文 人文'],
+  ['corbel', 'Corbel', 'Corbel, sans-serif', '英文 人文'],
+  ['constantia', 'Constantia', 'Constantia, serif', '英文 衬线'],
+  ['century-gothic', 'Century Gothic', '"Century Gothic", sans-serif', '英文 几何'],
+  ['franklin-gothic', 'Franklin Gothic', '"Franklin Gothic Medium", sans-serif', '英文 标题'],
+  ['georgia', 'Georgia', 'Georgia, serif', '英文 衬线'],
+  ['times-new-roman', 'Times New Roman', '"Times New Roman", serif', '英文 衬线'],
+  ['garamond', 'Garamond', 'Garamond, serif', '英文 典雅'],
+  ['palatino', 'Palatino', '"Palatino Linotype", Palatino, serif', '英文 典雅'],
+  ['baskerville', 'Baskerville', 'Baskerville, serif', '英文 典雅'],
+  ['didot', 'Didot', 'Didot, serif', '英文 时尚'],
+  ['book-antiqua', 'Book Antiqua', '"Book Antiqua", serif', '英文 书籍'],
+  ['courier-new', 'Courier New', '"Courier New", monospace', '等宽 编程'],
+  ['consolas', 'Consolas', 'Consolas, monospace', '等宽 编程 Windows'],
+  ['lucida-console', 'Lucida Console', '"Lucida Console", monospace', '等宽 编程'],
+  ['monaco', 'Monaco', 'Monaco, monospace', '等宽 编程 苹果'],
+  ['menlo', 'Menlo', 'Menlo, monospace', '等宽 编程 苹果'],
+  ['fira-code', 'Fira Code', '"Fira Code", Consolas, monospace', '等宽 编程 连字'],
+  ['jetbrains-mono', 'JetBrains Mono', '"JetBrains Mono", Consolas, monospace', '等宽 编程'],
+  ['source-code-pro', 'Source Code Pro', '"Source Code Pro", Consolas, monospace', '等宽 编程'],
+  ['noto-sans', 'Noto Sans', '"Noto Sans", "Noto Sans CJK SC", sans-serif', '通用 中文 无衬线'],
+  ['noto-serif', 'Noto Serif', '"Noto Serif", "Noto Serif CJK SC", serif', '通用 中文 衬线'],
+  ['roboto', 'Roboto', 'Roboto, sans-serif', '英文 Android'],
+  ['open-sans', 'Open Sans', '"Open Sans", sans-serif', '英文 易读'],
+  ['ubuntu', 'Ubuntu', 'Ubuntu, sans-serif', '英文 Linux'],
+  ['comic-sans', 'Comic Sans MS', '"Comic Sans MS", cursive', '英文 手写']
+];
+
+const MAIL_TEMPLATE_PRESETS = [
+  '金色影院', '银幕黑金', '午夜放映', '晨光简洁', '极简白', '海风蓝', '青柠清爽', '樱花柔粉', '紫罗兰', '暖橙活力',
+  '深海蓝', '森林绿', '石墨灰', '玫瑰红', '冰川青', '琥珀棕', '薰衣草', '薄荷绿', '天际蓝', '珊瑚橙',
+  '经典报刊', '电影票根', '胶片颗粒', '导演手记', '观影邀请', '节日红金', '新年烟火', '春日花园', '夏夜星河', '秋日枫叶',
+  '冬日雪幕', '科技霓虹', '像素影院', '极地银幕', '复古电视', '唱片舞台', '云端放映', '轻奢金属', '奶油纸张', '墨绿典藏',
+  '蓝紫渐变', '酒红剧院', '青铜海报', '清晨电影', '暖白信纸', '曜石黑', '琥珀玻璃', '湖水倒影', '砂岩海报', '星光首映'
+].map((name, index) => {
+  const layouts = ['cinema', 'ticket', 'letter', 'neon', 'paper', 'theater', 'frame', 'minimal', 'postcard', 'spotlight'];
+  const backgrounds = ['#111315', '#17131a', '#101a1d', '#080b16', '#f4efe5', '#1a1210', '#15191d', '#0d1114', '#17151e', '#10151b'];
+  const fontFamilies = ['Microsoft YaHei, sans-serif', 'Arial, sans-serif', 'Georgia, serif', 'Inter, sans-serif', 'Noto Serif SC, serif'];
+  const markups = ['shell', 'ticket', 'letterhead', 'neon-frame', 'paper-card', 'stage', 'filmstrip', 'quiet', 'postcard', 'spotlight'];
+  return {
+    id: `preset-${String(index + 1).padStart(2, '0')}`,
+    name,
+    hue: ['#e9bd68', '#91e1d5', '#8eb8ff', '#ed8aa1', '#c8a7ff'][index % 5],
+    layout: layouts[index % layouts.length],
+    background: backgrounds[index % backgrounds.length],
+    fontFamily: fontFamilies[index % fontFamilies.length],
+    markup: markups[index % markups.length]
+  };
+});
+
+window.__syncWatchNativeCaptureState = handleNativeCaptureState;
+window.__syncWatchNativeCaptureFrame = queueNativeCaptureFrame;
+window.__syncWatchNativeCaptureAudio = queueNativeCaptureAudio;
+window.__syncWatchNativeLanRooms = receiveNativeLanRooms;
+
+if (location.hash) history.replaceState(null, '', location.pathname + location.search);
+
+function createDeviceId() {
+  if (typeof window.crypto?.randomUUID === 'function') return window.crypto.randomUUID();
+  const bytes = new Uint8Array(16);
+  if (typeof window.crypto?.getRandomValues === 'function') window.crypto.getRandomValues(bytes);
+  else for (let index = 0; index < bytes.length; index += 1) bytes[index] = Math.floor(Math.random() * 256);
+  bytes[6] = (bytes[6] & 0x0f) | 0x40;
+  bytes[8] = (bytes[8] & 0x3f) | 0x80;
+  const hex = Array.from(bytes, (value) => value.toString(16).padStart(2, '0'));
+  return `${hex.slice(0, 4).join('')}-${hex.slice(4, 6).join('')}-${hex.slice(6, 8).join('')}-${hex.slice(8, 10).join('')}-${hex.slice(10).join('')}`;
+}
+
+const deviceId = localStorage.getItem('syncwatchDeviceId') || createDeviceId();
+localStorage.setItem('syncwatchDeviceId', deviceId);
+
+const elements = {};
+const ids = `connectionBadge copyAddressBtn copyrightBtn closeCopyrightBtn copyrightModal versionText loginPage mainPage mobileMenuBtn mobileMenuBackdrop
+  loginForm registerForm showRegisterBtn showLoginBtn forgotPasswordBtn requestRegistrationBtn authTitle authHint username password togglePasswordBtn toggleRegPasswordBtn toggleRegPasswordConfirmBtn autoLogin loginVersionInfo myRoomsLoginBtn serverAdminLoginBtn adminContactBtn downloadClientBtn downloadLoginApkBtn downloadMacServerBtn downloadMacClientBtn guestLoginBtn authCard
+ loginAccessGroup loginAccessPassword roomIdInput loginRoomPassword onlineRoomSelect refreshOnlineRoomsBtn roomLookupStatus currentDeviceIp copyDeviceIpBtn registerAccessGroup registerAccessPassword regUsername regEmail regEmailVerificationCode registrationEmailVerificationRow sendRegistrationEmailCodeBtn regPassword regPasswordConfirm loginStatus loginStatusWrap closeLoginStatusBtn createRoomBtn defaultAdminLoginHint
+roomHeader headerRoomName headerOnline headerMax headerStatus headerThemeStatus headerServerPortGroup headerServerPort accountMenuBtn accountDropdown accountName accountAvatar logoutKeepCredentialsBtn logoutBtn networkUploadSpeed networkDownloadSpeed
+filePanel userPanel mobileFilesBtn mobileUsersBtn fileInput folderInput chooseFileBtn chooseFolderBtn cancelUploadBtn backgroundUploadBtn collapseFilesBtn uploadLimitText uploadProgress uploadProgressTitle uploadProgressBar uploadProgressText
+ fileList fileCount libraryTab queueTab queueList addCurrentQueueBtn addRemoteVideoBtn queueModeSelect queueCategoryGroup queueCategorySelect mediaCategoryFilter manageMediaCategoriesBtn batchMoveMediaCategoryBtn openVideoManagementBtn nowPlayingName userCountCard localLatency syncStatus roomMarquee roomMarqueeText
+ playPauseBtn clearPlaybackBtn customJumpBtn backBtn forwardBtn volumeMuteBtn videoMuteBtn volumeSlider playbackQualitySelect playbackRateSelect playbackRateBadge playbackRatePrompt syncNoticeToggle requestControlBtn screenShareBtn audioSourceBtn floatingPlayerBtn fullscreenBtn lightsBtn ownerControls controlLockBtn forceSyncBtn volumeSyncToggle temporaryRoomNotice convertTemporaryRoomPrimaryBtn ignoreTemporaryRoomBtn playerProgressBar playerSeekSlider playerCurrentTime playerDuration
+ playerContainer emptyStage emptyStageHint videoPlayer imageViewer documentViewer textViewer sharedWebViewer sharedWebEmpty downloadViewer downloadTitle downloadLink screenShareCanvas screenShareVideo screenShareStatus syncNotice resumePlaybackBtn danmakuContainer reactionLayer friendVideoNoticeLayer playerInfo playerResolution playerCodec hardwareDecode
+ controlRequestOverlay controlRequestTitle controlRequestDetail controlRequestSuppress controlRequestDenyBtn controlRequestAllowBtn permissionNotice permissionNoticeTitle permissionNoticeText permissionNoticeCloseBtn
+ chatPanel chatHistory chatForm chatInput privateRecipient voiceBtn voiceFileInput chatImageInput chatImageBtn chatEmojiBtn chatEmojiBar chatEmojiCollapseBtn loadHistoryBtn chatToggleBtn chatViewFilterBtn chatViewFilters chatViewChannel chatViewUser chatViewUserMode chatViewQuery chatViewResetBtn reactionBar userList userCount roomCode roomScheme roomShareUrl applyShareDomainBtn copyShareLinkBtn copyRoomCodeBtn copyLanAddressBtn copyPublicAddressBtn resetShareAddressBtn showQrBtn qrBox currentRoomBanner globalRoomSearch
+ liveVoiceBar liveVoiceStatus voiceRoomBtn voicePrivateBtn voiceMuteBtn voiceLeaveBtn voiceAudioDock voiceDockToggleBtn liveVoiceFloating voiceFloatingStatus voiceFloatingMuteBtn voicePushToTalkBtn voiceFloatingLeaveBtn voiceFloatingCollapseBtn collapseMembersBtn
+  authorizeLocationBtn revokeLocationBtn loginCubeScene loginCube loginCubeModel loginCubeDisplayMode loginCubeRotationDirection loginCubeSettingsCard loginCubeAutoRotate loginCubeInertia loginCubeRotationSpeed loginCubeRotationSpeedValue loginCubeSettingsGrid saveLoginCubeSettingsBtn resetLoginCubeSettingsBtn loginCubeSettingsStatus loginCubeModelFile uploadLoginCubeModelBtn deleteLoginCubeModelBtn loginCubeModelUploadProgress loginCubeModelStatus loginBackgroundVideo loginMusicNowPlaying loginMusicProgressShell loginMusicNowPlayingTitle loginMusicProgressPopover loginMusicProgress loginMusicTime loginMusicAudio
+  usersTab adminTab defaultPasswordWarning managementAuth adminUsername adminPassword loadAdminBtn hostTunnelCard tunnelMode tunnelToken tunnelPublicUrl startTunnelBtn tunnelTutorialBtn tunnelNetworkRepairBtn tunnelBypassProxy tunnelAutoDiagnose stopTunnelBtn tunnelStatus copyTunnelUrlBtn openTunnelUrlBtn tunnelAutoStart saveTunnelStartupBtn tunnelStartupStatus requirePublicRoomPassword savePublicPasswordPolicyBtn publicPasswordPolicyStatus lanAccessCard lanAccessEnabled saveLanAccessBtn lanAccessStatus serverSettingsLoginBtn serverLogsCard refreshServerLogsBtn serverLogCategory serverLogLevel serverLogQuery serverLogList roomStorageCard roomStorageSummary pasteSwitchRoomIdBtn pasteSwitchRoomPasswordBtn clearWebShareBtn changeCurrentRoomIdBtn convertTemporaryRoomBtn
+  mailSettingsCard mailConfigurationBadge mailHost mailPort mailUser mailRecoveryEmail mailAuthCode mailFromEmail mailFromName mailUseTls mailSecure mailEnabled mailRegistrationVerification mailBindingVerification mailAccountRecovery mailAdminRecovery mailTutorialBtn mailTutorialPanel mailTemplateEvent mailTemplateLanguage mailTemplatePreset applyMailTemplatePresetBtn mailTemplateSubject mailTemplateHtml mailTemplatePreview mailTemplatePreviewSubject previewMailTemplateBtn restoreMailTemplateBtn mailTestTemplate mailTestRecipient saveMailSettingsBtn testConnectionBtn testMailConnectionBtn testMailSettingsBtn mailSettingsStatus refreshVerificationCodesBtn verificationCodeType verificationCodeStatus verificationCodeSearch verificationCodeSelectAll deleteSelectedVerificationCodesBtn verificationCodeList brandingSettingsCard brandingOwner brandingNotice saveBrandingBtn brandingStatus marqueeSettingsCard marqueeEnabled marqueeLoginEnabled marqueeTextInput marqueeColor marqueeSpeed marqueeScope saveMarqueeBtn marqueeStatus f11PromptGlobalEnabled initialPasswordReminderEnabled saveNoticePreferenceSettingsBtn loginMusicSettingsCard loginMusicEnabled loginMusicShowTitle loginMusicTitle loginMusicUrl loginMusicFile loginMusicVolume loginMusicVolumeText loginMusicLoop loginMusicPreview loginMusicUploadProgress loginMusicTrackList previewLoginMusicBtn saveLoginMusicBtn removeLoginMusicBtn loginMusicStatus loginVideoSettingsCard loginVideoEnabled loginVideoFile loginVideoPreview loginVideoUploadProgress saveLoginVideoBtn removeLoginVideoBtn loginVideoStatus roomEntryNoticeSettingsCard roomEntryNoticeScope roomEntryNoticeEnabled roomEntryNoticeText saveRoomEntryNoticeBtn resetRoomEntryNoticeBtn roomEntryNoticeStatus
+ roomNameInput maxUsersInput uploadApprovalToggle roomAllowGuests saveRoomBtn uploadLimitMb uploadTimeLimit saveUploadLimitsBtn permissionUser permissionGroup permAdministrator permControl permUpload permDelete permShareScreen permShareAudio permShareWeb permVoiceChat permManageChat permManageRoom permSendNotice savePermissionsBtn
+ permissionGroupList permissionGroupEditor permissionGroupId permissionGroupName groupPermControl groupPermUpload groupPermDelete groupPermShareScreen groupPermShareAudio groupPermShareWeb groupPermVoiceChat groupPermManageChat groupPermManageRoom groupPermSendNotice newPermissionGroupBtn cancelPermissionGroupBtn savePermissionGroupBtn dataBackupScopes
+ pendingList refreshPendingBtn applicationRefreshCard refreshAllApplicationsBtn applicationRefreshStatus accountAdminList refreshAccountsBtn accountViewMode registrationRequestList refreshRegistrationBtn registrationViewMode roomQuotaRequestList refreshRoomQuotaBtn registrationWhitelistInput registrationWhitelistList addRegistrationWhitelistBtn accessPassword setAccessPasswordBtn dissolveRoomCard dissolveRoomBtn newAdminPassword changeAdminPasswordBtn blacklistContent refreshBlacklistBtn
+  passwordPolicyCard passwordPolicyMode passwordPolicyMin passwordPolicyMax passwordPolicyExpiryDays adminUnlimitedDevices savePasswordPolicyBtn passwordPolicyStatus blockedWordsCard blockedWordsInput saveBlockedWordsBtn blockedWordsStatus roomIdPolicyCard roomIdPolicyEnabled roomIdPolicyMin roomIdPolicyMax roomIdPolicyMode roomIdPolicyPatternLabel roomIdPolicyPattern saveRoomIdPolicyBtn roomIdPolicyStatus accountNumberPolicyCard accountIdPolicyPrefix accountIdPolicySeparator accountIdPolicyDigits accountIdPolicyNextNumber saveAccountIdPolicyBtn accountIdPolicyStatus accountTierCard accountTierList accountTierEditor accountTierId accountTierName accountTierUploadGb accountTierRoomQuota accountTierDescription newAccountTierBtn cancelAccountTierBtn saveAccountTierBtn watchLevelSettingsCard watchLevelSettingsList experiencePerMinute saveExperiencePolicyBtn experiencePolicyStatus androidBuildSettingsCard adminContactSettingsCard adminContactLabel adminContactQq adminContactWechat adminContactEmail adminContactPhone adminContactNote saveAdminContactBtn adminContactStatus legalAgreementSettingsCard legalAgreementVersion legalAgreementTitle legalAgreementText saveLegalAgreementBtn legalAgreementStatus accountAdminSearch accountAdminPresence accountAdminSort showSuperAdminAccountsBtn uploadLimitTutorialBtn accountAuditLogBtn
+ toastRegion clearAllToastsBtn reconnectOverlay reconnectMessage reconnectRetryBtn closeReconnectOverlayBtn accountModal closeAccountBtn accountNav accountContent theater guestConvertBtn guestConvertModal closeGuestConvertBtn guestConvertForm guestConvertUsername guestConvertPassword guestConvertPasswordConfirm guestConvertEmail guestConvertEmailCode sendGuestConvertEmailCodeBtn guestConvertStatus
+ newRoomBtn switchRoomBtn lanScanBtn managementHubBtn androidApkBtn operationHistoryBtn chatManageBtn conversionProgressBtn noticeCenterBtn quickDissolveRoomBtn webShareBtn themeBtn topbarDisplayModeBtn masterMuteBtn downloadClientMainBtn downloadMacServerMainBtn downloadMacClientMainBtn createRoomModal closeCreateRoomBtn createRoomForm newRoomName newRoomPassword newRoomMaxUsers roomQuotaStatus requestRoomQuotaBtn persistentRequestCenter
+ mediaBatchModal closeMediaBatchBtn mediaBatchCount mediaBatchSearch mediaBatchSelectAll mediaBatchList mediaBatchCategory mediaBatchConfirmBtn videoManagementModal closeVideoManagementBtn exportVideoManagementBtn importVideoManagementBtn importVideoManagementInput videoManagementSearch videoManagementCategory videoManagementSelectAll videoManagementBatchCategoryBtn videoManagementBatchNoteBtn videoManagementBatchDeleteBtn videoManagementList desktopShareModal closeDesktopShareBtn desktopShareResolution desktopShareFps desktopShareQuality desktopShareSystemAudio desktopShareStartBtn friendChatModal closeFriendChatBtn friendChatTitle friendChatFloatingBtn friendChatHistory friendChatForm friendChatInput friendChatEmojiBtn friendChatEmojiBar friendChatEmojiCategory friendChatEmojiCollapseBtn clearFriendChatBtn manageFriendChatBtn friendChatBatchBar friendChatSelectAll deleteFriendChatSelectedBtn friendChatReplyPreview friendChatReplyText cancelFriendChatReplyBtn friendChatImageBtn friendChatImageInput friendChatContextMenu
+ managementChatManageBtn managementOperationHistoryBtn
+  managementHubModal closeManagementHubBtn managementContentHost switchRoomModal closeSwitchRoomBtn switchRoomForm switchRoomId switchRoomPassword switchOwnedRoomRefreshBtn switchOwnedRoomStatus switchOwnedRoomList lanScanModal closeLanScanBtn refreshLanScanBtn lanRoomList closeRoomSwitchSuccessBtn
+ globalRoomDashboardCard refreshGlobalRoomsBtn globalRoomList selectAllRooms batchStopRoomsBtn batchRequireRoomPasswordsBtn batchBanRoomsBtn batchRenameRoomsBtn batchRenameRoomIdsBtn deleteSelectedRoomsBtn factoryResetCard factoryResetBtn resetAdminPasswordBtn restartServerBtn
+  fullscreenOverlay fullscreenShowBtn fullscreenHideBtn fullscreenExitBtn portraitViewBtn landscapeViewBtn zoomOutBtn zoomInBtn zoomResetBtn zoomLevel fullscreenChatHistory fullscreenChatForm fullscreenChatMode fullscreenPrivateRecipient fullscreenChatInput fullscreenImageInput fullscreenImageBtn fullscreenEmojiBtn fullscreenEmojiBar fullscreenSendBtn f11PromptModal closeF11PromptBtn enterF11NowBtn ignoreF11OnceBtn saveF11PreferenceBtn f11PromptPreference f11PromptCountdown roomEntryNoticeModal closeRoomEntryNoticeBtn roomEntryNoticeTitle roomEntryNoticeMessage roomEntryNoticeCountdown confirmRoomEntryNoticeBtn ignoreRoomEntryNoticeBtn roomEntryNoticePreference saveRoomEntryNoticePreferenceBtn macDownloadModal closeMacDownloadBtn macDownloadTitle macDownloadHint macDownloadArch macDownloadFormat macDownloadAvailability macDownloadStatus confirmMacDownloadBtn
+ chatManageModal closeChatManageBtn chatManageList chatManageUser chatManageType chatManageFullscreenBtn chatManageUsersFilter chatManageUsersSummary chatManageUsers chatManageDateFrom chatManageDateTo chatManageQuery chatClearFiltersBtn chatClearUserBtn chatClearAllBtn chatEmojiCategory fullscreenEmojiCategory
+  operationHistoryModal closeOperationHistoryBtn operationHistoryList refreshOperationHistoryBtn operationHistoryQuery operationHistoryScope operationHistorySelectAll deleteSelectedOperationsBtn chatContextMenu chatContextDeleteBtn roomMediaPreviewModal closeRoomMediaPreviewBtn roomMediaPreviewTitle roomMediaPreviewSelectAll roomMediaPreviewBatchDeleteBtn roomMediaPreviewBanUploadBtn roomMediaPreviewActionStatus roomMediaPreviewList roomMediaPreviewPlayer globalRoomStorageLimitMb applyGlobalRoomStorageLimitBtn audioSourceModal closeAudioSourceBtn audioSourcePlatform audioSourceVolume audioSourceVolumeText audioSourceStatus refreshAudioSourcesBtn startAudioSourceBtn stopAudioSourceBtn
+dataBackupCard dataBackupScope exportDataBtn importDataBtn importDataInput dataBackupStatus dataBackupProgress dataBackupProgressLabel dataBackupProgressPercent dataBackupProgressBar dataBackupProgressDetail
+webShareModal closeWebShareBtn webUrlInput pasteWebUrlBtn openWebUrlBtn shareWebUrlBtn probeWebUrlBtn shareWebWindowBtn webShareStatus webProbeResults webShareEmpty webFrame
+ themeModal closeThemeBtn resetThemeBtn syncThemeBtn themeSyncTargets themeSyncAll themeSyncSelected themeSyncMemberList themeGrid themeFontSearch themeFontSelect applyThemeFontBtn resetThemeFontBtn themeFontStatus copyrightNotice newRoomId
+ myRoomsModal closeMyRoomsBtn myRoomsList accountOverviewModal closeAccountOverviewBtn accountOverviewSearch accountOverviewPresence accountOverviewSort accountOverviewCount accountOverviewList openAccountOverviewBtn accountAuditLogModal closeAccountAuditLogBtn refreshAccountAuditLogsBtn accountAuditLogSearch accountAuditLogType accountAuditLogSelectAll deleteSelectedAccountAuditLogsBtn accountAuditLogList memberProfileModal closeMemberProfileBtn memberProfileContent locationAuthorizationsModal closeLocationAuthorizationsBtn refreshLocationAuthorizationsBtn locationAuthorizationsList viewLocationAuthorizationsBtn adminContactModal closeAdminContactBtn adminContactTitle adminContactNoteDisplay adminContactList tunnelTutorialModal closeTunnelTutorialBtn uploadLimitTutorialModal closeUploadLimitTutorialBtn uploadLimitTutorialActionBtn noticeModal closeNoticeBtn noticeForm noticeText noticeFont noticeDuration noticeFontSize noticeColor noticeScopeGroup noticeScope openPermissionsFromNoticeBtn conversionProgressModal closeConversionProgressBtn refreshConversionProgressBtn conversionProgressSummary mediaProcessingAdminControls mediaProcessingConcurrency saveMediaProcessingBtn openConvertedMediaFolderBtn mediaProcessingControlStatus mediaProcessingSearch mediaProcessingSelectAll mediaProcessingDeleteSource deleteSelectedMediaProcessingBtn conversionProgressList agreementModal agreementTitle agreementVersion agreementText agreementCheck acceptAgreementBtn declineAgreementBtn ownerExitModal ownerExitTitle desktopCloseModal desktopCloseStatus screenNoticeOverlay screenNoticeSender screenNoticeText closeScreenNoticeBtn roomSwitchSuccessOverlay roomSwitchSuccessText
+appDialog appDialogCloseBtn appDialogForm appDialogTitle appDialogDescription appDialogInputGroup appDialogInputLabel appDialogInput appDialogPasswordToggle appDialogSelectGroup appDialogSelectLabel appDialogSelect appDialogConfirmGroup appDialogConfirmLabel appDialogConfirmInput appDialogConfirmPasswordToggle appDialogError appDialogFillRiskBtn appDialogBackBtn appDialogCancelBtn appDialogConfirmBtn`.split(/\s+/);
+for (const id of ids) elements[id] = document.getElementById(id);
+// This setting was added after the main element registry; keep the optional
+// lookup explicit so older cached markup still initializes safely.
+elements.registrationAccountNoticeToggle = document.getElementById('registrationAccountNoticeToggle');
+let activeAppDialog = null;
+const APP_DIALOG_BACK = Symbol('app-dialog-back');
+
+document.addEventListener('DOMContentLoaded', initialize);
+
+async function initialize() {
+  if (window.SyncWatchAndroid) document.body.classList.add('android-client');
+  initializeManagementArchitecture();
+  initializeLoginMarquee();
+  initializeLoginMusic();
+  initializeLoginVideo();
+  initializeThemeFontSettings();
+  initializeMailTemplatePresets();
+  initializeEnhancedSelects();
+  initializeAiWorkbench();
+  initializeLoginCube();
+  applyLiveVoiceCollapsed();
+  applyLiveVoiceFloatingCollapsed();
+  if (elements.accountDropdown?.parentElement !== document.body) document.body.appendChild(elements.accountDropdown);
+  bindUiEvents();
+  if (sessionStorage.getItem('syncwatchGuestLogoutNotice') === '1') {
+    sessionStorage.removeItem('syncwatchGuestLogoutNotice');
+    setTimeout(() => toast('游客数据已清除，欢迎再次体验', 'success', 5000), 700);
+  }
+  initializeEmojiBars();
+  loadControlSuppressions();
+  applyUiTheme(state.uiTheme);
+  applyTopbarDisplayMode(state.topbarDisplayMode);
+  renderThemeChoices();
+  applyMasterMute();
+  applyMemberDetailsCollapsed();
+  initializeNetworkSpeedMonitor();
+  window.SyncWatchDesktop?.onCloseRequested?.(showDesktopClosePrompt);
+  window.SyncWatchDesktop?.onDisplayCaptureFallbackRequested?.(handleDisplayCaptureFallbackRequest);
+  restoreRetainedLoginCredentials();
+  elements.playbackQualitySelect.value = state.playbackQuality;
+  elements.syncNoticeToggle.checked = state.syncDriftNotice;
+  syncFullscreenAccessibility();
+  const requestedRoom = new URLSearchParams(location.search).get('room') || sessionStorage.getItem('syncwatchRoomId') || '';
+  localStorage.removeItem('syncwatchRoomId');
+  if (elements.roomIdInput) elements.roomIdInput.value = requestedRoom.toUpperCase();
+  applyLibraryCollapsed();
+  applyMobileChatCollapsed();
+  setChatMode(state.chatMode);
+  connectSocket();
+  await loadPublicConfig();
+  void loadRoomInfo();
+}
+
+function restoreRetainedLoginCredentials() {
+  let retained = null;
+  try {
+    retained = JSON.parse(sessionStorage.getItem('syncwatchRetainedLogin') || 'null');
+    sessionStorage.removeItem('syncwatchRetainedLogin');
+  } catch (_) {}
+  if (!retained || typeof retained !== 'object') return;
+  elements.username.value = String(retained.username || '').slice(0, 24);
+  elements.password.value = String(retained.password || '').slice(0, 72);
+  state.lastLoginPassword = elements.password.value;
+  elements.autoLogin.checked = false;
+  setLoginStatus('已保留上次登录的账号密码，可直接选择房间再登录。', true);
+}
+
+async function handleDisplayCaptureFallbackRequest(request = {}) {
+  const accepted = await showAppConfirm(
+    [request.message, request.detail].filter(Boolean).join('\n\n') || '将使用当前主显示器继续共享。', {
+    title: request.title || '共享主显示器',
+    confirmText: '共享主显示器', cancelText: '取消共享', timeoutMs: Math.max(3000, Number(request.timeoutMs) || 30000)
+  });
+  try { await window.SyncWatchDesktop?.completeDisplayCaptureFallback?.(Boolean(accepted)); } catch (_) {}
+}
+
+function initializeManagementArchitecture() {
+  const navigation = elements.managementHubModal?.querySelector('.management-nav');
+  const serverButton = navigation?.querySelector('[data-management-section="server"]');
+  const sections = [
+    ['applications', '用户申请中心'], ['tiers', '账户权限等级'], ['notices', '通知/通告设置'], ['mail', '邮件设置'], ['logs', '日志中心管理']
+  ];
+  for (const [section, label] of sections) {
+    if (!navigation || navigation.querySelector(`[data-management-section="${section}"]`)) continue;
+    const button = document.createElement('button'); button.type = 'button'; button.dataset.managementSection = section; button.textContent = label;
+    navigation.insertBefore(button, serverButton || null);
+  }
+  elements.pendingList?.closest('.settings-card')?.setAttribute('data-management-panel', 'applications');
+  elements.registrationRequestList?.closest('.settings-card')?.setAttribute('data-management-panel', 'applications');
+  elements.roomQuotaRequestList?.closest('.settings-card')?.setAttribute('data-management-panel', 'applications');
+  elements.serverLogsCard?.setAttribute('data-management-panel', 'logs');
+
+  const permissionsCard = elements.permissionUser?.closest('.settings-card');
+  if (permissionsCard && !document.getElementById('permissionContextCard')) {
+    const context = document.createElement('div'); context.id = 'permissionContextCard'; context.className = 'settings-card management-context-card'; context.dataset.managementPanel = 'permissions';
+    context.innerHTML = '<h3>当前房间成员权限</h3><p>这里只管理当前房间内在线成员的权限，不会改变其他房间。当前操作房间：<strong id="permissionContextRoom">--</strong>，房主：<strong id="permissionContextOwner">--</strong>。</p>';
+    permissionsCard.before(context); elements.permissionContextRoom = context.querySelector('#permissionContextRoom'); elements.permissionContextOwner = context.querySelector('#permissionContextOwner');
+  }
+
+  if (elements.permissionGroupList && !document.getElementById('permissionGroupBulk')) {
+    const toolbar = document.createElement('div'); toolbar.id = 'permissionGroupBulk'; toolbar.className = 'permission-group-bulk';
+    toolbar.innerHTML = '<label class="check-line"><input id="selectAllPermissionGroups" type="checkbox"> 全选自定义组</label><button id="deletePermissionGroupsBtn" class="danger-button" type="button" disabled>批量删除</button>';
+    elements.permissionGroupList.before(toolbar); elements.selectAllPermissionGroups = toolbar.querySelector('#selectAllPermissionGroups'); elements.deletePermissionGroupsBtn = toolbar.querySelector('#deletePermissionGroupsBtn');
+  }
+
+  const accountCard = elements.accountAdminList?.closest('.settings-card');
+  if (accountCard && !document.getElementById('accountBulkToolbar')) {
+    const toolbar = document.createElement('div'); toolbar.id = 'accountBulkToolbar'; toolbar.className = 'account-bulk-toolbar';
+    toolbar.innerHTML = '<label class="check-line"><input id="selectAllAdminAccounts" type="checkbox"> 全选当前结果</label><button id="batchResetAccountsBtn" class="secondary-button" type="button" disabled>批量重置密码</button><button id="batchBlockRoomsBtn" class="warning-button" type="button" disabled>批量禁止建房</button><button id="batchDeleteAccountsBtn" class="danger-button" type="button" disabled>批量删除账号</button>';
+    elements.accountAdminList.before(toolbar);
+    const defaults = document.createElement('div'); defaults.className = 'default-account-password'; defaults.innerHTML = '<label>默认重置密码<input id="defaultAccountPassword" type="password" placeholder="输入新的默认密码（初始为 123456）" maxlength="72" autocomplete="new-password"></label><button id="saveDefaultAccountPasswordBtn" class="secondary-button" type="button">保存默认密码</button>';
+    elements.accountAdminList.before(defaults);
+    for (const id of ['selectAllAdminAccounts', 'batchResetAccountsBtn', 'batchBlockRoomsBtn', 'batchDeleteAccountsBtn', 'defaultAccountPassword', 'saveDefaultAccountPasswordBtn']) elements[id] = document.getElementById(id);
+  }
+
+  if (elements.locationAuthorizationsList && !document.getElementById('locationAuthorizationSearch')) {
+    const field = document.createElement('label'); field.className = 'admin-search-field'; field.innerHTML = '搜索位置或成员<input id="locationAuthorizationSearch" type="search" placeholder="按地址、用户名、显示名或备注模糊搜索">';
+    elements.locationAuthorizationsList.before(field); elements.locationAuthorizationSearch = field.querySelector('input');
+  }
+}
+
+function initializeLoginMarquee() {
+  if (!elements.loginPage || document.getElementById('loginMarquee')) return;
+  const marquee = document.createElement('div'); marquee.id = 'loginMarquee'; marquee.className = 'room-marquee login-marquee is-hidden'; marquee.setAttribute('role', 'status');
+  marquee.innerHTML = '<span id="loginMarqueeText"></span>'; (elements.authCard || elements.loginPage).prepend(marquee);
+  elements.loginMarquee = marquee; elements.loginMarqueeText = marquee.firstElementChild;
+}
+
+function initializeLoginMusic() {
+  if (!elements.loginPage) return;
+  let audio = elements.loginMusicAudio || document.getElementById('loginMusicAudio');
+  if (!audio) {
+    audio = document.createElement('audio');
+    audio.id = 'loginMusicAudio'; audio.preload = 'metadata'; audio.setAttribute('aria-hidden', 'true');
+    elements.loginPage.appendChild(audio);
+  }
+  elements.loginMusicAudio = audio;
+  if (audio.dataset.ready === '1') return;
+  audio.dataset.ready = '1';
+  const resume = () => {
+    if (!state.authenticated && state.publicConfig?.loginMusic?.enabled && audio.paused) audio.play().catch(() => {});
+    document.removeEventListener('pointerdown', resume); document.removeEventListener('keydown', resume);
+  };
+  document.addEventListener('pointerdown', resume, { passive: true });
+  document.addEventListener('keydown', resume);
+  audio.addEventListener('timeupdate', updateLoginMusicProgress);
+  audio.addEventListener('durationchange', updateLoginMusicProgress);
+  audio.addEventListener('loadedmetadata', updateLoginMusicProgress);
+  audio.addEventListener('ended', updateLoginMusicProgress);
+}
+
+function initializeLoginVideo() {
+  const video = elements.loginBackgroundVideo;
+  if (!video || video.dataset.ready === '1') return;
+  video.dataset.ready = '1';
+  const resume = () => {
+    if (!state.authenticated && state.publicConfig?.loginVideo?.enabled && video.paused) video.play().catch(() => {});
+  };
+  document.addEventListener('pointerdown', resume, { passive: true });
+  document.addEventListener('keydown', resume);
+}
+
+function initializeThemeFontSettings() {
+  if (!elements.themeFontSelect) return;
+  renderThemeFontOptions('');
+  applyUiFont(state.uiFont, { persist: false, notify: false });
+}
+
+function renderThemeFontOptions(query = '') {
+  if (!elements.themeFontSelect) return;
+  const normalized = String(query || '').trim().toLocaleLowerCase('zh-CN');
+  const matches = UI_FONT_PRESETS.filter(([id, name, , keywords]) => !normalized
+    || `${id} ${name} ${keywords}`.toLocaleLowerCase('zh-CN').includes(normalized));
+  const selected = UI_FONT_PRESETS.some(([id]) => id === state.uiFont) ? state.uiFont : 'system';
+  elements.themeFontSelect.innerHTML = matches.length
+    ? matches.map(([id, name, , keywords]) => `<option value="${id}" ${id === selected ? 'selected' : ''}>${escapeHtml(name)} · ${escapeHtml(keywords)}</option>`).join('')
+    : '<option value="" disabled>没有匹配的字体</option>';
+  if (matches.length && !matches.some(([id]) => id === elements.themeFontSelect.value)) elements.themeFontSelect.value = matches[0][0];
+  queueMicrotask(syncEnhancedSelects);
+}
+
+function applyUiFont(fontId, { persist = true, notify = true } = {}) {
+  const preset = UI_FONT_PRESETS.find(([id]) => id === fontId) || null;
+  let style = document.getElementById('syncwatchUiFontOverride');
+  if (!preset) {
+    style?.remove();
+    state.uiFont = '';
+    document.documentElement.removeAttribute('data-ui-font');
+    if (persist) localStorage.removeItem('syncwatchUiFont');
+    if (elements.themeFontStatus) elements.themeFontStatus.textContent = '使用当前主题默认字体';
+    if (notify) toast('已恢复当前主题默认字体', 'success');
+    return;
+  }
+  if (!style) {
+    style = document.createElement('style');
+    style.id = 'syncwatchUiFontOverride';
+    document.head.appendChild(style);
+  }
+  style.textContent = `body, body *, body *::before, body *::after, button, input, select, textarea { font-family: ${preset[2]} !important; }`;
+  state.uiFont = preset[0];
+  document.documentElement.dataset.uiFont = preset[0];
+  if (persist) localStorage.setItem('syncwatchUiFont', preset[0]);
+  if (elements.themeFontStatus) elements.themeFontStatus.textContent = `当前字体：${preset[1]}`;
+  if (elements.themeFontSelect) elements.themeFontSelect.value = preset[0];
+  if (notify) toast(`已应用字体：${preset[1]}`, 'success');
+}
+
+function applySelectedThemeFont() {
+  const fontId = String(elements.themeFontSelect?.value || '');
+  if (!fontId) return toast('没有找到可应用的字体', 'error');
+  applyUiFont(fontId);
+}
+
+function initializeNetworkSpeedMonitor() {
+  if (state.networkSpeedTimer) return;
+  try {
+    const remember = (entry) => { state.networkDownloadBytes += Math.max(0, Number(entry.transferSize || entry.encodedBodySize) || 0); };
+    performance.getEntriesByType('resource').forEach(remember);
+    if (typeof PerformanceObserver === 'function') {
+      const observer = new PerformanceObserver((list) => list.getEntries().forEach(remember));
+      observer.observe({ type: 'resource', buffered: false }); state.networkPerformanceObserver = observer;
+    }
+  } catch (_) {}
+  state.networkSpeedTimer = setInterval(() => {
+    const upload = Math.max(0, state.networkUploadBytes - state.networkLastUploadBytes);
+    const download = Math.max(0, state.networkDownloadBytes - state.networkLastDownloadBytes);
+    state.networkLastUploadBytes = state.networkUploadBytes; state.networkLastDownloadBytes = state.networkDownloadBytes;
+    if (elements.networkUploadSpeed) elements.networkUploadSpeed.textContent = `${formatSize(upload)}/秒`;
+    if (elements.networkDownloadSpeed) elements.networkDownloadSpeed.textContent = `${formatSize(download)}/秒`;
+  }, 1000);
+}
+
+function applyMemberDetailsCollapsed() {
+  const hasExpandedOverride = [...state.memberDetailOverrides.values()].some(Boolean);
+  elements.userPanel?.classList.toggle('member-details-collapsed', state.memberDetailsCollapsed && !hasExpandedOverride);
+  if (elements.collapseMembersBtn) {
+    elements.collapseMembersBtn.textContent = state.memberDetailsCollapsed ? '展开明细' : '折叠明细';
+    elements.collapseMembersBtn.setAttribute('aria-pressed', String(state.memberDetailsCollapsed));
+  }
+}
+
+function memberDetailsExpanded(username) {
+  return state.memberDetailOverrides.has(username)
+    ? state.memberDetailOverrides.get(username) === true
+    : !state.memberDetailsCollapsed;
+}
+
+function toggleMemberDetails() {
+  state.memberDetailsCollapsed = !state.memberDetailsCollapsed;
+  state.memberDetailOverrides.clear();
+  try { localStorage.setItem('syncwatchMemberDetailsCollapsed', state.memberDetailsCollapsed ? '1' : '0'); } catch (_) {}
+  applyMemberDetailsCollapsed();
+  renderUsers();
+}
+
+function applyLoginMarquee(notice = state.publicConfig.marqueeNotice || {}) {
+  if (!elements.loginMarquee || !elements.loginMarqueeText) return;
+  const visible = notice?.enabled === true && notice?.loginEnabled !== false && Boolean(String(notice.text || '').trim());
+  elements.loginMarquee.classList.toggle('is-hidden', !visible || state.authenticated);
+  elements.loginMarqueeText.textContent = visible ? String(notice.text) : '';
+  if (visible) {
+    elements.loginMarquee.style.setProperty('--marquee-color', notice.color || '#f3c96a');
+    elements.loginMarquee.style.setProperty('--marquee-speed', `${Math.max(10, Math.min(200, Number(notice.speed) || 30))}s`);
+  }
+}
+
+function normalizedLoginMusic(value = {}) {
+  const tracks = (Array.isArray(value.tracks) ? value.tracks : []).map((track) => ({
+    id: String(track?.id || '').slice(0, 80), title: String(track?.title || track?.originalName || '登录音乐').slice(0, 100),
+    originalName: String(track?.originalName || '').slice(0, 180), storedName: String(track?.storedName || '').slice(0, 180),
+    url: String(track?.url || '').trim(), mimeType: String(track?.mimeType || 'audio/mpeg').slice(0, 120), size: Math.max(0, Number(track?.size) || 0), createdAt: String(track?.createdAt || '')
+  })).filter((track) => track.url);
+  return {
+    enabled: value.enabled === true,
+    showTitle: value.showTitle !== false,
+    title: String(value.title || '').slice(0, 80),
+    url: String(value.url || '').trim(),
+    volume: Math.max(0, Math.min(1, Number(value.volume) || 0.3)),
+    loop: value.loop !== false,
+    shuffle: value.shuffle === true,
+    tracks
+  };
+}
+
+function normalizedLoginVideo(value = {}) {
+  return {
+    enabled: value.enabled === true,
+    url: String(value.url || '').trim(),
+    originalName: String(value.originalName || value.title || '').slice(0, 180),
+    mimeType: String(value.mimeType || 'video/mp4').slice(0, 120),
+    size: Math.max(0, Number(value.size) || 0),
+    updatedAt: String(value.updatedAt || '')
+  };
+}
+
+function currentLoginMusicTitle(music = state.publicConfig.loginMusic || {}) {
+  const normalized = normalizedLoginMusic(music);
+  const selected = normalized.tracks.find((track) => track.url === normalized.url);
+  return normalized.title || selected?.title || selected?.originalName?.replace(/\.[^.]+$/, '') || '登录背景音乐';
+}
+
+function renderLoginMusicTracks(value = state.publicConfig.loginMusic || {}) {
+  if (!elements.loginMusicTrackList) return;
+  const tracks = Array.isArray(value.tracks) ? value.tracks : [];
+  elements.loginMusicTrackList.innerHTML = tracks.length ? tracks.map((track) => `<div class="admin-row login-music-track-row" data-login-music-track="${escapeHtml(track.id)}"><div><strong>${escapeHtml(track.title || track.originalName || '登录音乐')}</strong><small>${escapeHtml(track.originalName || track.url)}${track.size ? ` · ${formatBytes(track.size)}` : ''}</small></div><button type="button" class="danger-text-button" data-login-music-delete="${escapeHtml(track.id)}">删除</button></div>`).join('') : '<p class="muted">暂无登录音乐</p>';
+}
+
+function applyLoginMusic(value = {}) {
+  const music = normalizedLoginMusic(value);
+  state.publicConfig.loginMusic = music;
+  const audio = elements.loginMusicAudio;
+  const title = currentLoginMusicTitle(music);
+  if (elements.loginMusicNowPlayingTitle) elements.loginMusicNowPlayingTitle.textContent = title;
+  if (elements.loginMusicNowPlaying) elements.loginMusicNowPlaying.classList.toggle('is-hidden', !(music.enabled && music.url && music.showTitle && !state.authenticated));
+  if (!audio) return;
+  audio.loop = music.loop; audio.volume = music.volume;
+  if ((audio.getAttribute('src') || '') !== music.url) { audio.pause(); audio.setAttribute('src', music.url || ''); audio.load(); }
+  if (music.enabled && music.url && !state.authenticated) audio.play().catch(() => {});
+  else if (!music.enabled || state.authenticated) audio.pause();
+  updateLoginMusicProgress();
+}
+
+function applyLoginVideo(value = {}) {
+  const videoSettings = normalizedLoginVideo(value);
+  state.publicConfig.loginVideo = videoSettings;
+  const video = elements.loginBackgroundVideo;
+  if (!video) return;
+  if ((video.getAttribute('src') || '') !== videoSettings.url) {
+    video.pause();
+    video.setAttribute('src', videoSettings.url || '');
+    if (videoSettings.url) video.load(); else video.removeAttribute('src');
+  }
+  const visible = videoSettings.enabled && Boolean(videoSettings.url) && !state.authenticated;
+  video.classList.toggle('is-hidden', !visible);
+  video.setAttribute('aria-hidden', String(!visible));
+  if (visible) video.play().catch(() => {}); else video.pause();
+}
+
+function syncLoginMusicSettings(value = state.publicConfig.loginMusic || {}) {
+  const music = normalizedLoginMusic(value);
+  state.publicConfig.loginMusic = music;
+  if (state.adminSettings) state.adminSettings.loginMusic = music;
+  if (elements.loginMusicEnabled) elements.loginMusicEnabled.checked = music.enabled;
+  if (elements.loginMusicShowTitle) elements.loginMusicShowTitle.checked = music.showTitle;
+  if (elements.loginMusicTitle) elements.loginMusicTitle.value = music.title;
+  if (elements.loginMusicUrl) elements.loginMusicUrl.value = music.url;
+  if (elements.loginMusicVolume) elements.loginMusicVolume.value = String(music.volume);
+  if (elements.loginMusicLoop) elements.loginMusicLoop.checked = music.loop;
+  if (elements.loginMusicPreview && !state.loginMusicObjectUrl) {
+    elements.loginMusicPreview.setAttribute('src', music.url || '');
+    if (music.url) elements.loginMusicPreview.load();
+  }
+  updateLoginMusicVolumeLabel();
+  renderLoginMusicTracks(music);
+  if (elements.loginMusicStatus) elements.loginMusicStatus.textContent = music.url
+    ? `${music.enabled ? '已启用' : '已保存但未启用'} · ${currentLoginMusicTitle(music)}`
+    : '当前未设置登录音乐';
+  applyLoginMusic(music);
+}
+
+function syncLoginVideoSettings(value = state.publicConfig.loginVideo || {}) {
+  const settings = normalizedLoginVideo(value);
+  state.publicConfig.loginVideo = settings;
+  if (state.adminSettings) state.adminSettings.loginVideo = settings;
+  if (elements.loginVideoEnabled) elements.loginVideoEnabled.checked = settings.enabled;
+  if (elements.loginVideoPreview && !state.loginVideoObjectUrl) {
+    elements.loginVideoPreview.setAttribute('src', settings.url || '');
+    if (settings.url) elements.loginVideoPreview.load();
+  }
+  if (elements.loginVideoStatus) elements.loginVideoStatus.textContent = settings.url
+    ? `${settings.enabled ? '已启用' : '已保存但未启用'} · ${settings.originalName || '登录背景视频'}`
+    : '当前未设置登录背景视频';
+  applyLoginVideo(settings);
+}
+
+function updateLoginMusicProgress() {
+  const audio = elements.loginMusicAudio;
+  if (!audio) return;
+  const duration = Number.isFinite(audio.duration) ? audio.duration : 0;
+  const current = Math.max(0, Math.min(duration || Number.MAX_SAFE_INTEGER, Number(audio.currentTime) || 0));
+  if (elements.loginMusicProgress) {
+    elements.loginMusicProgress.max = String(duration || 1);
+    if (!elements.loginMusicProgress.matches(':active')) elements.loginMusicProgress.value = String(current);
+    elements.loginMusicProgress.disabled = !duration;
+  }
+  if (elements.loginMusicTime) elements.loginMusicTime.textContent = `${formatTime(current)} / ${duration ? formatTime(duration) : '--:--'}`;
+}
+
+function revealLoginMusicProgress() {
+  if (!elements.loginMusicProgressShell || !state.publicConfig.loginMusic?.url) return;
+  const expanded = elements.loginMusicProgressShell.getAttribute('aria-expanded') !== 'true';
+  elements.loginMusicProgressShell.setAttribute('aria-expanded', String(expanded));
+  elements.loginMusicNowPlaying?.classList.toggle('is-expanded', expanded);
+  clearTimeout(state.loginMusicProgressTimer);
+  if (expanded) state.loginMusicProgressTimer = setTimeout(() => {
+    elements.loginMusicProgressShell?.setAttribute('aria-expanded', 'false');
+    elements.loginMusicNowPlaying?.classList.remove('is-expanded');
+  }, 5000);
+}
+
+function seekLoginMusic() {
+  const audio = elements.loginMusicAudio;
+  if (!audio || !Number.isFinite(audio.duration)) return;
+  audio.currentTime = Math.max(0, Math.min(audio.duration, Number(elements.loginMusicProgress?.value) || 0));
+  updateLoginMusicProgress();
+  revealLoginMusicProgress();
+}
+
+function setLoginMediaUploadProgress(container, percent, message) {
+  if (!container) return;
+  container.classList.remove('is-hidden');
+  const progress = container.querySelector('progress');
+  const label = container.querySelector('span');
+  if (progress) progress.value = Math.max(0, Math.min(100, Number(percent) || 0));
+  if (label) label.textContent = String(message || '正在上传…');
+}
+
+function uploadFileWithProgress(url, fieldName, file, container, timeoutMs = 10 * 60 * 1000) {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    const startedAt = performance.now();
+    xhr.open('POST', url, true); xhr.timeout = timeoutMs;
+    for (const [name, value] of Object.entries(authHeaders())) xhr.setRequestHeader(name, value);
+    xhr.upload.addEventListener('progress', (event) => {
+      if (!event.lengthComputable) return setLoginMediaUploadProgress(container, 0, `正在上传 ${file.name}…`);
+      const elapsed = Math.max(.1, (performance.now() - startedAt) / 1000);
+      const percent = event.total ? event.loaded / event.total * 100 : 0;
+      setLoginMediaUploadProgress(container, percent, `${Math.round(percent)}% · ${formatSize(event.loaded)}/${formatSize(event.total)} · ${formatSize(event.loaded / elapsed)}/秒`);
+    });
+    xhr.addEventListener('load', () => {
+      let payload = {}; try { payload = JSON.parse(xhr.responseText || '{}'); } catch (_) {}
+      if (xhr.status < 200 || xhr.status >= 300 || !payload.success) return reject(new Error(payload.error || `上传失败（${xhr.status}）`));
+      setLoginMediaUploadProgress(container, 100, `上传完成 · ${formatSize(file.size)}`);
+      resolve(payload);
+    });
+    xhr.addEventListener('error', () => reject(new Error('上传连接中断')));
+    xhr.addEventListener('timeout', () => reject(new Error('上传超时，请检查网络后重试')));
+    const form = new FormData(); form.append(fieldName, file, file.name); xhr.send(form);
+  });
+}
+
+function updateLoginMusicVolumeLabel() {
+  if (elements.loginMusicVolumeText && elements.loginMusicVolume) elements.loginMusicVolumeText.textContent = `${Math.round(Math.max(0, Math.min(1, Number(elements.loginMusicVolume.value) || 0)) * 100)}%`;
+  if (elements.loginMusicPreview && elements.loginMusicVolume) elements.loginMusicPreview.volume = Math.max(0, Math.min(1, Number(elements.loginMusicVolume.value) || 0.3));
+}
+
+function previewSelectedLoginMusicFile() {
+  const file = elements.loginMusicFile?.files?.[0];
+  if (!file || !elements.loginMusicPreview) return;
+  if (state.loginMusicObjectUrl) URL.revokeObjectURL(state.loginMusicObjectUrl);
+  state.loginMusicObjectUrl = URL.createObjectURL(file);
+  elements.loginMusicPreview.src = state.loginMusicObjectUrl;
+  elements.loginMusicPreview.load();
+}
+
+function previewLoginMusic() {
+  const file = elements.loginMusicFile?.files?.[0];
+  const url = file ? state.loginMusicObjectUrl : String(elements.loginMusicUrl?.value || '').trim();
+  if (!url || !elements.loginMusicPreview) return toast('请先填写 HTTPS 音频地址或选择音频文件', 'error');
+  if (elements.loginMusicPreview.src !== url) elements.loginMusicPreview.src = url;
+  elements.loginMusicPreview.loop = elements.loginMusicLoop?.checked !== false;
+  updateLoginMusicVolumeLabel();
+  elements.loginMusicPreview.play().catch(() => toast('浏览器阻止了试听，请点击播放器上的播放按钮', 'error'));
+}
+
+async function saveLoginMusicSettings() {
+  if (!state.adminSettings?.serverAdmin) return toast('请先验证服务器管理员密码并加载设置', 'error');
+  let url = String(elements.loginMusicUrl?.value || '').trim();
+  const files = [...(elements.loginMusicFile?.files || [])];
+  const uploadedTracks = [];
+  setLoginMediaUploadProgress(elements.loginMusicUploadProgress, 0, files.length ? '准备上传…' : '正在保存设置…');
+  for (const file of files) {
+    try {
+      const upload = await uploadFileWithProgress('/api/login-music-upload', 'music', file, elements.loginMusicUploadProgress);
+      const serverTracks = Array.isArray(upload.tracks) ? upload.tracks : [{ id: upload.id || crypto.randomUUID?.() || `${Date.now()}-${Math.random()}`, title: file.name.replace(/\.[^.]+$/, ''), originalName: file.name, storedName: upload.storedName || '', url: String(upload.url || upload.path || '').trim(), mimeType: file.type || 'audio/mpeg', size: file.size, createdAt: new Date().toISOString() }];
+      uploadedTracks.push(...serverTracks); if (!url) url = String(serverTracks[0]?.url || '').trim();
+    } catch (error) { return toast(localizedError(error, '登录音乐上传失败'), 'error'); }
+  }
+  if (url && !/^https:\/\//i.test(url) && !url.startsWith('/')) return toast('音乐地址必须是 HTTPS 地址或服务器上传路径', 'error');
+  const existingTracks = normalizedLoginMusic(state.publicConfig.loginMusic || {}).tracks;
+  const mergedTracks = [...new Map([...existingTracks, ...uploadedTracks].map((track) => [track.id || track.url, track])).values()];
+  const music = normalizedLoginMusic({ enabled: elements.loginMusicEnabled?.checked, showTitle: elements.loginMusicShowTitle?.checked !== false, title: elements.loginMusicTitle?.value, url, volume: elements.loginMusicVolume?.value, loop: elements.loginMusicLoop?.checked, tracks: mergedTracks });
+  const result = await adminAction('set-login-music', music);
+  toast(result.message || result.error || '登录音乐设置完成', result.success ? 'success' : 'error', 7000);
+  if (!result.success) return;
+  const next = normalizedLoginMusic(result.loginMusic || music); syncLoginMusicSettings(next);
+  if (result.loginVideo) syncLoginVideoSettings(result.loginVideo);
+  if (elements.loginMusicFile) elements.loginMusicFile.value = '';
+}
+
+async function deleteLoginMusicTracks(ids = []) {
+  if (!state.adminSettings?.serverAdmin) return toast('请先验证服务器管理员密码并加载设置', 'error');
+  const cleanIds = [...new Set(ids.map((id) => String(id || '').trim()).filter(Boolean))];
+  if (!cleanIds.length) return;
+  const result = await adminAction('delete-login-music', { ids: cleanIds });
+  toast(result.message || result.error || '登录音乐已删除', result.success ? 'success' : 'error', 6000);
+  if (result.success) syncLoginMusicSettings(result.loginMusic || {});
+}
+
+async function removeLoginMusic() {
+  if (!state.adminSettings?.serverAdmin) return toast('请先验证服务器管理员密码并加载设置', 'error');
+  if (!await showAppConfirm('移除后所有新打开的登录页都不会再播放这段音乐。', { title: '移除登录音乐', confirmText: '确认移除', danger: true })) return;
+  const currentTracks = state.publicConfig.loginMusic?.tracks || [];
+  const result = currentTracks.length
+    ? await adminAction('delete-login-music', { ids: currentTracks.map((track) => track.id) })
+    : await adminAction('set-login-music', { enabled: false, title: '', url: '', volume: 0.3, loop: true });
+  toast(result.message || result.error || '登录音乐已移除', result.success ? 'success' : 'error');
+  if (!result.success) return;
+  syncLoginMusicSettings({});
+  if (elements.loginMusicUrl) elements.loginMusicUrl.value = '';
+  if (elements.loginMusicTitle) elements.loginMusicTitle.value = '';
+  if (elements.loginMusicEnabled) elements.loginMusicEnabled.checked = false;
+  if (elements.loginMusicStatus) elements.loginMusicStatus.textContent = '当前未设置登录音乐';
+}
+
+function previewSelectedLoginVideoFile() {
+  const file = elements.loginVideoFile?.files?.[0];
+  if (!file || !elements.loginVideoPreview) return;
+  if (state.loginVideoObjectUrl) URL.revokeObjectURL(state.loginVideoObjectUrl);
+  state.loginVideoObjectUrl = URL.createObjectURL(file);
+  elements.loginVideoPreview.src = state.loginVideoObjectUrl;
+  elements.loginVideoPreview.load();
+  if (elements.loginVideoStatus) elements.loginVideoStatus.textContent = `待上传：${file.name} · ${formatSize(file.size)}`;
+}
+
+async function saveLoginVideoSettings() {
+  if (!state.adminSettings?.serverAdmin) return toast('请先验证服务器管理员密码并加载设置', 'error');
+  const file = elements.loginVideoFile?.files?.[0] || null;
+  let uploaded = null;
+  elements.saveLoginVideoBtn.disabled = true;
+  try {
+    if (file) uploaded = await uploadFileWithProgress('/api/login-video-upload', 'video', file, elements.loginVideoUploadProgress, 30 * 60 * 1000);
+    const existing = normalizedLoginVideo(state.publicConfig.loginVideo || {});
+    const requested = normalizedLoginVideo(uploaded?.loginVideo || uploaded?.video || {
+      ...existing,
+      url: uploaded?.url || existing.url,
+      originalName: uploaded?.originalName || file?.name || existing.originalName,
+      mimeType: uploaded?.mimeType || existing.mimeType,
+      size: uploaded?.size || file?.size || existing.size
+    });
+    if (!requested.url) throw new Error('请先选择要上传的登录背景视频');
+    requested.enabled = elements.loginVideoEnabled?.checked === true;
+    const result = await adminAction('set-login-video', requested);
+    if (!result.success) throw new Error(result.error || '登录背景视频设置失败');
+    syncLoginVideoSettings(result.loginVideo || requested);
+    if (result.loginMusic) syncLoginMusicSettings(result.loginMusic);
+    if (elements.loginVideoFile) elements.loginVideoFile.value = '';
+    if (state.loginVideoObjectUrl) { URL.revokeObjectURL(state.loginVideoObjectUrl); state.loginVideoObjectUrl = ''; }
+    toast(result.message || '登录背景视频已保存并同步', 'success', 7000);
+  } catch (error) {
+    const message = localizedError(error, '登录背景视频上传失败');
+    setLoginMediaUploadProgress(elements.loginVideoUploadProgress, 0, message);
+    if (elements.loginVideoStatus) elements.loginVideoStatus.textContent = message;
+    toast(message, 'error', 7000);
+  } finally { elements.saveLoginVideoBtn.disabled = false; }
+}
+
+async function removeLoginVideo() {
+  if (!state.adminSettings?.serverAdmin) return toast('请先验证服务器管理员密码并加载设置', 'error');
+  if (!await showAppConfirm('移除后所有新打开的登录页都不会再播放这段视频。', { title: '移除登录背景视频', confirmText: '确认移除', danger: true })) return;
+  const result = await adminAction('delete-login-video');
+  if (!result.success) return toast(result.error || '登录背景视频移除失败', 'error');
+  syncLoginVideoSettings(result.loginVideo || {});
+  toast(result.message || '登录背景视频已移除', 'success');
+}
+
+async function saveServerNoticePreferences() {
+  if (!state.adminSettings?.serverAdmin) return;
+  const settings = {
+    f11PromptEnabled: elements.f11PromptGlobalEnabled?.checked !== false,
+    initialPasswordReminderEnabled: elements.initialPasswordReminderEnabled?.checked !== false
+  };
+  const result = await adminAction('set-notice-preferences', settings);
+  const status = elements.noticePreferenceSettingsStatus;
+  if (!result.success) {
+    if (status) status.textContent = result.error || '通知与登录提醒设置保存失败';
+    return toast(result.error || '通知与登录提醒设置保存失败', 'error');
+  }
+  state.publicConfig = { ...state.publicConfig, ...settings, ...(result.preferences || {}) };
+  if (state.adminSettings) Object.assign(state.adminSettings, settings, result.preferences || {});
+  if (status) status.textContent = '已保存并同步到所有访问端';
+  if (settings.f11PromptEnabled === false) closeF11Prompt(false);
+  toast('通知与登录提醒设置已保存', 'success');
+}
+
+function refreshAdminForIncomingRequest() {
+  if (!state.adminSettings || elements.managementHubModal?.classList.contains('is-hidden')) return;
+  clearTimeout(state.incomingRequestRefreshTimer);
+  state.incomingRequestRefreshTimer = setTimeout(() => void loadAdminSettings({ silent: true }), 180);
+}
+
+async function refreshAllApplications() {
+  if (state.applicationRefreshInFlight) return;
+  state.applicationRefreshInFlight = true;
+  const label = elements.refreshAllApplicationsBtn?.textContent || '一键刷新全部申请';
+  if (elements.refreshAllApplicationsBtn) {
+    elements.refreshAllApplicationsBtn.disabled = true;
+    elements.refreshAllApplicationsBtn.textContent = '正在刷新…';
+  }
+  if (elements.applicationRefreshStatus) elements.applicationRefreshStatus.textContent = '正在同步全部申请…';
+  try {
+    await loadAdminSettings({ silent: true });
+    const admin = state.adminSettings;
+    if (!admin) throw new Error('请先验证管理员身份并加载设置');
+    const pendingUploads = (admin.pendingFiles || []).filter((item) => !item.status || item.status === 'pending').length;
+    const registrations = (admin.registrationRequests || []).filter((item) => item.status === 'pending').length;
+    const roomQuotas = (admin.roomQuotaRequests || []).filter((item) => item.status === 'pending').length;
+    const summary = `已刷新：上传审核 ${pendingUploads} 项，多账号注册 ${registrations} 项，建房额度 ${roomQuotas} 项`;
+    if (elements.applicationRefreshStatus) elements.applicationRefreshStatus.textContent = `${summary} · ${new Date().toLocaleTimeString('zh-CN', { hour12: false })}`;
+    toast(summary, 'success');
+  } catch (error) {
+    const message = localizedError(error, '刷新全部申请失败');
+    if (elements.applicationRefreshStatus) elements.applicationRefreshStatus.textContent = message;
+    toast(message, 'error');
+  } finally {
+    state.applicationRefreshInFlight = false;
+    if (elements.refreshAllApplicationsBtn) {
+      elements.refreshAllApplicationsBtn.disabled = false;
+      elements.refreshAllApplicationsBtn.textContent = label;
+    }
+  }
+}
+
+function toggleMobileActionMenu(force) {
+  const open = typeof force === 'boolean' ? force : !document.body.classList.contains('mobile-actions-open');
+  document.body.classList.toggle('mobile-actions-open', open);
+  elements.mobileMenuBtn?.setAttribute('aria-expanded', String(open));
+  elements.mobileMenuBtn?.setAttribute('aria-label', open ? '关闭功能菜单' : '打开功能菜单');
+  if (!open) elements.accountDropdown?.classList.add('is-hidden');
+}
+
+function normalizeClientLoginCube(value = {}) {
+  const source = value && typeof value === 'object' ? value : {};
+  const supplied = new Map((Array.isArray(source.faces) ? source.faces : []).map((face) => [String(face?.id || ''), face]));
+  const faces = LOGIN_CUBE_FACE_DEFAULTS.map((defaults) => {
+    const face = supplied.get(defaults.id) || {};
+    return {
+      ...defaults,
+      icon: face.icon === undefined ? defaults.icon : String(face.icon || '').slice(0, 16),
+      title: face.title === undefined ? defaults.title : String(face.title || '').slice(0, 60),
+      text: face.text === undefined ? defaults.text : String(face.text || '').slice(0, 240),
+      image: String(face.image || '').slice(0, 2048)
+    };
+  });
+  const speed = Number(source.rotationSpeed);
+  const rawModel = source.model && typeof source.model === 'object' ? source.model : {};
+  const model = {
+    url: String(rawModel.url || '').slice(0, 2048),
+    storedName: String(rawModel.storedName || '').slice(0, 180),
+    originalName: String(rawModel.originalName || '').slice(0, 180),
+    size: Math.max(0, Number(rawModel.size) || 0),
+    sha256: /^[a-f0-9]{64}$/i.test(String(rawModel.sha256 || '')) ? String(rawModel.sha256).toLowerCase() : '',
+    uploadedAt: String(rawModel.uploadedAt || '').slice(0, 60)
+  };
+  const requestedMode = ['cube', 'model', 'flat', 'hidden'].includes(source.displayMode) ? source.displayMode : 'cube';
+  return {
+    displayMode: requestedMode === 'model' && !model.url ? 'cube' : requestedMode,
+    rotationDirection: ['right', 'left', 'up', 'down', 'random'].includes(source.rotationDirection) ? source.rotationDirection : 'right',
+    autoRotate: source.autoRotate !== false,
+    inertia: source.inertia !== false,
+    rotationSpeed: Math.max(0, Math.min(18, Number.isFinite(speed) ? speed : 16)),
+    faces, model
+  };
+}
+
+function applyLoginCubeSettings(value = state.publicConfig.loginCube) {
+  const settings = normalizeClientLoginCube(value);
+  state.publicConfig.loginCube = settings;
+  elements.loginCubeScene?.classList.toggle('is-flat', settings.displayMode === 'flat');
+  elements.loginCubeScene?.classList.toggle('is-hidden', settings.displayMode === 'hidden');
+  elements.loginCubeScene?.setAttribute('data-display-mode', settings.displayMode);
+  document.body.classList.toggle('login-cube-flat', settings.displayMode === 'flat');
+  document.body.classList.toggle('login-cube-hidden', settings.displayMode === 'hidden');
+  if (settings.displayMode === 'model') loadLoginCubeModel(settings.model);
+  else elements.loginCubeScene?.classList.remove('has-loaded-model');
+  if (settings.displayMode === 'flat') {
+    state.loginCubeRotationX = 0;
+    state.loginCubeRotationY = 0;
+    state.loginCubeVelocityX = 0;
+    state.loginCubeVelocityY = 0;
+    updateLoginCubeTransform();
+  }
+  if (!settings.inertia) {
+    state.loginCubeVelocityX = 0;
+    state.loginCubeVelocityY = 0;
+  }
+  for (const face of settings.faces) {
+    const node = elements.loginCube?.querySelector(`[data-login-cube-face="${face.id}"]`);
+    if (!node) continue;
+    const icon = node.querySelector('.login-cube-face-icon');
+    const title = node.querySelector('.login-cube-face-title');
+    const text = node.querySelector('.login-cube-face-text');
+    if (icon) { icon.textContent = face.icon; icon.classList.toggle('is-hidden', !face.icon); }
+    if (title) title.textContent = face.title;
+    if (text) text.textContent = face.text;
+    node.querySelector('.login-cube-face-image')?.remove();
+    node.classList.toggle('has-image', Boolean(face.image));
+    if (face.image) {
+      const image = document.createElement('img');
+      image.className = 'login-cube-face-image'; image.alt = ''; image.decoding = 'async'; image.src = face.image;
+      image.addEventListener('error', () => { image.remove(); node.classList.remove('has-image'); }, { once: true });
+      node.prepend(image);
+    }
+  }
+}
+
+function disposeLoginCubeObject(object) {
+  object?.traverse?.((node) => {
+    node.geometry?.dispose?.();
+    const materials = Array.isArray(node.material) ? node.material : node.material ? [node.material] : [];
+    for (const material of materials) {
+      for (const value of Object.values(material)) if (value?.isTexture) value.dispose?.();
+      material.dispose?.();
+    }
+  });
+}
+
+function resizeLoginCubeModelRenderer() {
+  const canvas = elements.loginCubeModel;
+  const renderer = state.loginCubeModelRenderer;
+  const camera = state.loginCubeModelCamera;
+  if (!canvas || !renderer || !camera) return;
+  const width = Math.max(1, Math.round(canvas.clientWidth || elements.loginCubeScene?.clientWidth || 1));
+  const height = Math.max(1, Math.round(canvas.clientHeight || elements.loginCubeScene?.clientHeight || 1));
+  renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
+  renderer.setSize(width, height, false);
+  camera.aspect = width / height;
+  camera.updateProjectionMatrix();
+  renderer.render(state.loginCubeModelScene, camera);
+}
+
+function initializeLoginCubeModelRenderer() {
+  if (state.loginCubeModelRenderer) return true;
+  if (!elements.loginCubeModel || !window.THREE?.WebGLRenderer || !window.THREE?.GLTFLoader) return false;
+  try {
+    const renderer = new THREE.WebGLRenderer({
+      canvas: elements.loginCubeModel, alpha: true, antialias: true, powerPreference: 'high-performance', preserveDrawingBuffer: false
+    });
+    renderer.setClearColor(0x000000, 0);
+    if ('outputEncoding' in renderer && THREE.sRGBEncoding) renderer.outputEncoding = THREE.sRGBEncoding;
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(36, 1, 0.01, 100);
+    camera.position.set(0, 0, 4.2);
+    scene.add(new THREE.HemisphereLight(0xffffff, 0x263238, 1.65));
+    const keyLight = new THREE.DirectionalLight(0xffffff, 1.45); keyLight.position.set(4, 5, 6); scene.add(keyLight);
+    const rimLight = new THREE.DirectionalLight(0x6fd8cf, .85); rimLight.position.set(-4, 1, -3); scene.add(rimLight);
+    const root = new THREE.Group(); root.rotation.order = 'YXZ'; scene.add(root);
+    state.loginCubeModelRenderer = renderer;
+    state.loginCubeModelScene = scene;
+    state.loginCubeModelCamera = camera;
+    state.loginCubeModelRoot = root;
+    state.loginCubeModelResizeObserver = typeof ResizeObserver === 'function'
+      ? new ResizeObserver(resizeLoginCubeModelRenderer) : null;
+    state.loginCubeModelResizeObserver?.observe(elements.loginCubeScene);
+    resizeLoginCubeModelRenderer();
+    return true;
+  } catch (_) {
+    return false;
+  }
+}
+
+function loadLoginCubeModelLibrary() {
+  if (window.THREE?.WebGLRenderer && window.THREE?.GLTFLoader) return Promise.resolve(true);
+  if (state.loginCubeModelLibraryPromise) return state.loginCubeModelLibraryPromise;
+  const loadScript = (source) => new Promise((resolve, reject) => {
+    const existing = document.querySelector(`script[src="${source}"]`);
+    if (existing?.dataset.loaded === '1') return resolve();
+    const script = existing || document.createElement('script');
+    script.src = source; script.async = false;
+    script.addEventListener('load', () => { script.dataset.loaded = '1'; resolve(); }, { once: true });
+    script.addEventListener('error', () => reject(new Error(`无法加载本地 3D 渲染资源：${source}`)), { once: true });
+    if (!existing) document.head.append(script);
+  });
+  state.loginCubeModelLibraryPromise = loadScript('/vendor/three/three.min.js')
+    .then(() => loadScript('/vendor/three/GLTFLoader.js'))
+    .then(() => Boolean(window.THREE?.WebGLRenderer && window.THREE?.GLTFLoader))
+    .catch(() => false);
+  return state.loginCubeModelLibraryPromise;
+}
+
+function loadLoginCubeModel(model = {}) {
+  const url = String(model?.url || '');
+  if (!url) {
+    elements.loginCubeScene?.classList.remove('has-loaded-model');
+    return;
+  }
+  if (!window.THREE?.GLTFLoader) {
+    void loadLoginCubeModelLibrary().then((available) => {
+      if (available && normalizeClientLoginCube(state.publicConfig.loginCube).displayMode === 'model') loadLoginCubeModel(model);
+      else elements.loginCubeScene?.classList.remove('has-loaded-model');
+    });
+    return;
+  }
+  if (!initializeLoginCubeModelRenderer()) {
+    elements.loginCubeScene?.classList.remove('has-loaded-model');
+    return;
+  }
+  if (state.loginCubeModelUrl === url && state.loginCubeModelRoot?.children?.length) {
+    elements.loginCubeScene?.classList.add('has-loaded-model');
+    resizeLoginCubeModelRenderer();
+    return;
+  }
+  if (state.loginCubeModelFailedUrl === url) return;
+  const generation = ++state.loginCubeModelGeneration;
+  elements.loginCubeScene?.classList.remove('has-loaded-model');
+  const loader = new THREE.GLTFLoader();
+  loader.load(url, (gltf) => {
+    const object = gltf?.scene || gltf?.scenes?.[0];
+    if (generation !== state.loginCubeModelGeneration || !object) {
+      disposeLoginCubeObject(object);
+      return;
+    }
+    try {
+      const bounds = new THREE.Box3().setFromObject(object);
+      const size = bounds.getSize(new THREE.Vector3());
+      const center = bounds.getCenter(new THREE.Vector3());
+      const largest = Math.max(size.x, size.y, size.z);
+      if (!Number.isFinite(largest) || largest <= 0) throw new Error('模型没有可显示的网格');
+      object.position.sub(center);
+      object.scale.setScalar(2.35 / largest);
+      for (const child of [...state.loginCubeModelRoot.children]) {
+        state.loginCubeModelRoot.remove(child); disposeLoginCubeObject(child);
+      }
+      state.loginCubeModelRoot.add(object);
+      state.loginCubeModelUrl = url;
+      state.loginCubeModelFailedUrl = '';
+      elements.loginCubeScene?.classList.add('has-loaded-model');
+      updateLoginCubeTransform();
+      resizeLoginCubeModelRenderer();
+    } catch (_) {
+      disposeLoginCubeObject(object);
+      state.loginCubeModelFailedUrl = url;
+      elements.loginCubeScene?.classList.remove('has-loaded-model');
+    }
+  }, undefined, () => {
+    if (generation !== state.loginCubeModelGeneration) return;
+    state.loginCubeModelFailedUrl = url;
+    elements.loginCubeScene?.classList.remove('has-loaded-model');
+  });
+}
+
+function updateLoginCubeTransform() {
+  if (!elements.loginCube) return;
+  state.loginCubeRotationX = Math.max(-75, Math.min(75, Number(state.loginCubeRotationX) || 0));
+  if (Math.abs(state.loginCubeRotationY) > 36000) state.loginCubeRotationY %= 360;
+  elements.loginCube.style.transform = `rotateX(${state.loginCubeRotationX}deg) rotateY(${Number(state.loginCubeRotationY) || 0}deg)`;
+  if (state.loginCubeModelRoot && state.loginCubeModelRenderer && state.loginCubeModelCamera) {
+    state.loginCubeModelRoot.rotation.x = THREE.MathUtils.degToRad(state.loginCubeRotationX);
+    state.loginCubeModelRoot.rotation.y = THREE.MathUtils.degToRad(Number(state.loginCubeRotationY) || 0);
+    state.loginCubeModelRenderer.render(state.loginCubeModelScene, state.loginCubeModelCamera);
+  }
+}
+
+function loginCubeMotionAllowed() {
+  const displayMode = normalizeClientLoginCube(state.publicConfig.loginCube).displayMode;
+  return Boolean(
+    elements.loginPage
+    && !elements.loginPage.classList.contains('is-hidden')
+    && document.visibilityState !== 'hidden'
+    && ['cube', 'model'].includes(displayMode)
+    && !window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches
+  );
+}
+
+function stopLoginCubeMotion(resetVelocity = true) {
+  if (state.loginCubeMotionFrame) cancelAnimationFrame(state.loginCubeMotionFrame);
+  state.loginCubeMotionFrame = 0;
+  state.loginCubeMotionLastAt = 0;
+  if (resetVelocity) {
+    state.loginCubeVelocityX = 0;
+    state.loginCubeVelocityY = 0;
+  }
+}
+
+function startLoginCubeMotion(resetClock = true) {
+  if (!elements.loginCube || state.loginCubeMotionFrame || !loginCubeMotionAllowed()) return;
+  if (resetClock) state.loginCubeMotionLastAt = 0;
+  state.loginCubeMotionFrame = requestAnimationFrame(stepLoginCubeMotion);
+}
+
+function stepLoginCubeMotion(timestamp) {
+  state.loginCubeMotionFrame = 0;
+  if (!loginCubeMotionAllowed()) {
+    stopLoginCubeMotion();
+    return;
+  }
+  const previous = state.loginCubeMotionLastAt || timestamp;
+  const elapsed = Math.max(0, Math.min(34, timestamp - previous));
+  state.loginCubeMotionLastAt = timestamp;
+  if (!state.loginCubeDragging && elapsed > 0) {
+    const settings = normalizeClientLoginCube(state.publicConfig.loginCube);
+    const hasMomentum = settings.inertia && (Math.abs(state.loginCubeVelocityX) > .002 || Math.abs(state.loginCubeVelocityY) > .002);
+    if (hasMomentum) {
+      state.loginCubeRotationX += state.loginCubeVelocityX * elapsed;
+      state.loginCubeRotationY += state.loginCubeVelocityY * elapsed;
+      const damping = Math.pow(.91, elapsed / 16.667);
+      state.loginCubeVelocityX *= damping;
+      state.loginCubeVelocityY *= damping;
+      if (state.loginCubeRotationX <= -75 || state.loginCubeRotationX >= 75) state.loginCubeVelocityX *= -.18;
+      if (Math.abs(state.loginCubeVelocityX) < .002) state.loginCubeVelocityX = 0;
+      if (Math.abs(state.loginCubeVelocityY) < .002) state.loginCubeVelocityY = 0;
+    } else if (settings.autoRotate && settings.rotationSpeed > 0) {
+      let direction = settings.rotationDirection;
+      if (direction === 'random') {
+        if (timestamp >= state.loginCubeRandomDirectionUntil) {
+          const choices = ['right', 'left', 'up', 'down'];
+          state.loginCubeRandomDirection = choices[Math.floor(Math.random() * choices.length)];
+          state.loginCubeRandomDirectionUntil = timestamp + 3200 + Math.random() * 3600;
+        }
+        direction = state.loginCubeRandomDirection;
+      }
+      const delta = settings.rotationSpeed * elapsed / 1000;
+      if (direction === 'left') state.loginCubeRotationY -= delta;
+      else if (direction === 'up') state.loginCubeRotationX -= delta;
+      else if (direction === 'down') state.loginCubeRotationX += delta;
+      else state.loginCubeRotationY += delta;
+      if (state.loginCubeRotationX < -70 || state.loginCubeRotationX > 70) state.loginCubeRotationX *= -.7;
+    }
+    updateLoginCubeTransform();
+  }
+  startLoginCubeMotion(false);
+}
+
+function initializeLoginCube() {
+  const scene = elements.loginCubeScene;
+  if (!scene || !elements.loginCube || scene.dataset.ready === '1') return;
+  scene.dataset.ready = '1';
+  applyLoginCubeSettings();
+  updateLoginCubeTransform();
+  scene.addEventListener('pointerdown', (event) => {
+    if (!['cube', 'model'].includes(normalizeClientLoginCube(state.publicConfig.loginCube).displayMode)) return;
+    if (event.isPrimary === false) return;
+    if (state.loginCubeDragging) return;
+    if (event.pointerType === 'mouse' && event.button !== 0) return;
+    state.loginCubeDragging = true; state.loginCubePointerId = event.pointerId;
+    state.loginCubeLastX = event.clientX; state.loginCubeLastY = event.clientY; state.loginCubeLastPointerAt = event.timeStamp;
+    state.loginCubeVelocityX = 0; state.loginCubeVelocityY = 0;
+    scene.classList.add('is-dragging');
+    try { scene.setPointerCapture?.(event.pointerId); } catch (_) {}
+    event.preventDefault();
+  });
+  scene.addEventListener('pointermove', (event) => {
+    if (!state.loginCubeDragging || state.loginCubePointerId !== event.pointerId) return;
+    const elapsed = Math.max(4, Math.min(80, event.timeStamp - state.loginCubeLastPointerAt || 16));
+    const deltaX = event.clientX - state.loginCubeLastX;
+    const deltaY = event.clientY - state.loginCubeLastY;
+    const limit = (value, maximum) => Math.max(-maximum, Math.min(maximum, value));
+    state.loginCubeRotationY += deltaX * .48;
+    state.loginCubeRotationX -= deltaY * .38;
+    // Pointer events can arrive with nearly identical timestamps on fast swipes.
+    // Limit angular velocity so the release momentum stays fluid instead of jumping
+    // hundreds of degrees in one frame on high-refresh or remote browsers.
+    state.loginCubeVelocityY = limit(state.loginCubeVelocityY * .28 + (deltaX * .48 / elapsed) * .72, .72);
+    state.loginCubeVelocityX = limit(state.loginCubeVelocityX * .28 + (-deltaY * .38 / elapsed) * .72, .3);
+    state.loginCubeLastX = event.clientX; state.loginCubeLastY = event.clientY; state.loginCubeLastPointerAt = event.timeStamp;
+    updateLoginCubeTransform();
+  });
+  const stop = (event) => {
+    if (!state.loginCubeDragging) return;
+    if (event?.isPrimary === false) return;
+    if (state.loginCubePointerId !== null && event?.pointerId != null && event.pointerId !== state.loginCubePointerId) return;
+    state.loginCubeDragging = false; state.loginCubePointerId = null; scene.classList.remove('is-dragging');
+    try { scene.releasePointerCapture?.(event?.pointerId); } catch (_) {}
+    if (window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches || !normalizeClientLoginCube(state.publicConfig.loginCube).inertia) {
+      state.loginCubeVelocityX = 0; state.loginCubeVelocityY = 0;
+    }
+  };
+  scene.addEventListener('pointerup', stop); scene.addEventListener('pointercancel', stop); scene.addEventListener('lostpointercapture', stop);
+  window.addEventListener('pointerup', stop); window.addEventListener('pointercancel', stop);
+  startLoginCubeMotion();
+}
+
+function bindUiEvents() {
+  document.addEventListener('play', (event) => {
+    if (state.masterMuted && event.target instanceof HTMLMediaElement) muteMediaElement(event.target);
+  }, true);
+  elements.loginForm.addEventListener('submit', login);
+  elements.registerForm.addEventListener('submit', register);
+  elements.guestLoginBtn?.addEventListener('click', guestLogin);
+  elements.playbackRatePrompt?.addEventListener('click', handlePlaybackRatePromptAction);
+  elements.accountViewMode?.addEventListener('change', (event) => {
+    state.accountViewMode = event.target.value;
+    try { localStorage.setItem('syncwatchAccountViewMode', state.accountViewMode); } catch (_) {}
+    renderAdminAccounts(state.adminSettings?.accounts || []);
+  });
+  elements.registrationViewMode?.addEventListener('change', (event) => {
+    state.registrationViewMode = event.target.value;
+    try { localStorage.setItem('syncwatchRegistrationViewMode', state.registrationViewMode); } catch (_) {}
+    if (elements.registrationRequestList) renderRegistrationRequests(state.registrationRequests);
+  });
+  elements.togglePasswordBtn?.addEventListener('click', togglePasswordVisibility);
+  elements.toggleRegPasswordBtn?.addEventListener('click', () => toggleFieldVisibility(elements.regPassword, elements.toggleRegPasswordBtn, '设置密码'));
+  elements.toggleRegPasswordConfirmBtn?.addEventListener('click', () => toggleFieldVisibility(elements.regPasswordConfirm, elements.toggleRegPasswordConfirmBtn, '确认密码'));
+  elements.copyDeviceIpBtn?.addEventListener('click', copyCurrentDeviceIp);
+  elements.onlineRoomSelect?.addEventListener('change', selectOnlineRoom);
+  elements.refreshOnlineRoomsBtn?.addEventListener('click', refreshOnlineRooms);
+  elements.myRoomsLoginBtn?.addEventListener('click', loadMyRoomsBeforeLogin);
+  elements.serverAdminLoginBtn?.addEventListener('click', loginAsServerAdmin);
+  elements.resetAdminPasswordBtn?.addEventListener('click', resetServerAdminPassword);
+  elements.restartServerBtn?.addEventListener('click', restartServerSoftware);
+  elements.adminContactBtn?.addEventListener('click', openAdminContact);
+  elements.mobileMenuBtn?.addEventListener('click', () => toggleMobileActionMenu());
+  elements.mobileMenuBackdrop?.addEventListener('click', () => toggleMobileActionMenu(false));
+  document.querySelector('.topbar-actions')?.addEventListener('click', (event) => {
+    if (!document.body.classList.contains('android-client') || !event.target.closest('button') || event.target.closest('#accountMenuBtn')) return;
+    toggleMobileActionMenu(false);
+  });
+  elements.closeLoginStatusBtn?.addEventListener('click', () => setLoginStatus(''));
+  elements.closeReconnectOverlayBtn?.addEventListener('click', () => setReconnectState(false));
+  elements.closeRoomSwitchSuccessBtn?.addEventListener('click', hideRoomSwitchSuccess);
+  elements.downloadClientBtn?.addEventListener('click', downloadDesktopClient);
+  elements.downloadClientMainBtn?.addEventListener('click', downloadDesktopClient);
+  elements.downloadLoginApkBtn?.addEventListener('click', downloadAndroidApk);
+  elements.downloadMacServerBtn?.addEventListener('click', () => openMacDownload('server'));
+  elements.downloadMacServerMainBtn?.addEventListener('click', () => openMacDownload('server'));
+  elements.downloadMacClientBtn?.addEventListener('click', () => openMacDownload('client'));
+  elements.downloadMacClientMainBtn?.addEventListener('click', () => openMacDownload('client'));
+  elements.closeMacDownloadBtn?.addEventListener('click', closeMacDownload);
+  elements.macDownloadArch?.addEventListener('change', syncMacDownloadSelection);
+  elements.macDownloadFormat?.addEventListener('change', syncMacDownloadSelection);
+  elements.confirmMacDownloadBtn?.addEventListener('click', confirmMacDownload);
+  elements.showRegisterBtn.addEventListener('click', () => showAuthMode('register'));
+  elements.showLoginBtn.addEventListener('click', () => showAuthMode('login'));
+  elements.forgotPasswordBtn.addEventListener('click', recoverPasswordByEmail);
+  elements.sendRegistrationEmailCodeBtn?.addEventListener('click', sendRegistrationEmailCode);
+  elements.regEmail?.addEventListener('input', updateRegistrationEmailVerificationRequirement);
+  elements.requestRegistrationBtn?.addEventListener('click', requestRegistrationAllowance);
+  elements.logoutBtn.addEventListener('click', logout);
+  elements.logoutKeepCredentialsBtn?.addEventListener('click', () => logout({ preserveCredentials: true }));
+  elements.copyAddressBtn.addEventListener('click', copyAddress);
+  elements.copyShareLinkBtn?.addEventListener('click', copyAddress);
+  elements.copyRoomCodeBtn?.addEventListener('click', copyRoomCode);
+  elements.copyLanAddressBtn?.addEventListener('click', copyLanAddress);
+  elements.copyPublicAddressBtn?.addEventListener('click', copyPublicAddress);
+  elements.applyShareDomainBtn?.addEventListener('click', applyShareDomain);
+  elements.resetShareAddressBtn?.addEventListener('click', resetShareAddress);
+  elements.changeCurrentRoomIdBtn?.addEventListener('click', changeCurrentRoomId);
+  elements.convertTemporaryRoomBtn?.addEventListener('click', convertTemporaryRoom);
+  elements.roomShareUrl?.addEventListener('input', () => {
+    elements.roomShareUrl.dataset.customBase = normalizeShareBase(elements.roomShareUrl.value);
+  });
+  elements.roomCode?.addEventListener('dblclick', copyRoomCode);
+  elements.headerRoomName?.addEventListener('dblclick', () => renameOwnedRoom(state.room?.id, state.room?.name));
+  elements.copyrightBtn.addEventListener('click', () => elements.copyrightModal.classList.remove('is-hidden'));
+  elements.closeCopyrightBtn.addEventListener('click', () => elements.copyrightModal.classList.add('is-hidden'));
+  elements.chooseFileBtn.addEventListener('click', () => elements.fileInput.click());
+  elements.fileInput.addEventListener('change', uploadFile);
+  elements.backgroundUploadBtn?.addEventListener('click', toggleUploadProgressBackground);
+  ['dragenter', 'dragover'].forEach((eventName) => elements.filePanel?.addEventListener(eventName, (event) => {
+    if (!event.dataTransfer?.types?.includes('Files')) return;
+    event.preventDefault(); elements.filePanel.classList.add('is-drop-target');
+  }));
+  ['dragleave', 'drop'].forEach((eventName) => elements.filePanel?.addEventListener(eventName, (event) => {
+    if (eventName === 'drop') {
+      event.preventDefault();
+      const files = [...(event.dataTransfer?.files || [])];
+      if (files.length) void startUploadBatch(files);
+    }
+    elements.filePanel.classList.remove('is-drop-target');
+  }));
+  elements.chooseFolderBtn?.addEventListener('click', chooseUploadFolder);
+  elements.addRemoteVideoBtn?.addEventListener('click', addRemoteVideo);
+  elements.folderInput?.addEventListener('change', uploadFolder);
+  elements.cancelUploadBtn?.addEventListener('click', cancelUpload);
+  elements.collapseFilesBtn?.addEventListener('click', toggleLibraryCollapsed);
+  elements.fileList.addEventListener('click', handleFileAction);
+  elements.mediaCategoryFilter?.addEventListener('change', () => { state.mediaCategoryFilter = elements.mediaCategoryFilter.value; renderFiles(); });
+  elements.manageMediaCategoriesBtn?.addEventListener('click', manageMediaCategories);
+  elements.batchMoveMediaCategoryBtn?.addEventListener('click', batchMoveMediaCategory);
+  elements.openVideoManagementBtn?.addEventListener('click', () => openVideoManagement());
+  elements.closeMediaBatchBtn?.addEventListener('click', () => elements.mediaBatchModal?.classList.add('is-hidden'));
+  elements.mediaBatchSearch?.addEventListener('input', renderMediaBatchList);
+  elements.mediaBatchSelectAll?.addEventListener('change', toggleMediaBatchSelectAll);
+  elements.mediaBatchList?.addEventListener('change', handleMediaBatchSelection);
+  elements.mediaBatchCategory?.addEventListener('change', updateMediaBatchConfirmState);
+  elements.mediaBatchConfirmBtn?.addEventListener('click', confirmMediaBatchMove);
+  elements.closeVideoManagementBtn?.addEventListener('click', () => { state.videoManagementVisible = false; elements.videoManagementModal?.classList.add('is-hidden'); });
+  elements.videoManagementSearch?.addEventListener('input', () => { state.mediaManagementSearch = elements.videoManagementSearch.value; renderVideoManagementList(); });
+  elements.videoManagementCategory?.addEventListener('change', () => { state.mediaManagementCategory = elements.videoManagementCategory.value; renderVideoManagementList(); });
+  elements.videoManagementSelectAll?.addEventListener('change', toggleVideoManagementSelectAll);
+  elements.videoManagementList?.addEventListener('click', handleVideoManagementAction);
+  elements.videoManagementList?.addEventListener('change', handleVideoManagementSelection);
+  elements.videoManagementBatchCategoryBtn?.addEventListener('click', batchCategorizeManagedVideos);
+  elements.videoManagementBatchNoteBtn?.addEventListener('click', batchNoteManagedVideos);
+  elements.videoManagementBatchDeleteBtn?.addEventListener('click', batchDeleteManagedVideos);
+  elements.exportVideoManagementBtn?.addEventListener('click', exportVideoManagement);
+  elements.importVideoManagementBtn?.addEventListener('click', () => elements.importVideoManagementInput?.click());
+  elements.importVideoManagementInput?.addEventListener('change', importVideoManagement);
+  document.querySelectorAll('[data-media-tab]').forEach((button) => button.addEventListener('click', () => switchMediaTab(button.dataset.mediaTab)));
+  elements.addCurrentQueueBtn.addEventListener('click', () => state.currentFile && queueAction('add', state.currentFile.id));
+  elements.queueList.addEventListener('click', handleQueueAction);
+  elements.queueModeSelect?.addEventListener('change', updateQueueMode);
+  elements.queueCategorySelect?.addEventListener('change', updateQueueMode);
+  elements.playPauseBtn.addEventListener('click', togglePlayPause);
+  elements.clearPlaybackBtn?.addEventListener('click', clearPlayback);
+  elements.customJumpBtn?.addEventListener('click', jumpToCustomTime);
+  elements.backBtn.addEventListener('click', () => requestPlaybackCommand('seek', Math.max(0, elements.videoPlayer.currentTime - 10)));
+  elements.forwardBtn.addEventListener('click', () => requestPlaybackCommand('seek', Math.min(elements.videoPlayer.duration || Infinity, elements.videoPlayer.currentTime + 10)));
+  (elements.volumeMuteBtn || elements.videoMuteBtn)?.addEventListener('click', toggleVideoMute);
+  elements.volumeSlider.addEventListener('input', handleVolumeSliderInput);
+  elements.volumeSlider.addEventListener('change', handleVolumeSliderCommit);
+  elements.playbackQualitySelect?.addEventListener('change', changePlaybackQuality);
+  elements.playbackRateSelect?.addEventListener('change', changePlaybackRate);
+  elements.syncNoticeToggle?.addEventListener('change', changeSyncNoticePreference);
+  elements.requestControlBtn.addEventListener('click', requestControl);
+  elements.controlLockBtn.addEventListener('click', () => ownerAction('toggle-lock', { locked: !state.room.controlLocked }));
+  elements.forceSyncBtn.addEventListener('click', () => ownerAction('force-sync'));
+  elements.volumeSyncToggle.addEventListener('change', async () => {
+    const enabled = elements.volumeSyncToggle.checked;
+    await ownerAction('volume-sync', { enabled });
+    if (enabled) scheduleVolumeCommand(elements.videoPlayer.volume, elements.videoPlayer.muted);
+  });
+  elements.fullscreenBtn.addEventListener('click', togglePlayerFullscreen);
+  elements.resumePlaybackBtn.addEventListener('click', resumeBlockedPlayback);
+  elements.reconnectRetryBtn.addEventListener('click', retryConnectionNow);
+  elements.screenShareBtn.addEventListener('click', openDesktopShareSettings);
+  elements.closeDesktopShareBtn?.addEventListener('click', closeDesktopShareSettings);
+  elements.desktopShareStartBtn?.addEventListener('click', startConfiguredDesktopShare);
+  elements.floatingPlayerBtn?.addEventListener('click', toggleFloatingPlayer);
+  elements.lightsBtn.addEventListener('click', toggleLights);
+  elements.mobileFilesBtn.addEventListener('click', () => openMobileModule('library'));
+  elements.mobileUsersBtn.addEventListener('click', () => openMobileModule('members'));
+  document.querySelector('[data-mobile-module="watch"]')?.addEventListener('click', () => openMobileModule('watch'));
+  document.querySelector('[data-mobile-module="chat"]')?.addEventListener('click', () => openMobileModule('chat'));
+  elements.authorizeLocationBtn?.addEventListener('click', () => reportMemberLocation({ interactive: true }));
+  elements.revokeLocationBtn?.addEventListener('click', revokeMemberLocation);
+  elements.collapseMembersBtn?.addEventListener('click', toggleMemberDetails);
+  elements.convertTemporaryRoomPrimaryBtn?.addEventListener('click', convertTemporaryRoom);
+  elements.ignoreTemporaryRoomBtn?.addEventListener('click', () => { try { sessionStorage.setItem(`syncwatchIgnoreTemporary:${state.room?.id || ''}`, '1'); } catch (_) {} elements.temporaryRoomNotice?.classList.add('is-hidden'); });
+  elements.viewLocationAuthorizationsBtn?.addEventListener('click', openLocationAuthorizations);
+  elements.closeMemberProfileBtn?.addEventListener('click', () => {
+    stopMemberProfileRefresh(); elements.memberProfileModal.classList.add('is-hidden');
+    elements.memberProfileModal.style.zIndex = '';
+  });
+  elements.memberProfileContent?.addEventListener('click', handleMemberProfileAction);
+  elements.closeLocationAuthorizationsBtn?.addEventListener('click', () => elements.locationAuthorizationsModal.classList.add('is-hidden'));
+  elements.refreshLocationAuthorizationsBtn?.addEventListener('click', loadLocationAuthorizations);
+  elements.locationAuthorizationSearch?.addEventListener('input', () => { state.locationAuthorizationQuery = elements.locationAuthorizationSearch.value; renderLocationAuthorizations(); });
+  document.querySelectorAll('[data-close-panel]').forEach((button) => button.addEventListener('click', () => {
+    document.getElementById(button.dataset.closePanel).classList.remove('mobile-open');
+    setMobileModuleActive('watch');
+  }));
+  document.querySelectorAll('.tab-button[data-tab]').forEach((button) => button.addEventListener('click', () => switchSideTab(button.dataset.tab)));
+  elements.userList.addEventListener('click', handleUserAction);
+  elements.chatForm.addEventListener('submit', sendChat);
+  document.querySelectorAll('[data-chat-mode]').forEach((button) => button.addEventListener('click', () => setChatMode(button.dataset.chatMode)));
+  elements.chatToggleBtn?.addEventListener('click', () => {
+    toggleMobileChat();
+    setMobileModuleActive(state.mobileChatCollapsed ? 'watch' : 'chat');
+  });
+  document.querySelectorAll('[data-reaction]').forEach((button) => button.addEventListener('click', () => state.socket.emit('reaction', { emoji: button.dataset.reaction })));
+  elements.loadHistoryBtn.addEventListener('click', () => loadChatHistory(true));
+  elements.voiceBtn.addEventListener('click', toggleVoiceRecording);
+  elements.voiceRoomBtn?.addEventListener('click', joinRoomVoice);
+  elements.voicePrivateBtn?.addEventListener('click', callPrivateVoice);
+  elements.voiceMuteBtn?.addEventListener('click', toggleLiveVoiceMute);
+  elements.voiceLeaveBtn?.addEventListener('click', () => leaveLiveVoice(true));
+  elements.voiceDockToggleBtn?.addEventListener('click', toggleLiveVoiceCollapsed);
+  elements.voiceFloatingMuteBtn?.addEventListener('click', toggleLiveVoiceMute);
+  elements.voiceFloatingLeaveBtn?.addEventListener('click', () => leaveLiveVoice(true));
+  elements.voiceFloatingCollapseBtn?.addEventListener('click', toggleLiveVoiceFloatingCollapsed);
+  elements.voicePushToTalkBtn?.addEventListener('pointerdown', beginPushToTalk);
+  elements.voicePushToTalkBtn?.addEventListener('pointerup', endPushToTalk);
+  elements.voicePushToTalkBtn?.addEventListener('pointercancel', endPushToTalk);
+  elements.voicePushToTalkBtn?.addEventListener('lostpointercapture', endPushToTalk);
+  elements.voiceFileInput.addEventListener('change', () => elements.voiceFileInput.files[0] && processVoiceUpload(elements.voiceFileInput.files[0]));
+  elements.chatImageBtn?.addEventListener('click', () => elements.chatImageInput.click());
+  elements.chatImageInput?.addEventListener('change', () => elements.chatImageInput.files[0] && uploadChatImage(elements.chatImageInput.files[0], false));
+  elements.chatEmojiBtn?.addEventListener('click', () => toggleEmojiBar(elements.chatEmojiBar, elements.chatEmojiCollapseBtn, elements.chatEmojiCategory));
+  elements.chatEmojiBar?.addEventListener('click', handleEmojiSelection);
+  elements.chatEmojiCollapseBtn?.addEventListener('click', () => hideEmojiBar(elements.chatEmojiBar, elements.chatEmojiCollapseBtn));
+  elements.chatEmojiCategory?.addEventListener('change', () => changeEmojiCategory(elements.chatEmojiBar, elements.chatEmojiCollapseBtn, elements.chatEmojiCategory));
+  elements.fullscreenEmojiCategory?.addEventListener('change', () => changeEmojiCategory(elements.fullscreenEmojiBar, null, elements.fullscreenEmojiCategory));
+  elements.chatViewFilterBtn?.addEventListener('click', toggleChatViewFilters);
+  elements.chatViewChannel?.addEventListener('change', updateChatViewFilter);
+  elements.chatViewUser?.addEventListener('change', updateChatViewFilter);
+  elements.chatViewUserMode?.addEventListener('change', updateChatViewFilter);
+  elements.chatViewQuery?.addEventListener('input', debounce(updateChatViewFilter, 180));
+  elements.chatViewResetBtn?.addEventListener('click', resetChatViewFilter);
+  elements.chatInput?.addEventListener('paste', handleChatPaste);
+  elements.showQrBtn.addEventListener('click', showQr);
+  elements.accountMenuBtn.addEventListener('click', (event) => {
+    event.stopPropagation();
+    const opening = elements.accountDropdown.classList.contains('is-hidden');
+    elements.accountDropdown.classList.toggle('is-hidden', !opening);
+    if (opening) positionAccountDropdown();
+  });
+  elements.accountDropdown.addEventListener('click', handleAccountMenu);
+  document.addEventListener('click', (event) => {
+    if (!elements.accountDropdown.contains(event.target) && event.target !== elements.accountMenuBtn) elements.accountDropdown.classList.add('is-hidden');
+    if (!event.target.closest('.select-shell') && !event.target.closest('#enhancedSelectMenu')) closeEnhancedSelect();
+    if (!event.target.closest('#friendChatContextMenu')) elements.friendChatContextMenu?.classList.add('is-hidden');
+  });
+  window.addEventListener('resize', () => { positionAccountDropdown(); positionEnhancedSelectMenu(); });
+  window.addEventListener('scroll', () => { positionAccountDropdown(); positionEnhancedSelectMenu(); }, true);
+  elements.accountNav.addEventListener('click', (event) => event.target.dataset.accountPage && renderAccountPage(event.target.dataset.accountPage));
+  elements.accountContent.addEventListener('click', handleAccountAction);
+  elements.accountContent.addEventListener('dblclick', handleAccountDoubleClick);
+  elements.accountContent.addEventListener('change', handleAccountSelectionChange);
+  elements.accountContent.addEventListener('input', handleAccountFilterInput);
+  elements.closeAccountBtn.addEventListener('click', () => elements.accountModal.classList.add('is-hidden'));
+  elements.closeFriendChatBtn?.addEventListener('click', closeFriendChat);
+  elements.friendChatFloatingBtn?.addEventListener('click', toggleFriendChatFloatingNotice);
+  elements.friendChatForm?.addEventListener('submit', sendFriendChatMessage);
+  elements.friendChatEmojiBtn?.addEventListener('click', toggleFriendChatEmojiBar);
+  elements.friendChatEmojiBar?.addEventListener('click', handleEmojiSelection);
+  elements.friendChatEmojiCategory?.addEventListener('change', changeFriendChatEmojiCategory);
+  elements.friendChatEmojiCollapseBtn?.addEventListener('click', hideFriendChatEmojiBar);
+  elements.clearFriendChatBtn?.addEventListener('click', clearFriendChatHistory);
+  elements.manageFriendChatBtn?.addEventListener('click', toggleFriendChatManagement);
+  elements.friendChatSelectAll?.addEventListener('change', toggleAllFriendChatMessages);
+  elements.deleteFriendChatSelectedBtn?.addEventListener('click', deleteSelectedFriendMessages);
+  elements.friendChatHistory?.addEventListener('contextmenu', openFriendMessageContextMenu);
+  elements.friendChatHistory?.addEventListener('change', handleFriendMessageSelection);
+  elements.friendChatContextMenu?.addEventListener('click', handleFriendMessageContextAction);
+  elements.cancelFriendChatReplyBtn?.addEventListener('click', clearFriendReply);
+  elements.friendChatImageBtn?.addEventListener('click', () => elements.friendChatImageInput?.click());
+  elements.friendChatImageInput?.addEventListener('change', () => elements.friendChatImageInput.files?.[0] && uploadFriendChatImage(elements.friendChatImageInput.files[0]));
+  elements.loadAdminBtn.addEventListener('click', loadAdminSettings);
+  elements.refreshPendingBtn.addEventListener('click', loadAdminSettings);
+  elements.refreshAccountsBtn.addEventListener('click', loadAdminSettings);
+  elements.accountAdminSearch?.addEventListener('input', () => renderAdminAccounts(state.adminSettings?.accounts || []));
+  elements.accountAdminPresence?.addEventListener('change', () => { state.accountAdminPresence = elements.accountAdminPresence.value || 'all'; renderAdminAccounts(state.adminSettings?.accounts || []); });
+  elements.accountAdminSort?.addEventListener('change', () => { state.accountAdminSort = elements.accountAdminSort.value || 'name-asc'; renderAdminAccounts(state.adminSettings?.accounts || []); });
+  elements.showSuperAdminAccountsBtn?.addEventListener('click', toggleSuperAdminAccountFilter);
+  elements.openAccountOverviewBtn?.addEventListener('click', openAccountOverview);
+  elements.closeAccountOverviewBtn?.addEventListener('click', () => elements.accountOverviewModal?.classList.add('is-hidden'));
+  elements.accountOverviewSearch?.addEventListener('input', () => { state.accountOverviewQuery = elements.accountOverviewSearch.value; renderAccountOverview(); });
+  elements.accountOverviewPresence?.addEventListener('change', () => { state.accountOverviewPresence = elements.accountOverviewPresence.value || 'all'; renderAccountOverview(); });
+  elements.accountOverviewSort?.addEventListener('change', () => { state.accountOverviewSort = elements.accountOverviewSort.value || 'name-asc'; renderAccountOverview(); });
+  elements.accountOverviewList?.addEventListener('click', handleAccountOverviewAction);
+  elements.accountAuditLogBtn?.addEventListener('click', openAccountAuditLogs);
+  elements.closeAccountAuditLogBtn?.addEventListener('click', closeAccountAuditLogs);
+  elements.refreshAccountAuditLogsBtn?.addEventListener('click', () => loadAccountAuditLogs(false));
+  elements.accountAuditLogSearch?.addEventListener('input', debounce(() => {
+    state.accountAuditLogQuery = elements.accountAuditLogSearch?.value || '';
+    renderAccountAuditLogs();
+  }, 180));
+  elements.accountAuditLogType?.addEventListener('change', () => {
+    state.accountAuditLogType = elements.accountAuditLogType?.value || '';
+    void loadAccountAuditLogs(false);
+  });
+  elements.accountAuditLogSelectAll?.addEventListener('change', toggleAllAccountAuditLogSelections);
+  elements.accountAuditLogList?.addEventListener('change', handleAccountAuditLogSelection);
+  elements.deleteSelectedAccountAuditLogsBtn?.addEventListener('click', deleteSelectedAccountAuditLogs);
+  elements.accountAdminList?.addEventListener('change', handleAdminAccountSelection);
+  elements.selectAllAdminAccounts?.addEventListener('change', toggleAllAdminAccounts);
+  elements.batchResetAccountsBtn?.addEventListener('click', () => batchAdminAccounts('reset-password'));
+  elements.batchBlockRoomsBtn?.addEventListener('click', () => batchAdminAccounts('block-rooms'));
+  elements.batchDeleteAccountsBtn?.addEventListener('click', () => batchAdminAccounts('delete'));
+  elements.saveDefaultAccountPasswordBtn?.addEventListener('click', saveDefaultAccountPassword);
+  elements.refreshGlobalRoomsBtn?.addEventListener('click', loadAdminSettings);
+  elements.globalRoomSearch?.addEventListener('input', () => renderGlobalRooms(state.adminSettings?.rooms || []));
+  elements.globalRoomList?.addEventListener('click', handleGlobalRoomAction);
+  elements.globalRoomList?.addEventListener('change', updateBulkRoomSelection);
+  elements.selectAllRooms?.addEventListener('change', toggleAllRoomSelections);
+  elements.applyGlobalRoomStorageLimitBtn?.addEventListener('click', applyGlobalRoomStorageLimit);
+  elements.batchStopRoomsBtn?.addEventListener('click', () => batchRoomAction('stop'));
+  elements.batchRequireRoomPasswordsBtn?.addEventListener('click', () => batchRoomAction('require-password'));
+  elements.batchBanRoomsBtn?.addEventListener('click', () => batchRoomAction('ban'));
+  elements.batchRenameRoomsBtn?.addEventListener('click', () => batchRoomAction('rename'));
+  elements.batchRenameRoomIdsBtn?.addEventListener('click', () => batchRoomAction('rename-id'));
+  elements.deleteSelectedRoomsBtn?.addEventListener('click', deleteSelectedRooms);
+  elements.refreshBlacklistBtn.addEventListener('click', loadAdminSettings);
+  elements.saveRoomBtn.addEventListener('click', saveRoomSettings);
+  elements.saveUploadLimitsBtn.addEventListener('click', saveUploadLimits);
+  elements.uploadLimitTutorialBtn?.addEventListener('click', openUploadLimitTutorial);
+  elements.closeUploadLimitTutorialBtn?.addEventListener('click', closeUploadLimitTutorial);
+  elements.uploadLimitTutorialActionBtn?.addEventListener('click', closeUploadLimitTutorial);
+  elements.savePermissionsBtn.addEventListener('click', savePermissions);
+  elements.setAccessPasswordBtn.addEventListener('click', setAccessPassword);
+  elements.changeAdminPasswordBtn.addEventListener('click', changeAdminPassword);
+  elements.pendingList.addEventListener('click', handlePendingAction);
+  elements.accountAdminList.addEventListener('click', handleAdminAccountAction);
+  elements.blacklistContent.addEventListener('click', handleUnban);
+  elements.tunnelMode.addEventListener('change', updateTunnelMode);
+  elements.startTunnelBtn.addEventListener('click', startTunnel);
+  elements.tunnelTutorialBtn?.addEventListener('click', openTunnelTutorial);
+  elements.tunnelNetworkRepairBtn?.addEventListener('click', repairTunnelNetwork);
+  elements.stopTunnelBtn.addEventListener('click', stopTunnel);
+  elements.saveTunnelStartupBtn?.addEventListener('click', saveTunnelStartupSettings);
+  elements.copyTunnelUrlBtn?.addEventListener('click', copyTunnelUrl);
+  elements.openTunnelUrlBtn?.addEventListener('click', openTunnelUrl);
+  elements.savePublicPasswordPolicyBtn?.addEventListener('click', savePublicPasswordPolicy);
+  elements.saveLanAccessBtn?.addEventListener('click', saveLanAccessSetting);
+  elements.saveMailSettingsBtn?.addEventListener('click', saveMailSettings);
+  elements.testMailConnectionBtn?.addEventListener('click', testMailConnection);
+  elements.testMailSettingsBtn?.addEventListener('click', testMailSettings);
+  elements.mailTutorialBtn?.addEventListener('click', toggleMailTutorial);
+  elements.mailTemplateEvent?.addEventListener('change', switchMailTemplateEditor);
+  elements.mailTemplateLanguage?.addEventListener('change', switchMailTemplateEditor);
+  elements.applyMailTemplatePresetBtn?.addEventListener('click', applyMailTemplatePreset);
+  elements.previewMailTemplateBtn?.addEventListener('click', previewMailTemplate);
+  elements.restoreMailTemplateBtn?.addEventListener('click', restoreMailTemplate);
+  elements.mailTemplateSubject?.addEventListener('input', updateMailTemplateDraft);
+  elements.mailTemplateHtml?.addEventListener('input', updateMailTemplateDraft);
+  elements.mailSettingsCard?.addEventListener('click', handleMailPlaceholderClick);
+  elements.refreshVerificationCodesBtn?.addEventListener('click', loadVerificationCodes);
+  elements.verificationCodeType?.addEventListener('change', () => { state.verificationCodeType = elements.verificationCodeType.value; renderVerificationCodes(); });
+  elements.verificationCodeStatus?.addEventListener('change', () => { state.verificationCodeStatus = elements.verificationCodeStatus.value; renderVerificationCodes(); });
+  elements.verificationCodeSearch?.addEventListener('input', debounce(() => { state.verificationCodeSearch = elements.verificationCodeSearch.value; renderVerificationCodes(); }, 180));
+  elements.verificationCodeSelectAll?.addEventListener('change', toggleAllVerificationCodes);
+  elements.verificationCodeList?.addEventListener('change', handleVerificationCodeSelection);
+  elements.deleteSelectedVerificationCodesBtn?.addEventListener('click', deleteSelectedVerificationCodes);
+  elements.roomIdPolicyMode?.addEventListener('change', () => elements.roomIdPolicyPatternLabel?.classList.toggle('is-hidden', elements.roomIdPolicyMode.value !== 'custom'));
+  elements.saveRoomIdPolicyBtn?.addEventListener('click', saveRoomIdPolicy);
+  elements.saveAccountIdPolicyBtn?.addEventListener('click', saveAccountIdPolicy);
+  elements.newAccountTierBtn?.addEventListener('click', () => openAccountTierEditor());
+  elements.cancelAccountTierBtn?.addEventListener('click', closeAccountTierEditor);
+  elements.saveAccountTierBtn?.addEventListener('click', saveAccountTier);
+  elements.accountTierList?.addEventListener('click', handleAccountTierAction);
+  elements.saveBrandingBtn?.addEventListener('click', saveBranding);
+  elements.saveLoginCubeSettingsBtn?.addEventListener('click', saveLoginCubeSettings);
+  elements.resetLoginCubeSettingsBtn?.addEventListener('click', resetLoginCubeSettingsEditor);
+  elements.loginCubeRotationSpeed?.addEventListener('input', updateLoginCubeSpeedLabel);
+  elements.loginCubeDisplayMode?.addEventListener('change', () => applyLoginCubeSettings({ ...state.publicConfig.loginCube, displayMode: elements.loginCubeDisplayMode.value }));
+  elements.loginCubeRotationDirection?.addEventListener('change', () => { state.loginCubeRandomDirectionUntil = 0; });
+  elements.loginCubeSettingsGrid?.addEventListener('input', handleLoginCubeEditorPreview);
+  elements.loginCubeSettingsGrid?.addEventListener('change', handleLoginCubeEditorPreview);
+  elements.loginCubeSettingsGrid?.addEventListener('click', handleLoginCubeEditorAction);
+  elements.loginCubeModelFile?.addEventListener('change', validateSelectedLoginCubeModel);
+  elements.uploadLoginCubeModelBtn?.addEventListener('click', uploadLoginCubeModel);
+  elements.deleteLoginCubeModelBtn?.addEventListener('click', deleteLoginCubeModel);
+  elements.saveMarqueeBtn?.addEventListener('click', saveMarqueeSettings);
+  elements.loginMusicVolume?.addEventListener('input', updateLoginMusicVolumeLabel);
+  elements.loginMusicFile?.addEventListener('change', previewSelectedLoginMusicFile);
+  elements.loginMusicNowPlaying?.addEventListener('click', revealLoginMusicProgress);
+  elements.loginMusicProgress?.addEventListener('input', seekLoginMusic);
+  elements.previewLoginMusicBtn?.addEventListener('click', previewLoginMusic);
+  elements.saveLoginMusicBtn?.addEventListener('click', saveLoginMusicSettings);
+  elements.removeLoginMusicBtn?.addEventListener('click', removeLoginMusic);
+  elements.loginVideoFile?.addEventListener('change', previewSelectedLoginVideoFile);
+  elements.saveLoginVideoBtn?.addEventListener('click', saveLoginVideoSettings);
+  elements.removeLoginVideoBtn?.addEventListener('click', removeLoginVideo);
+  elements.loginMusicTrackList?.addEventListener('click', (event) => {
+    const button = event.target.closest('[data-login-music-delete]');
+    if (button) void deleteLoginMusicTracks([button.dataset.loginMusicDelete]);
+  });
+  elements.registrationAccountNoticeToggle?.addEventListener('change', async () => {
+    if (!state.adminSettings?.serverAdmin) return;
+    const enabled = Boolean(elements.registrationAccountNoticeToggle.checked);
+    const result = await adminAction('set-registration-account-notice', { enabled });
+    if (!result.success) {
+      elements.registrationAccountNoticeToggle.checked = !enabled;
+      return toast(result.error || '新账号注册通知设置失败', 'error');
+    }
+    if (state.adminSettings) state.adminSettings.registrationAccountNoticeEnabled = enabled;
+    toast(enabled ? '新账号注册通知已开启' : '新账号注册通知已关闭', 'success', 3500);
+  });
+  elements.saveNoticePreferenceSettingsBtn?.addEventListener('click', saveServerNoticePreferences);
+  elements.f11PromptGlobalEnabled?.addEventListener('change', saveServerNoticePreferences);
+  elements.initialPasswordReminderEnabled?.addEventListener('change', saveServerNoticePreferences);
+  elements.refreshAllApplicationsBtn?.addEventListener('click', refreshAllApplications);
+  elements.saveRoomEntryNoticeBtn?.addEventListener('click', saveRoomEntryNoticeSettings);
+  elements.roomEntryNoticeScope?.addEventListener('change', renderRoomEntryNoticeEditor);
+  elements.resetRoomEntryNoticeBtn?.addEventListener('click', resetRoomEntryNoticeSettings);
+  elements.savePasswordPolicyBtn?.addEventListener('click', savePasswordPolicy);
+  elements.saveBlockedWordsBtn?.addEventListener('click', saveBlockedWords);
+  elements.saveAdminContactBtn?.addEventListener('click', saveAdminContact);
+  elements.saveLegalAgreementBtn?.addEventListener('click', saveLegalAgreement);
+  elements.saveExperiencePolicyBtn?.addEventListener('click', saveExperiencePolicy);
+  elements.exportDataBtn?.addEventListener('click', exportServerData);
+  elements.dataBackupScopes?.addEventListener('change', syncLegacyBackupScopeFromChecks);
+  elements.dataBackupScope?.addEventListener('change', () => {
+    const value = elements.dataBackupScope.value;
+    if (elements.dataBackupScopes) elements.dataBackupScopes.querySelectorAll('input[type="checkbox"]').forEach((input) => { input.checked = value === 'all' || input.value === value; });
+  });
+  elements.importDataBtn?.addEventListener('click', () => elements.importDataInput?.click());
+  elements.importDataInput?.addEventListener('change', () => elements.importDataInput.files[0] && importServerData(elements.importDataInput.files[0]));
+  elements.factoryResetBtn?.addEventListener('click', factoryResetServer);
+  elements.permissionUser.addEventListener('change', applySelectedPermissions);
+  elements.permissionGroup?.addEventListener('change', applySelectedPermissionGroup);
+  elements.permAdministrator?.addEventListener('change', applyAdministratorToggle);
+  elements.newPermissionGroupBtn?.addEventListener('click', openPermissionGroupEditor);
+  elements.cancelPermissionGroupBtn?.addEventListener('click', closePermissionGroupEditor);
+  elements.savePermissionGroupBtn?.addEventListener('click', savePermissionGroup);
+  elements.permissionGroupList?.addEventListener('click', handlePermissionGroupAction);
+  elements.permissionGroupList?.addEventListener('change', updatePermissionGroupSelection);
+  elements.selectAllPermissionGroups?.addEventListener('change', toggleAllPermissionGroups);
+  elements.deletePermissionGroupsBtn?.addEventListener('click', deleteSelectedPermissionGroups);
+  elements.refreshRegistrationBtn?.addEventListener('click', loadAdminSettings);
+  elements.refreshRoomQuotaBtn?.addEventListener('click', loadAdminSettings);
+  elements.addRegistrationWhitelistBtn?.addEventListener('click', addRegistrationWhitelist);
+  elements.registrationWhitelistList?.addEventListener('click', handleRegistrationWhitelistAction);
+  elements.registrationRequestList?.addEventListener('click', handleRegistrationRequestAction);
+  elements.roomQuotaRequestList?.addEventListener('click', handleRoomQuotaRequestAction);
+  elements.dissolveRoomBtn?.addEventListener('click', dissolveCurrentRoom);
+  elements.quickDissolveRoomBtn?.addEventListener('click', dissolveCurrentRoom);
+  elements.videoPlayer.addEventListener('loadedmetadata', onMediaMetadata);
+  elements.videoPlayer.addEventListener('durationchange', updatePlayerProgressBar);
+  elements.videoPlayer.addEventListener('timeupdate', updatePlayerProgressBar);
+  elements.videoPlayer.addEventListener('canplay', onMediaCanPlay);
+  elements.videoPlayer.addEventListener('play', () => handleLocalPlaybackEvent(true));
+  elements.videoPlayer.addEventListener('pause', () => handleLocalPlaybackEvent(false));
+  elements.videoPlayer.addEventListener('seeking', () => {
+    state.seekInteractionUntil = performance.now() + 2600;
+    state.suppressPlaybackNoticeUntil = Date.now() + 3200;
+  });
+  elements.videoPlayer.addEventListener('seeked', handleLocalSeeked);
+  elements.videoPlayer.addEventListener('volumechange', handleNativeVolumeChange);
+  elements.videoPlayer.addEventListener('ended', handlePlaybackEnded);
+  elements.videoPlayer.addEventListener('error', handleMediaError);
+  elements.playerSeekSlider?.addEventListener('pointerdown', beginPlayerSeekDrag);
+  elements.playerSeekSlider?.addEventListener('input', previewPlayerSeek);
+  elements.playerSeekSlider?.addEventListener('change', commitPlayerSeek);
+  elements.playerSeekSlider?.addEventListener('pointerup', commitPlayerSeek);
+  elements.playerSeekSlider?.addEventListener('pointercancel', cancelPlayerSeekDrag);
+  elements.videoPlayer.addEventListener('waiting', handleMediaBuffering);
+  elements.videoPlayer.addEventListener('stalled', handleMediaBuffering);
+  elements.videoPlayer.addEventListener('playing', handleMediaBufferRecovered);
+  elements.videoPlayer.addEventListener('progress', updatePlayerBufferState);
+  elements.videoPlayer.addEventListener('enterpictureinpicture', () => { state.floatingPlayerActive = true; });
+  elements.videoPlayer.addEventListener('leavepictureinpicture', () => { state.floatingPlayerActive = false; });
+  elements.videoPlayer.addEventListener('dblclick', (event) => { event.preventDefault(); togglePlayerFullscreen(); });
+  elements.roomIdInput?.addEventListener('input', () => { state.roomIdTouched = true; scheduleRoomInfoLookup(); });
+  elements.username?.addEventListener('input', handleLoginUsernameInput);
+  elements.createRoomBtn?.addEventListener('click', openCreateRoom);
+  elements.newRoomBtn?.addEventListener('click', openCreateRoom);
+  // Do not pass the PointerEvent as a room id. This was the source of the
+  // literal "[object PointerEvent]" text in the room switch dialog.
+  elements.switchRoomBtn?.addEventListener('click', () => openSwitchRoom());
+  elements.closeSwitchRoomBtn?.addEventListener('click', () => elements.switchRoomModal.classList.add('is-hidden'));
+  elements.switchRoomForm?.addEventListener('submit', switchRoom);
+  elements.switchOwnedRoomRefreshBtn?.addEventListener('click', () => refreshSwitchOwnedRooms(true));
+  elements.switchOwnedRoomList?.addEventListener('click', handleSwitchOwnedRoomAction);
+  elements.switchOwnedRoomList?.addEventListener('change', handleSwitchOwnedRoomSelection);
+  elements.pasteSwitchRoomIdBtn?.addEventListener('click', () => pasteIntoInput(elements.switchRoomId, true));
+  elements.pasteSwitchRoomPasswordBtn?.addEventListener('click', () => pasteIntoInput(elements.switchRoomPassword, false));
+  elements.lanScanBtn?.addEventListener('click', openLanScan);
+  elements.closeLanScanBtn?.addEventListener('click', () => elements.lanScanModal.classList.add('is-hidden'));
+  elements.refreshLanScanBtn?.addEventListener('click', scanLanRooms);
+  elements.lanRoomList?.addEventListener('click', handleLanRoomAction);
+  elements.managementHubBtn?.addEventListener('click', () => openManagementHub('server'));
+  elements.closeManagementHubBtn?.addEventListener('click', closeManagementHub);
+  document.querySelectorAll('[data-management-section]').forEach((button) => button.addEventListener('click', () => showManagementSection(button.dataset.managementSection)));
+  elements.closeCreateRoomBtn?.addEventListener('click', () => elements.createRoomModal.classList.add('is-hidden'));
+  elements.createRoomForm?.addEventListener('submit', createRoom);
+  elements.requestRoomQuotaBtn?.addEventListener('click', requestMoreRooms);
+  elements.androidApkBtn?.addEventListener('click', downloadAndroidApk);
+  elements.operationHistoryBtn?.addEventListener('click', openOperationHistory);
+  elements.managementOperationHistoryBtn?.addEventListener('click', () => { state.returnToManagementAfterChild = true; closeManagementHub(); openOperationHistory(); });
+  elements.refreshOperationHistoryBtn?.addEventListener('click', () => loadOperationHistory(false));
+  elements.closeOperationHistoryBtn?.addEventListener('click', closeOperationHistory);
+  elements.operationHistoryList?.addEventListener('click', handleOperationHistoryAction);
+  elements.operationHistoryList?.addEventListener('change', handleOperationHistorySelection);
+  elements.operationHistoryQuery?.addEventListener('input', () => { state.operationHistoryQuery = elements.operationHistoryQuery.value; renderOperationHistory(); });
+  elements.operationHistoryScope?.addEventListener('change', () => { state.operationHistoryScope = elements.operationHistoryScope.value; renderOperationHistory(); });
+  elements.operationHistorySelectAll?.addEventListener('change', toggleAllOperationSelections);
+  elements.deleteSelectedOperationsBtn?.addEventListener('click', deleteSelectedOperations);
+  elements.chatManageBtn?.addEventListener('click', openChatManager);
+  elements.managementChatManageBtn?.addEventListener('click', () => { state.returnToManagementAfterChild = true; closeManagementHub(); openChatManager(); });
+  elements.closeRoomMediaPreviewBtn?.addEventListener('click', closeRoomMediaPreview);
+  elements.roomMediaPreviewList?.addEventListener('click', handleRoomMediaPreviewAction);
+  elements.roomMediaPreviewList?.addEventListener('change', handleRoomMediaPreviewSelection);
+  elements.roomMediaPreviewSelectAll?.addEventListener('change', toggleAllRoomMediaPreviewFiles);
+  elements.roomMediaPreviewBatchDeleteBtn?.addEventListener('click', deleteSelectedRoomMediaPreviewFiles);
+  elements.roomMediaPreviewBanUploadBtn?.addEventListener('click', banSelectedRoomMediaPreviewUploads);
+  elements.audioSourceBtn?.addEventListener('click', openAudioSourceShare);
+  elements.closeAudioSourceBtn?.addEventListener('click', () => elements.audioSourceModal.classList.add('is-hidden'));
+  elements.refreshAudioSourcesBtn?.addEventListener('click', refreshNativeAudioSources);
+  elements.startAudioSourceBtn?.addEventListener('click', startAudioSourceShare);
+  elements.stopAudioSourceBtn?.addEventListener('click', () => stopAudioSourceShare(true));
+  elements.audioSourceVolume?.addEventListener('input', updateAudioSourceVolume);
+  elements.webShareBtn?.addEventListener('click', openWebShare);
+  elements.closeWebShareBtn?.addEventListener('click', closeAndClearWebShare);
+  elements.openWebUrlBtn?.addEventListener('click', openWebUrl);
+  elements.pasteWebUrlBtn?.addEventListener('click', pasteWebUrl);
+  elements.shareWebUrlBtn?.addEventListener('click', shareWebUrl);
+  elements.probeWebUrlBtn?.addEventListener('click', probeWebUrl);
+  elements.shareWebWindowBtn?.addEventListener('click', shareCurrentWebWindow);
+  elements.clearWebShareBtn?.addEventListener('click', clearWebShare);
+  elements.webUrlInput?.addEventListener('keydown', (event) => { if (event.key === 'Enter') { event.preventDefault(); openWebUrl(); } });
+  elements.webUrlInput?.addEventListener('input', updateWebSharePreviewState);
+  elements.sharedWebViewer?.addEventListener('load', () => {
+    if (state.webShare.active && elements.sharedWebViewer.getAttribute('src') !== 'about:blank') elements.sharedWebEmpty?.classList.add('is-hidden');
+  });
+  elements.webProbeResults?.addEventListener('click', handleWebProbeAction);
+  elements.themeBtn?.addEventListener('click', () => elements.themeModal.classList.remove('is-hidden'));
+  elements.topbarDisplayModeBtn?.addEventListener('click', toggleTopbarDisplayMode);
+  elements.themeFontSearch?.addEventListener('input', () => renderThemeFontOptions(elements.themeFontSearch.value));
+  elements.applyThemeFontBtn?.addEventListener('click', applySelectedThemeFont);
+  elements.resetThemeFontBtn?.addEventListener('click', () => applyUiFont('', { notify: true }));
+  elements.masterMuteBtn?.addEventListener('click', toggleMasterMute);
+  elements.closeThemeBtn?.addEventListener('click', () => elements.themeModal.classList.add('is-hidden'));
+  elements.resetThemeBtn?.addEventListener('click', () => selectUiTheme('silver-screen'));
+  elements.syncThemeBtn?.addEventListener('click', requestThemeSync);
+  elements.themeSyncAll?.addEventListener('change', renderThemeSyncTargets);
+  elements.themeSyncSelected?.addEventListener('change', renderThemeSyncTargets);
+  elements.themeGrid?.addEventListener('click', handleThemeSelection);
+  elements.closeChatManageBtn?.addEventListener('click', closeChatManager);
+  elements.chatManageList?.addEventListener('click', handleChatManagerAction);
+  elements.chatManageFullscreenBtn?.addEventListener('click', toggleChatManagerFullscreen);
+  elements.chatManageUsers?.addEventListener('change', handleChatManagerUserFilter);
+  elements.chatManageType?.addEventListener('change', () => { updateChatManagerClearButton(); void loadChatManagerMessages(false); });
+  elements.chatManageDateFrom?.addEventListener('change', () => void loadChatManagerMessages(false));
+  elements.chatManageDateTo?.addEventListener('change', () => void loadChatManagerMessages(false));
+  elements.chatManageQuery?.addEventListener('input', debounce(() => void loadChatManagerMessages(false), 260));
+  elements.chatClearFiltersBtn?.addEventListener('click', clearChatManagerFilters);
+  elements.chatClearUserBtn?.addEventListener('click', clearUserChat);
+  elements.chatClearAllBtn?.addEventListener('click', clearAllChat);
+  elements.persistentRequestCenter?.addEventListener('click', handlePersistentRequestAction);
+  elements.chatHistory.addEventListener('contextmenu', openChatContextMenu);
+  elements.fullscreenChatHistory?.addEventListener('contextmenu', openChatContextMenu);
+  elements.chatContextDeleteBtn?.addEventListener('click', deleteContextChatMessage);
+  elements.fullscreenHideBtn?.addEventListener('click', () => hideFullscreenControls(true));
+  elements.fullscreenShowBtn?.addEventListener('click', showFullscreenControls);
+  elements.serverSettingsLoginBtn?.addEventListener('click', openServerSettingsFromLogin);
+  elements.refreshServerLogsBtn?.addEventListener('click', loadServerLogs);
+  elements.serverLogCategory?.addEventListener('change', loadServerLogs);
+  elements.serverLogLevel?.addEventListener('change', loadServerLogs);
+  elements.serverLogQuery?.addEventListener('input', debounce(loadServerLogs, 220));
+  elements.fullscreenExitBtn?.addEventListener('click', togglePlayerFullscreen);
+  elements.closeF11PromptBtn?.addEventListener('click', () => closeF11Prompt(false));
+  elements.ignoreF11OnceBtn?.addEventListener('click', () => closeF11Prompt(false));
+  elements.enterF11NowBtn?.addEventListener('click', async () => { closeF11Prompt(false); await togglePlayerFullscreen(); });
+  elements.saveF11PreferenceBtn?.addEventListener('click', () => {
+    const value = elements.f11PromptPreference?.value || 'next';
+    const expires = value === 'never' ? -1 : value === 'day' ? Date.now() + 86400000 : value === 'week' ? Date.now() + 604800000 : 0;
+    try { localStorage.setItem('syncwatchF11Prompt', String(expires)); } catch (_) {}
+    closeF11Prompt(false); toast(value === 'never' ? '已永久关闭全屏提示' : value === 'next' ? '已恢复每次进入房间提示' : '已保存全屏提示频率', 'success');
+  });
+  elements.closeRoomEntryNoticeBtn?.addEventListener('click', () => closeRoomEntryNotice());
+  elements.confirmRoomEntryNoticeBtn?.addEventListener('click', () => closeRoomEntryNotice());
+  elements.ignoreRoomEntryNoticeBtn?.addEventListener('click', () => closeRoomEntryNotice());
+  elements.saveRoomEntryNoticePreferenceBtn?.addEventListener('click', saveRoomEntryNoticePreference);
+  elements.clearAllToastsBtn?.addEventListener('click', clearAllToasts);
+  elements.guestConvertBtn?.addEventListener('click', openGuestConversion);
+  elements.closeGuestConvertBtn?.addEventListener('click', closeGuestConversion);
+  elements.guestConvertForm?.addEventListener('submit', convertGuestAccount);
+  elements.sendGuestConvertEmailCodeBtn?.addEventListener('click', sendGuestConversionEmailCode);
+  elements.portraitViewBtn?.addEventListener('click', () => setPlayerOrientation('portrait'));
+  elements.landscapeViewBtn?.addEventListener('click', () => setPlayerOrientation('landscape'));
+  elements.zoomOutBtn?.addEventListener('click', () => changePlayerZoom(-0.1));
+  elements.zoomInBtn?.addEventListener('click', () => changePlayerZoom(0.1));
+  elements.zoomResetBtn?.addEventListener('click', resetPlayerTransform);
+  elements.fullscreenChatForm?.addEventListener('submit', sendFullscreenChat);
+  elements.fullscreenChatMode?.addEventListener('change', () => setChatMode(elements.fullscreenChatMode.value));
+  elements.fullscreenImageBtn?.addEventListener('click', () => elements.fullscreenImageInput.click());
+  elements.fullscreenImageInput?.addEventListener('change', () => elements.fullscreenImageInput.files[0] && uploadChatImage(elements.fullscreenImageInput.files[0], true));
+  elements.fullscreenEmojiBtn?.addEventListener('click', () => toggleEmojiBar(elements.fullscreenEmojiBar, null, elements.fullscreenEmojiCategory));
+  elements.fullscreenEmojiBar?.addEventListener('click', handleEmojiSelection);
+  elements.fullscreenChatInput?.addEventListener('paste', (event) => handleChatPaste(event, true));
+  elements.controlRequestAllowBtn?.addEventListener('click', () => settleControlRequest(true));
+  elements.controlRequestDenyBtn?.addEventListener('click', () => settleControlRequest(false));
+  elements.permissionNoticeCloseBtn?.addEventListener('click', () => elements.permissionNotice.classList.add('is-hidden'));
+  elements.noticeCenterBtn?.addEventListener('click', openNoticeCenter);
+  elements.closeNoticeBtn?.addEventListener('click', () => elements.noticeModal.classList.add('is-hidden'));
+  elements.noticeForm?.addEventListener('submit', sendScreenNotice);
+  elements.openPermissionsFromNoticeBtn?.addEventListener('click', () => { elements.noticeModal.classList.add('is-hidden'); openManagementHub('permissions'); });
+  elements.conversionProgressBtn?.addEventListener('click', openConversionProgress);
+  elements.closeConversionProgressBtn?.addEventListener('click', () => elements.conversionProgressModal.classList.add('is-hidden'));
+  elements.refreshConversionProgressBtn?.addEventListener('click', refreshMediaProcessingStatus);
+  elements.mediaProcessingSearch?.addEventListener('input', () => { state.mediaProcessingSearch = elements.mediaProcessingSearch.value; renderConversionProgress(); });
+  elements.mediaProcessingSelectAll?.addEventListener('change', toggleMediaProcessingSelectAll);
+  elements.conversionProgressList?.addEventListener('change', handleMediaProcessingSelection);
+  elements.conversionProgressList?.addEventListener('click', handleMediaProcessingAction);
+  elements.deleteSelectedMediaProcessingBtn?.addEventListener('click', deleteSelectedMediaProcessingTasks);
+  elements.saveMediaProcessingBtn?.addEventListener('click', saveMediaProcessingConcurrency);
+  elements.openConvertedMediaFolderBtn?.addEventListener('click', openConvertedMediaFolder);
+  elements.closeMyRoomsBtn?.addEventListener('click', () => elements.myRoomsModal.classList.add('is-hidden'));
+  elements.myRoomsList?.addEventListener('click', handleMyRoomsSelection);
+  elements.myRoomsList?.addEventListener('change', handleLoginRoomSelection);
+  elements.closeAdminContactBtn?.addEventListener('click', () => elements.adminContactModal.classList.add('is-hidden'));
+  elements.closeTunnelTutorialBtn?.addEventListener('click', () => elements.tunnelTutorialModal?.classList.add('is-hidden'));
+  elements.adminContactList?.addEventListener('click', handleAdminContactAction);
+  elements.agreementCheck?.addEventListener('change', () => { elements.acceptAgreementBtn.disabled = !elements.agreementCheck.checked; });
+  elements.acceptAgreementBtn?.addEventListener('click', () => settleAgreement(true));
+  elements.declineAgreementBtn?.addEventListener('click', () => settleAgreement(false));
+  elements.closeScreenNoticeBtn?.addEventListener('click', hideScreenNotice);
+  elements.playerContainer.addEventListener('click', handleFullscreenStageClick);
+  elements.fullscreenOverlay?.addEventListener('pointerdown', showFullscreenControls);
+  elements.appDialogForm?.addEventListener('submit', submitAppDialog);
+  elements.appDialogPasswordToggle?.addEventListener('click', toggleAppDialogPassword);
+  elements.appDialogConfirmPasswordToggle?.addEventListener('click', toggleAppDialogConfirmPassword);
+  elements.appDialogFillRiskBtn?.addEventListener('click', fillRiskConfirmation);
+  elements.appDialogBackBtn?.addEventListener('click', () => settleAppDialog(APP_DIALOG_BACK));
+  elements.appDialogCancelBtn?.addEventListener('click', () => settleAppDialog(null));
+  elements.appDialogCloseBtn?.addEventListener('click', () => settleAppDialog(null));
+  elements.appDialog?.addEventListener('keydown', (event) => {
+    if (event.key !== 'Escape') return;
+    event.preventDefault(); event.stopPropagation(); settleAppDialog(null);
+  });
+  elements.ownerExitModal?.addEventListener('click', handleOwnerExitChoice);
+  elements.desktopCloseModal?.addEventListener('click', handleDesktopCloseChoice);
+  document.addEventListener('fullscreenchange', handleFullscreenChange);
+  document.addEventListener('keydown', (event) => {
+    if (event.key !== 'Escape') return;
+    if (document.body.classList.contains('mobile-actions-open')) toggleMobileActionMenu(false);
+    else if (state.pseudoFullscreen) void togglePlayerFullscreen();
+  });
+  document.addEventListener('click', (event) => { if (!event.target.closest('#chatContextMenu')) hideChatContextMenu(); });
+  document.addEventListener('visibilitychange', recoverFromBackground);
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') stopLoginCubeMotion();
+    else startLoginCubeMotion();
+  });
+  const reducedMotionQuery = window.matchMedia?.('(prefers-reduced-motion: reduce)');
+  reducedMotionQuery?.addEventListener?.('change', (event) => {
+    if (event.matches) stopLoginCubeMotion();
+    else startLoginCubeMotion();
+  });
+  window.addEventListener('pagehide', () => {
+    stopLoginCubeMotion();
+    revokeLoginCubeEditorObjectUrls();
+  });
+  window.addEventListener('online', recoverFromBackground);
+  window.addEventListener('offline', () => setReconnectState(true));
+}
+
+let activeEnhancedSelect = null;
+let enhancedSelectMenu = null;
+let enhancedSelectObserver = null;
+
+function positionAccountDropdown() {
+  const button = elements.accountMenuBtn;
+  const menu = elements.accountDropdown;
+  if (!button || !menu || menu.classList.contains('is-hidden')) return;
+  const rect = button.getBoundingClientRect();
+  const width = Math.min(window.innerWidth - 16, Math.max(190, Math.min(260, rect.width + 80)));
+  const left = Math.max(8, Math.min(window.innerWidth - width - 8, rect.right - width));
+  const menuHeight = menu.offsetHeight || 320;
+  const top = rect.bottom + 8 + menuHeight <= window.innerHeight ? rect.bottom + 8 : Math.max(8, rect.top - menuHeight - 8);
+  menu.style.left = `${left}px`; menu.style.top = `${top}px`; menu.style.right = 'auto'; menu.style.width = `${width}px`;
+}
+
+function enhancedSelectLabel(select) {
+  const option = select.options?.[select.selectedIndex];
+  return option ? option.textContent.trim() : '';
+}
+
+function ensureEnhancedSelectMenu() {
+  if (enhancedSelectMenu) return enhancedSelectMenu;
+  enhancedSelectMenu = document.createElement('div');
+  enhancedSelectMenu.id = 'enhancedSelectMenu';
+  enhancedSelectMenu.className = 'enhanced-select-menu is-hidden';
+  enhancedSelectMenu.setAttribute('role', 'listbox');
+  document.body.appendChild(enhancedSelectMenu);
+  return enhancedSelectMenu;
+}
+
+function positionEnhancedSelectMenu() {
+  const select = activeEnhancedSelect;
+  const menu = enhancedSelectMenu;
+  if (!select || !menu || menu.classList.contains('is-hidden')) return;
+  const shell = select.closest('.select-shell');
+  const trigger = shell?.querySelector('.select-trigger');
+  if (!trigger) return;
+  const rect = trigger.getBoundingClientRect();
+  const width = Math.max(170, rect.width);
+  const maxHeight = Math.max(150, Math.min(360, window.innerHeight - 20));
+  const menuHeight = Math.min(menu.scrollHeight || 220, maxHeight);
+  const openAbove = rect.bottom + 6 + menuHeight > window.innerHeight && rect.top - 6 - menuHeight >= 8;
+  const top = openAbove ? rect.top - 6 - menuHeight : Math.min(window.innerHeight - menuHeight - 8, rect.bottom + 6);
+  const left = Math.max(8, Math.min(window.innerWidth - width - 8, rect.left));
+  menu.style.left = `${left}px`; menu.style.top = `${Math.max(8, top)}px`; menu.style.width = `${width}px`; menu.style.maxHeight = `${maxHeight}px`;
+}
+
+function closeEnhancedSelect() {
+  const select = activeEnhancedSelect;
+  if (enhancedSelectMenu) enhancedSelectMenu.classList.add('is-hidden');
+  select?.closest('.select-shell')?.classList.remove('is-open');
+  activeEnhancedSelect = null;
+  if (select) syncEnhancedSelect(select);
+}
+
+function syncEnhancedSelect(select) {
+  const shell = select.closest('.select-shell');
+  const trigger = shell?.querySelector('.select-trigger');
+  if (!trigger) return;
+  const label = enhancedSelectLabel(select) || '请选择';
+  if (trigger.textContent !== label) trigger.textContent = label;
+  const disabled = Boolean(select.disabled);
+  if (trigger.disabled !== disabled) trigger.disabled = disabled;
+  const expanded = String(activeEnhancedSelect === select && !enhancedSelectMenu?.classList.contains('is-hidden'));
+  if (trigger.getAttribute('aria-expanded') !== expanded) trigger.setAttribute('aria-expanded', expanded);
+}
+
+function openEnhancedSelect(select) {
+  if (select.disabled) return;
+  const shell = select.closest('.select-shell');
+  const trigger = shell?.querySelector('.select-trigger');
+  if (!shell || !trigger) return;
+  if (activeEnhancedSelect === select && !enhancedSelectMenu?.classList.contains('is-hidden')) return closeEnhancedSelect();
+  closeEnhancedSelect();
+  const menu = ensureEnhancedSelectMenu();
+  menu.replaceChildren(...[...select.options].map((option, index) => {
+    const item = document.createElement('button');
+    item.type = 'button'; item.className = 'enhanced-select-option'; item.textContent = option.textContent.trim();
+    item.setAttribute('role', 'option');
+    item.dataset.value = option.value; item.setAttribute('aria-selected', String(index === select.selectedIndex));
+    item.disabled = Boolean(option.disabled);
+    item.addEventListener('click', () => {
+      select.value = option.value;
+      select.dispatchEvent(new Event('input', { bubbles: true }));
+      select.dispatchEvent(new Event('change', { bubbles: true }));
+      syncEnhancedSelect(select); closeEnhancedSelect(); trigger.focus();
+    });
+    return item;
+  }));
+  activeEnhancedSelect = select; shell.classList.add('is-open'); menu.classList.remove('is-hidden');
+  syncEnhancedSelect(select); positionEnhancedSelectMenu();
+  menu.querySelector('[aria-selected="true"]')?.scrollIntoView({ block: 'nearest' });
+}
+
+function enhanceOneSelect(select) {
+  if (!(select instanceof HTMLSelectElement) || select.dataset.enhancedSelect === '1' || select.multiple || select.size > 1) return;
+  select.dataset.enhancedSelect = '1';
+  const shell = document.createElement('span'); shell.className = 'select-shell';
+  select.parentNode.insertBefore(shell, select); shell.appendChild(select);
+  const trigger = document.createElement('button');
+  trigger.type = 'button'; trigger.className = 'select-trigger'; trigger.setAttribute('aria-haspopup', 'listbox');
+  trigger.addEventListener('click', () => openEnhancedSelect(select));
+  trigger.addEventListener('keydown', (event) => {
+    if (['Enter', ' ', 'ArrowDown', 'ArrowUp'].includes(event.key)) { event.preventDefault(); openEnhancedSelect(select); }
+    if (event.key === 'Escape') closeEnhancedSelect();
+  });
+  shell.appendChild(trigger); syncEnhancedSelect(select);
+}
+
+function syncEnhancedSelects() {
+  document.querySelectorAll('select[data-enhanced-select="1"]').forEach(syncEnhancedSelect);
+  document.querySelectorAll('select:not([data-enhanced-select])').forEach(enhanceOneSelect);
+}
+
+function initializeEnhancedSelects() {
+  syncEnhancedSelects();
+  if (enhancedSelectObserver) return;
+  enhancedSelectObserver = new MutationObserver(() => queueMicrotask(syncEnhancedSelects));
+  enhancedSelectObserver.observe(document.body, { subtree: true, childList: true, attributes: true, attributeFilter: ['disabled'] });
+  const valueDescriptor = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value');
+  if (valueDescriptor?.set && !HTMLSelectElement.prototype.__syncWatchValuePatched) {
+    Object.defineProperty(HTMLSelectElement.prototype, 'value', {
+      configurable: valueDescriptor.configurable, enumerable: valueDescriptor.enumerable,
+      get: valueDescriptor.get, set(value) { valueDescriptor.set.call(this, value); queueMicrotask(() => syncEnhancedSelect(this)); }
+    });
+    Object.defineProperty(HTMLSelectElement.prototype, '__syncWatchValuePatched', { value: true });
+  }
+}
+
+function showAppInput(options = {}) {
+  return openAppDialog({ ...options, mode: 'input' });
+}
+
+function showAppSelect(options = {}) {
+  return openAppDialog({ ...options, mode: 'select' });
+}
+
+function showAppConfirm(description, options = {}) {
+  const settings = typeof description === 'object' && description !== null
+    ? description
+    : { ...options, description: String(description || '') };
+  return openAppDialog({ ...settings, mode: 'confirm' }).then((value) => value === true);
+}
+
+function showRiskConfirmation(title, description) {
+  const phrase = '我已知道这个风险';
+  return showAppInput({
+    title, description: `${description}\n\n请手动输入“${phrase}”，也可点击下方按钮一键填入。`, label: '风险确认文字',
+    maxLength: 40, fillValue: phrase, confirmText: '确认执行', danger: true,
+    validate: (value) => value === phrase ? '' : `请输入完整确认文字：${phrase}`
+  });
+}
+
+function bringModalToFront(modal, minimumLayer = 500) {
+  if (!modal || modal.classList.contains('is-hidden')) return;
+  const visibleLayers = [...document.querySelectorAll('.modal:not(.is-hidden)')]
+    .filter((entry) => entry !== modal)
+    .map((entry) => Number.parseInt(getComputedStyle(entry).zIndex, 10) || 0);
+  const currentLayer = Number.parseInt(getComputedStyle(modal).zIndex, 10) || 0;
+  state.modalLayerCounter = Math.max(Number(state.modalLayerCounter) || minimumLayer, minimumLayer, currentLayer, ...visibleLayers) + 1;
+  modal.style.zIndex = String(state.modalLayerCounter);
+}
+
+function openAppDialog(options = {}) {
+  const mode = options.mode === 'confirm' ? 'confirm' : options.mode === 'select' ? 'select' : 'input';
+  if (!elements.appDialog) return Promise.resolve(mode === 'confirm' ? false : null);
+  if (activeAppDialog) settleAppDialog(null);
+  const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+  return new Promise((resolve) => {
+    activeAppDialog = { mode, options, previousFocus, resolve };
+    elements.appDialogTitle.textContent = options.title || (mode === 'confirm' ? '请确认操作' : '请输入');
+    elements.appDialogDescription.textContent = options.description || '';
+    elements.appDialogDescription.classList.toggle('is-hidden', !options.description);
+    elements.appDialogInputGroup.classList.toggle('is-hidden', mode !== 'input');
+    elements.appDialogSelectGroup?.classList.toggle('is-hidden', mode !== 'select');
+    elements.appDialogInputLabel.textContent = options.label || '内容';
+    if (elements.appDialogSelectLabel) elements.appDialogSelectLabel.textContent = options.label || '请选择';
+    if (elements.appDialogSelect) {
+      const choices = Array.isArray(options.options) ? options.options : [];
+      elements.appDialogSelect.innerHTML = choices.map((choice) => {
+        const normalized = choice && typeof choice === 'object' ? choice : { value: choice, label: choice };
+        return `<option value="${escapeHtml(String(normalized.value ?? ''))}" ${normalized.disabled ? 'disabled' : ''}>${escapeHtml(String(normalized.label ?? normalized.value ?? ''))}</option>`;
+      }).join('');
+      elements.appDialogSelect.value = String(options.initialValue ?? choices[0]?.value ?? choices[0] ?? '');
+      elements.appDialogSelect.removeAttribute('aria-invalid');
+      queueMicrotask(() => syncEnhancedSelect(elements.appDialogSelect));
+    }
+    const confirmPassword = mode === 'input' && Boolean(options.confirmPassword);
+    elements.appDialogConfirmGroup?.classList.toggle('is-hidden', !confirmPassword);
+    if (elements.appDialogConfirmLabel) elements.appDialogConfirmLabel.textContent = options.confirmLabel || '确认密码';
+    const requestedInputType = options.password ? 'password' : String(options.inputType || 'text');
+    elements.appDialogInput.type = ['text', 'password', 'email', 'number'].includes(requestedInputType) ? requestedInputType : 'text';
+    elements.appDialogPasswordToggle?.classList.toggle('is-hidden', elements.appDialogInput.type !== 'password');
+    if (elements.appDialogPasswordToggle) { elements.appDialogPasswordToggle.textContent = '显示'; elements.appDialogPasswordToggle.setAttribute('aria-label', '显示密码'); elements.appDialogPasswordToggle.setAttribute('aria-pressed', 'false'); }
+    elements.appDialogInput.value = String(options.initialValue ?? '');
+    elements.appDialogInput.placeholder = options.placeholder || '';
+    elements.appDialogInput.readOnly = Boolean(options.readOnly);
+    elements.appDialogInput.autocomplete = options.autocomplete || (elements.appDialogInput.type === 'password' ? 'new-password' : 'off');
+    elements.appDialogInput.spellcheck = options.spellcheck !== false;
+    elements.appDialogInput.removeAttribute('minlength');
+    elements.appDialogInput.removeAttribute('maxlength');
+    if (Number.isFinite(options.minLength)) elements.appDialogInput.minLength = Math.max(0, options.minLength);
+    if (Number.isFinite(options.maxLength)) elements.appDialogInput.maxLength = Math.max(1, options.maxLength);
+    elements.appDialogInput.removeAttribute('aria-invalid');
+    if (elements.appDialogConfirmInput) {
+      elements.appDialogConfirmInput.type = 'password';
+      elements.appDialogConfirmInput.value = '';
+      elements.appDialogConfirmInput.placeholder = options.confirmPlaceholder || '请再次输入相同密码';
+      elements.appDialogConfirmInput.autocomplete = options.autocomplete || 'new-password';
+      elements.appDialogConfirmInput.removeAttribute('minlength');
+      elements.appDialogConfirmInput.removeAttribute('maxlength');
+      if (Number.isFinite(options.minLength)) elements.appDialogConfirmInput.minLength = Math.max(0, options.minLength);
+      if (Number.isFinite(options.maxLength)) elements.appDialogConfirmInput.maxLength = Math.max(1, options.maxLength);
+      elements.appDialogConfirmInput.removeAttribute('aria-invalid');
+    }
+    if (elements.appDialogConfirmPasswordToggle) {
+      elements.appDialogConfirmPasswordToggle.textContent = '显示';
+      elements.appDialogConfirmPasswordToggle.setAttribute('aria-label', '显示确认密码');
+      elements.appDialogConfirmPasswordToggle.setAttribute('aria-pressed', 'false');
+    }
+    elements.appDialogError.textContent = '';
+    elements.appDialogError.classList.add('is-hidden');
+    elements.appDialogCancelBtn.textContent = options.cancelText || '取消';
+    elements.appDialogConfirmBtn.textContent = options.confirmText || '确定';
+    elements.appDialogConfirmBtn.className = options.danger ? 'danger-button' : 'primary-button';
+    elements.appDialogFillRiskBtn?.classList.toggle('is-hidden', !options.fillValue);
+    elements.appDialogBackBtn?.classList.toggle('is-hidden', options.allowBack !== true);
+    if (elements.appDialogBackBtn) elements.appDialogBackBtn.textContent = options.backText || '上一步';
+    const mountRoot = document.fullscreenElement || document.body;
+    if (elements.appDialog.parentElement !== mountRoot) mountRoot.appendChild(elements.appDialog);
+    elements.appDialog.classList.remove('is-hidden');
+    if (mountRoot === document.body) bringModalToFront(elements.appDialog, 500);
+    else elements.appDialog.style.zIndex = '';
+    const timeoutMs = Math.max(0, Number(options.timeoutMs) || 0);
+    if (timeoutMs) activeAppDialog.timer = setTimeout(() => settleAppDialog(null), timeoutMs);
+    requestAnimationFrame(() => {
+      if (!activeAppDialog) return;
+      const target = mode === 'input' ? elements.appDialogInput : mode === 'select' ? elements.appDialogSelect?.closest('.select-shell')?.querySelector('.select-trigger') || elements.appDialogSelect : elements.appDialogConfirmBtn;
+      target.focus();
+      if (mode === 'input' && options.selectOnOpen !== false) elements.appDialogInput.select();
+    });
+  });
+}
+
+function toggleDialogPassword(input, button, label = '密码') {
+  if (!input || !button) return;
+  const visible = input.type === 'text';
+  input.type = visible ? 'password' : 'text';
+  button.textContent = visible ? '显示' : '隐藏';
+  button.setAttribute('aria-label', visible ? `显示${label}` : `隐藏${label}`);
+  button.setAttribute('aria-pressed', String(!visible));
+  input.focus();
+}
+
+function toggleAppDialogPassword() { toggleDialogPassword(elements.appDialogInput, elements.appDialogPasswordToggle); }
+function toggleAppDialogConfirmPassword() { toggleDialogPassword(elements.appDialogConfirmInput, elements.appDialogConfirmPasswordToggle, '确认密码'); }
+function fillRiskConfirmation() {
+  if (!activeAppDialog?.options?.fillValue) return;
+  elements.appDialogInput.value = String(activeAppDialog.options.fillValue);
+  elements.appDialogInput.focus(); elements.appDialogInput.select();
+}
+
+function showAppDialogError(message) {
+  elements.appDialogError.textContent = message;
+  elements.appDialogError.classList.toggle('is-hidden', !message);
+  elements.appDialogInput.toggleAttribute('aria-invalid', Boolean(message));
+  elements.appDialogSelect?.toggleAttribute('aria-invalid', Boolean(message));
+  elements.appDialogConfirmInput?.toggleAttribute('aria-invalid', Boolean(message));
+  if (message) {
+    if (activeAppDialog?.mode === 'select') elements.appDialogSelect?.closest('.select-shell')?.querySelector('.select-trigger')?.focus();
+    else elements.appDialogInput.focus();
+  }
+}
+
+function submitAppDialog(event) {
+  event.preventDefault();
+  if (!activeAppDialog) return;
+  if (activeAppDialog.mode === 'confirm') return settleAppDialog(true);
+  const { options } = activeAppDialog;
+  const rawValue = activeAppDialog.mode === 'select' ? elements.appDialogSelect?.value || '' : elements.appDialogInput.value;
+  const value = options.trim === false ? rawValue : rawValue.trim();
+  if (options.required !== false && !value) return showAppDialogError(options.requiredMessage || '请输入内容');
+  if (Number.isFinite(options.minLength) && value.length < options.minLength) return showAppDialogError(options.minLengthMessage || `至少输入 ${options.minLength} 个字符`);
+  if (Number.isFinite(options.maxLength) && value.length > options.maxLength) return showAppDialogError(options.maxLengthMessage || `最多输入 ${options.maxLength} 个字符`);
+  const validationMessage = typeof options.validate === 'function' ? options.validate(value) : '';
+  if (validationMessage) return showAppDialogError(String(validationMessage));
+  if (options.confirmPassword) {
+    const confirmation = elements.appDialogConfirmInput?.value || '';
+    if (!confirmation) { showAppDialogError(options.confirmRequiredMessage || '请再次输入密码'); elements.appDialogConfirmInput?.focus(); return; }
+    if (confirmation !== value) { showAppDialogError(options.confirmMismatchMessage || '两次输入的密码不一致'); elements.appDialogConfirmInput?.focus(); return; }
+  }
+  settleAppDialog(value);
+}
+
+function settleAppDialog(value) {
+  const dialog = activeAppDialog;
+  if (!dialog) return;
+  clearTimeout(dialog.timer);
+  activeAppDialog = null;
+  elements.appDialog.classList.add('is-hidden');
+  elements.appDialog.style.zIndex = '';
+  elements.appDialogError.classList.add('is-hidden');
+  elements.appDialogInput.removeAttribute('aria-invalid');
+  elements.appDialogSelect?.removeAttribute('aria-invalid');
+  elements.appDialogConfirmInput?.removeAttribute('aria-invalid');
+  elements.appDialogFillRiskBtn?.classList.add('is-hidden');
+  elements.appDialogBackBtn?.classList.add('is-hidden');
+  if (elements.appDialog.parentElement !== document.body) document.body.appendChild(elements.appDialog);
+  dialog.resolve(value);
+  setTimeout(processThemeSyncQueue, 0);
+  requestAnimationFrame(() => { if (dialog.previousFocus?.isConnected) dialog.previousFocus.focus(); });
+}
+
+function connectSocket() {
+  state.socket = io({
+    transports: ['websocket', 'polling'], tryAllTransports: true, rememberUpgrade: true,
+    reconnection: true, reconnectionAttempts: Infinity, reconnectionDelay: 500, reconnectionDelayMax: 5000, timeout: 30000
+  });
+  if (typeof aiBindSocketEvents === 'function') aiBindSocketEvents(state.socket);
+  state.socket.on('connect', () => {
+    resetOutgoingScreenFrames();
+    state.lastConnectionError = '';
+    state.socketAuthenticated = false;
+    if (state.token) {
+      updateConnection(false, '正在验证');
+      queueSessionResume(state.authenticated);
+    } else {
+      updateConnection(true);
+      setReconnectState(false);
+    }
+  });
+  state.socket.io.on('reconnect_attempt', (attempt) => {
+    if (state.intentionalLogout) return;
+    setReconnectMessage(`正在重新连接…（第 ${attempt} 次）`);
+    setReconnectState(Boolean(state.authenticated));
+  });
+  state.socket.on('connect_error', (error) => {
+    state.lastConnectionError = localizedError(error, '无法连接服务器，请检查地址、端口和网络，服务器是否开启');
+    updateConnection(false, '连接失败');
+    setReconnectMessage(`连接失败：${state.lastConnectionError}`);
+    if (state.authenticated) setReconnectState(true);
+    else setLoginStatus(`无法连接服务器：${state.lastConnectionError}`);
+  });
+  state.socket.on('disconnect', () => {
+    resetOutgoingScreenFrames();
+    state.socketAuthenticated = false; state.resumeNeeded = Boolean(state.token);
+    closeLiveVoicePeers();
+    if (state.intentionalLogout) { setReconnectState(false); return; }
+    updateConnection(false, '连接中断'); setReconnectMessage('连接中断，正在自动重试…'); setReconnectState(Boolean(state.authenticated));
+    if (state.nativeCapture) stopNativeCapture(false);
+    if (state.localCapture) showLocalShareReconnectState();
+  });
+  state.socket.on('server-meta', (meta) => {
+    state.publicConfigKnown = true;
+    state.publicConfig = {
+      ...state.publicConfig, version: meta.version || state.publicConfig.version,
+      accessPasswordRequired: Boolean(meta.accessPasswordRequired), branding: meta.branding || state.publicConfig.branding,
+      loginCube: meta.loginCube || state.publicConfig.loginCube,
+      loginMusic: meta.loginMusic || state.publicConfig.loginMusic,
+      loginVideo: meta.loginVideo || state.publicConfig.loginVideo,
+      passwordPolicy: meta.passwordPolicy || state.publicConfig.passwordPolicy, contact: meta.contact || state.publicConfig.contact
+    };
+    applyPublicConfig();
+  });
+  state.socket.on('branding-updated', (branding) => {
+    state.publicConfig = { ...state.publicConfig, branding: branding || state.publicConfig.branding };
+    applyPublicConfig();
+    toast('服务器版权信息已更新', 'success');
+  });
+  state.socket.on('login-cube-updated', (loginCube) => {
+    state.publicConfig = { ...state.publicConfig, loginCube: normalizeClientLoginCube(loginCube) };
+    if (state.adminSettings) state.adminSettings.loginCube = state.publicConfig.loginCube;
+    applyLoginCubeSettings(state.publicConfig.loginCube);
+    if (!elements.managementHubModal?.classList.contains('is-hidden') && state.managementSection === 'notices') renderLoginCubeSettings(state.publicConfig.loginCube);
+  });
+  state.socket.on('server-contact-updated', (contact) => { state.publicConfig = { ...state.publicConfig, contact: contact || {} }; applyPublicConfig(); });
+  state.socket.on('server-policy-updated', (policy = {}) => {
+    state.publicConfig = { ...state.publicConfig, ...policy };
+    if (Object.prototype.hasOwnProperty.call(policy, 'lanAccessEnabled')) {
+      if (state.adminSettings) state.adminSettings.lanAccessEnabled = policy.lanAccessEnabled !== false;
+      renderLanAccessSetting(policy.lanAccessEnabled !== false);
+    }
+    applyPublicConfig();
+  });
+  state.socket.on('mail-policy-updated', (policy = {}) => {
+    state.publicConfig = { ...state.publicConfig, ...policy };
+    applyPublicConfig();
+  });
+  state.socket.on('agreement-required', (agreement) => { state.publicConfig = { ...state.publicConfig, legalAgreement: agreement || {} }; if (state.authenticated) void handleRuntimeAgreementRequired(agreement); });
+  state.socket.on('users-list', (users) => { state.users = users; synchronizeDisplayNamesFromUsers(); refreshSelfAccess(); renderUsers(); updateRoomHeader(); updateLocationActions(); });
+  state.socket.on('member-location-status', (event = {}) => {
+    const labels = { authorized: '已同意位置授权', denied: '已拒绝位置授权', revoked: '已取消位置授权', suppressed: '已永久关闭位置授权提示', unavailable: '当前设备无法定位', failed: '位置获取失败' };
+    const place = [event.location?.province, event.location?.city, event.location?.district, event.location?.street].filter(Boolean).join(' · ');
+    const message = `${event.displayName || event.username || '成员'}${labels[event.status] || event.statusText || '更新了位置状态'}${place ? `：${place}` : ''}`;
+    if (event.status === 'authorized') return toast(message, 'success', 9000);
+    if (locationStatusNoticeMuted()) return;
+    toastWithActions(message, [
+      { label: '1 天不提示', callback: () => muteLocationStatusNotices(24 * 60 * 60 * 1000) },
+      { label: '提醒设置', callback: configureLocationStatusNotices }
+    ], 0, 'error');
+  });
+  state.socket.on('location-authorization-requested', (request = {}) => {
+    const entry = { ...request, id: request.id || `location-${Date.now()}`, kind: 'location-authorization', own: false };
+    addPersistentRequest(entry);
+    toastWithAction(request.message || `${request.requestedByName || '管理员'} 邀请您重新授权位置`, '立即处理', () => {
+      elements.persistentRequestCenter?.querySelector(`[data-request-id="${CSS.escape(String(entry.id))}"]`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 0);
+  });
+  state.socket.on('room-state', (room) => applyRoom(room));
+  state.socket.on('room-directory-updated', handleRoomDirectoryUpdate);
+  state.socket.on('room-id-changed', ({ oldRoomId, newRoomId, room }) => {
+    if (state.room && state.room.id === oldRoomId) state.room = { ...state.room, id: newRoomId };
+    for (const file of state.files.values()) if (file.roomId === oldRoomId) file.roomId = newRoomId;
+    if (room) applyRoom(room);
+    try { sessionStorage.setItem('syncwatchRoomId', newRoomId); } catch (_) {}
+    const currentUrl = new URL(location.href); currentUrl.searchParams.set('room', newRoomId); history.replaceState(null, '', currentUrl.pathname + currentUrl.search);
+    toast(`房间号已更新为 ${newRoomId}`, 'success', 6000);
+  });
+  state.socket.on('room-marquee', (notice) => { state.publicConfig.marqueeNotice = notice || {}; applyRoomMarquee(notice); applyLoginMarquee(notice); });
+  state.socket.on('login-music-updated', (music) => syncLoginMusicSettings(music || {}));
+  state.socket.on('login-video-updated', (video) => syncLoginVideoSettings(video || {}));
+  state.socket.on('room-entry-notice', showRoomEntryNotice);
+  state.socket.on('room-entry-notice-updated', (notice = {}) => {
+    if (notice.scope === 'room' && notice.roomId) {
+      if (state.room?.id === notice.roomId) state.room.entryNotice = notice;
+      const target = state.adminSettings?.roomEntryNoticeTargets?.find((room) => room.id === notice.roomId);
+      if (target) target.effectiveNotice = notice;
+    } else state.publicConfig.roomEntryNotice = notice;
+  });
+  state.socket.on('account-profile-updated', handleAccountProfileUpdated);
+  state.socket.on('account-presence-changed', handleAccountPresenceChanged);
+  state.socket.on('friend-online', handleFriendOnline);
+  state.socket.on('queue-state', (queue) => { state.queue = queue; renderQueue(); });
+  state.socket.on('file-uploaded', upsertFile);
+  state.socket.on('file-updated', upsertFile);
+  state.socket.on('file-deleted', handleFileDeleted);
+  state.socket.on('media-mutation-notice', handleMediaMutationNotice);
+  state.socket.on('media-processing-updated', applyMediaProcessingStatus);
+  state.socket.on('upload-pending', (file) => { upsertFile(file); toast(`新文件待审核：${file.originalName}`); refreshAdminForIncomingRequest(); });
+  state.socket.on('playback-state', (playback) => adaptiveSynchronize(playback, true));
+  state.socket.on('playback-command', (command) => applyPlaybackCommand(command));
+  state.socket.on('playback-sync', (playback) => adaptiveSynchronize(playback, false));
+  state.socket.on('playback-change', showPlaybackChange);
+  state.socket.on('video-switch-notice', handleVideoSwitchNotice);
+  state.socket.on('playback-requested', handlePlaybackRequest);
+  state.socket.on('playback-request-resolved', handlePlaybackRequestResolved);
+  state.socket.on('theme-sync-requested', enqueueThemeSyncRequest);
+  state.socket.on('theme-sync-responded', handleThemeSyncResponse);
+  state.socket.on('chat-message', addChatMessage);
+  state.socket.on('chat-records-changed', handleChatRecordsChanged);
+  state.socket.on('operation-history-changed', () => { if (!elements.operationHistoryModal?.classList.contains('is-hidden')) void loadOperationHistory(); });
+  state.socket.on('danmaku', (message) => { showDanmaku(message); addChatMessage(message); });
+  state.socket.on('reaction', showReaction);
+  state.socket.on('control-request', showControlRequest);
+  state.socket.on('control-request-resolved', handleControlRequestResolved);
+  state.socket.on('screen-share-started', showScreenShare);
+  state.socket.on('screen-share-frame', receiveScreenFrame);
+  state.socket.on('screen-share-webrtc-request', () => requestScreenPeerConnection());
+  state.socket.on('screen-share-viewer-ready', ({ viewerSocketId }) => createSharerPeer(viewerSocketId));
+  state.socket.on('screen-share-signal', handleScreenShareSignal);
+  state.socket.on('screen-share-audio', playScreenShareAudio);
+  state.socket.on('screen-share-stopped', handleScreenShareStopped);
+  state.socket.on('audio-share-state', applyAudioSourceShareState);
+  state.socket.on('audio-share-webrtc-request', () => requestAudioSourcePeerConnection());
+  state.socket.on('audio-share-viewer-ready', ({ viewerSocketId }) => createAudioSourceSharerPeer(viewerSocketId));
+  state.socket.on('audio-share-signal', handleAudioSourceSignal);
+  state.socket.on('web-share-state', applyWebShareState);
+  state.socket.on('screen-notice', showScreenNotice);
+  state.socket.on('permissions-changed', handlePermissionsChanged);
+  state.socket.on('system-notification', (notice) => {
+    const key = `${notice?.roomId || ''}|${notice?.kind || ''}|${notice?.actor || ''}|${notice?.message || ''}`;
+    const previous = Number(state.recentNoticeKeys.get(key) || 0);
+    if (Date.now() - previous < 5000) return;
+    state.recentNoticeKeys.set(key, Date.now());
+    if (state.recentNoticeKeys.size > 100) {
+      for (const [entry, timestamp] of state.recentNoticeKeys) if (Date.now() - timestamp > 10000) state.recentNoticeKeys.delete(entry);
+    }
+    const playbackCleared = notice?.kind === 'playback-cleared';
+    const fallback = playbackCleared
+      ? `${notice?.actorName || notice?.actor || '管理员'} 清空了画面`
+      : '房间设置已更新';
+    toast(notice?.message || fallback, playbackCleared || notice?.important ? 'success' : '', playbackCleared || notice?.important ? 7000 : 4200);
+  });
+  state.socket.on('account-level-updated', handleAccountLevelUpdated);
+  state.socket.on('account-notification', showAccountNotification);
+  state.socket.on('room-password-verification-required', promptRoomPasswordVerification);
+  state.socket.on('voice-peer-joined', ({ peer }) => connectLiveVoicePeer(peer, shouldInitiateVoice(peer?.socketId)));
+  state.socket.on('voice-peer-left', ({ socketId }) => removeLiveVoicePeer(socketId));
+  state.socket.on('voice-signal', handleLiveVoiceSignal);
+  state.socket.on('voice-call-incoming', handleIncomingVoiceCall);
+  state.socket.on('voice-call-resolved', handleVoiceCallResolved);
+  state.socket.on('friend-request', (request) => {
+    state.friendRequests.push(request);
+    addPersistentRequest({ ...request, kind: 'friend', own: false, username: request.from, displayName: request.displayName });
+    toast(`${request.displayName || request.from || '用户'} 发来好友申请，请在“我的账户 → 好友”中处理`, 'success', 12000);
+    if (!elements.accountModal?.classList.contains('is-hidden') && elements.accountNav?.querySelector('[data-account-page="friends"].active')) void openAccount('friends');
+  });
+  state.socket.on('friend-request-resolved', (result) => {
+    if (result.requestId) removePersistentRequest(result.requestId);
+    toast(`${result.displayName || result.username || '对方'}${result.accepted ? '已同意' : '已拒绝'}您的好友申请`, result.accepted ? 'success' : 'error', 9000);
+    if (!elements.accountModal?.classList.contains('is-hidden')) void openAccount('friends');
+  });
+  state.socket.on('friend-request-updated', handleFriendRequestMutation);
+  state.socket.on('friend-request-withdrawn', handleFriendRequestMutation);
+  state.socket.on('media-management-requested', (request = {}) => {
+    addPersistentRequest({ ...request, kind: 'media-management', own: false });
+    refreshAdminForIncomingRequest();
+    toastWithAction(`${request.displayName || request.username || '成员'} 申请管理房间视频库`, '立即处理', () => openManagementHub('applications'), 0);
+  });
+  state.socket.on('media-management-request-resolved', handleMediaManagementResolution);
+  state.socket.on('media-management-permission-updated', handleMediaManagementPermissionUpdated);
+  state.socket.on('friend-room-request', (request) => {
+    if (!request?.id) return;
+    addPersistentRequest({ ...request, requestType: request.kind, kind: 'friend-room', own: false });
+    toast(`${request.displayName || request.from || '好友'}${request.kind === 'invite' ? '邀请您加入房间' : '申请加入您的房间'}`, 'success', 0);
+    if (!elements.accountModal?.classList.contains('is-hidden') && elements.accountNav?.querySelector('[data-account-page="friends"].active')) void openAccount('friends');
+  });
+  state.socket.on('friend-room-request-resolved', async (result) => {
+    if (result?.requestId) removePersistentRequest(result.requestId);
+    if (result?.auth && result.auth.success) {
+      try { await finishAuthentication(result.auth, state.rememberSession, true); } catch (error) { toast(localizedError(error, '好友房间切换失败'), 'error'); }
+    }
+    toast(result?.message || '好友房间请求已处理', result?.accepted ? 'success' : 'error', 0);
+    if (!elements.accountModal?.classList.contains('is-hidden')) void openAccount('friends');
+  });
+  state.socket.on('friend-message', (message) => {
+    const messages = state.friendMessages.get(message.from) || []; messages.push(message); state.friendMessages.set(message.from, messages.slice(-500));
+    if (state.friendChatUser === message.from && !elements.friendChatModal?.classList.contains('is-hidden')) {
+      renderFriendChatHistory(); void markFriendChatRead(message.from);
+    } else if (!message.notificationMuted && state.friendSettings.messageNotifications !== false) {
+      addPersistentRequest({ id: message.id, kind: 'friend-message', username: message.from, displayName: message.fromName || message.from, message: message.text || (message.type === 'image' ? '[图片]' : '好友消息'), own: false });
+      const friend = state.profile?.friends?.find((item) => item.username === message.from);
+      const floatingNoticeEnabled = message.floatingNoticeMuted !== true && friend?.floatingNotice !== false;
+      if (floatingNoticeEnabled) {
+        const preview = message.type === 'image' ? '[图片消息]' : String(message.text || '发来一条消息');
+        showDanmaku({ text: `[私聊] ${message.fromName || message.from}：${preview}`, color: '#f3c96a' });
+        window.SyncWatchFriendAccountUi?.showVideoNotice(elements.friendVideoNoticeLayer, message, {
+          onOpen: (username) => void (async () => { await openAccount('friends'); await openFriendChat(username); })()
+        });
+      }
+      toastWithAction(`${message.fromName || message.from} 发来好友消息`, '打开对话', () => {
+        void (async () => { await openAccount('friends'); await openFriendChat(message.from); })();
+      }, 0);
+    }
+    if (!elements.accountModal?.classList.contains('is-hidden') && elements.accountNav?.querySelector('[data-account-page="friends"].active')) void openAccount('friends');
+  });
+  state.socket.on('friend-message-read', (receipt = {}) => {
+    const ids = new Set(receipt.messageIds || []);
+    if (!ids.size) return;
+    for (const messages of state.friendMessages.values()) for (const message of messages) if (ids.has(message.id)) message.readAt = receipt.readAt || new Date().toISOString();
+    if (state.friendChatUser) renderFriendChatHistory();
+  });
+  state.socket.on('friend-messages-deleted', (payload = {}) => {
+    const friend = String(payload.username || state.friendChatUser || ''); const ids = new Set(payload.messageIds || []);
+    if (!friend || !ids.size) return;
+    state.friendMessages.set(friend, (state.friendMessages.get(friend) || []).filter((message) => !ids.has(message.id)));
+    if (state.friendChatUser === friend) renderFriendChatHistory();
+  });
+  state.socket.on('room-dissolved', handleRoomDissolved);
+  state.socket.on('factory-reset', (event) => forcedLogout(event?.message || '服务器已恢复出厂设置，请重新登录'));
+  state.socket.on('registration-requested', (request) => { refreshAdminForIncomingRequest(); toastWithAction(`收到来自 ${request.ip || '未知 IP'} 的多账号注册申请`, '立即处理', () => {
+    openManagementHub('applications');
+    void loadAdminSettings();
+    setTimeout(() => elements.registrationRequestList?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 180);
+  }, 12000); });
+  state.socket.on('registration-request-resolved', (result) => {
+    if (!result) return;
+    if (result.approved) {
+      elements.regUsername.value = result.username || elements.regUsername.value;
+      showAuthMode('register');
+      setLoginStatus(result.message || '管理员已同意，请设置密码完成注册', true);
+      elements.regPassword.focus();
+    } else setLoginStatus(result.message || '管理员已拒绝本次注册申请');
+    toast(result.message || '注册申请状态已更新', result.approved ? 'success' : 'error', 7000);
+  });
+  state.socket.on('room-quota-requested', (request) => { refreshAdminForIncomingRequest(); toast(`收到 ${request.username || '用户'} 的建房额度申请`, 'success', 7000); });
+  state.socket.on('room-quota-resolved', (result) => { toast(result.message || '建房额度申请已处理', result.approved ? 'success' : 'error', 7000); void refreshProfile(); });
+  state.socket.on('upload-policy-requested', (request) => { addPersistentRequest({ ...request, kind: 'upload-policy' }); refreshAdminForIncomingRequest(); });
+  state.socket.on('storage-quota-requested', (request) => { addPersistentRequest({ ...request, kind: 'storage' }); refreshAdminForIncomingRequest(); });
+  state.socket.on('upload-policy-resolved', (result) => {
+    removePersistentRequest(result?.requestId || result?.request?.id);
+    toast(result?.message || `上传类型申请已${result?.approved ? '同意' : '拒绝'}`, result?.approved ? 'success' : 'error', 7000);
+  });
+  state.socket.on('storage-quota-resolved', (result) => {
+    removePersistentRequest(result?.requestId || result?.request?.id);
+    toast(result?.message || `房间扩容申请已${result?.approved ? '同意' : '拒绝'}`, result?.approved ? 'success' : 'error', 7000);
+  });
+  state.socket.on('lights-status', updateLights);
+  state.socket.on('upload-limits', (limits) => { state.publicConfig = { ...state.publicConfig, maxUploadBytes: limits.maxUploadBytes, uploadTimeLimitSeconds: limits.uploadTimeLimitSeconds }; applyPublicConfig(); });
+  state.socket.on('access-password-changed', ({ required }) => { state.publicConfig = { ...state.publicConfig, accessPasswordRequired: required }; applyPublicConfig(); });
+  for (const event of ['kicked', 'banned']) state.socket.on(event, (message) => forcedLogout(message));
+  state.socket.on('room-banned', (details) => forcedLogout(details?.message || '当前房间已被服务器封禁'));
+  state.socket.on('auth-error', (message) => {
+    if (state.resumeInFlight || !state.socketAuthenticated) return;
+    forcedLogout(message);
+  });
+  setInterval(measureNetwork, 4000);
+  setInterval(reportPlaybackProgress, 1000);
+  setInterval(reportWatchProgress, 15000);
+}
+
+async function emitAck(event, payload = {}, timeout = 15000) {
+  const socket = state.socket;
+  if (!socket?.connected) return { success: false, error: '当前未连接服务器', transient: true };
+  return new Promise((resolve) => {
+    let settled = false; let timer = null;
+    const finish = (result) => {
+      if (settled) return;
+      settled = true; clearTimeout(timer); socket.off('disconnect', onDisconnect);
+      resolve(result || { success: false, error: '服务器未返回结果' });
+    };
+    const onDisconnect = () => finish({ success: false, error: '连接已中断，请稍后重试', transient: true });
+    timer = setTimeout(() => finish({ success: false, error: '服务器响应超时，请稍后重试', transient: true }), timeout);
+    socket.once('disconnect', onDisconnect);
+    socket.emit(event, payload, finish);
+  });
+}
+
+function deviceInfo() {
+  const ua = navigator.userAgent;
+  const browser = /Edg\//.test(ua) ? '微软 Edge 浏览器' : /Chrome\//.test(ua) ? '谷歌 Chrome 浏览器' : /Firefox\//.test(ua) ? '火狐浏览器' : /Safari\//.test(ua) ? '苹果 Safari 浏览器' : '浏览器';
+  const platform = /Windows/.test(ua) ? 'Windows 系统' : /Android/.test(ua) ? '安卓系统' : /iPhone|iPad/.test(ua) ? '苹果手机系统' : /Mac OS/.test(ua) ? '苹果电脑系统' : /Linux/.test(ua) ? 'Linux 系统' : '未知系统';
+  const deviceName = /Mobile|Android|iPhone/.test(ua) ? '手机' : /iPad|Tablet/.test(ua) ? '平板' : '电脑';
+  return { browser, platform, deviceName, deviceId, hostToken: state.hostToken };
+}
+
+function togglePasswordVisibility() {
+  toggleFieldVisibility(elements.password, elements.togglePasswordBtn, '密码');
+}
+
+function toggleFieldVisibility(input, button, label = '密码') {
+  if (!input || !button) return;
+  const visible = input.type === 'text';
+  input.type = visible ? 'password' : 'text';
+  button.textContent = visible ? '显示' : '隐藏';
+  button.setAttribute('aria-label', visible ? `显示${label}` : `隐藏${label}`);
+  button.setAttribute('aria-pressed', String(!visible));
+  input.focus();
+}
+
+async function copyCurrentDeviceIp() {
+  const value = String(state.publicConfig.clientIp || '').trim();
+  if (!value) return toast('当前设备 IP 仍在检测，请稍后重试', 'error');
+  try { await navigator.clipboard.writeText(value); toast(`已复制当前设备 IP：${value}`, 'success'); }
+  catch (_) { toast(`当前设备 IP：${value}`, 'success', 7000); }
+}
+
+function handleLoginUsernameInput() {
+  const admin = elements.username.value.trim().toLowerCase() === 'admin';
+  if (admin && !state.roomIdTouched) {
+    elements.roomIdInput.value = '';
+    elements.loginRoomPassword.value = '';
+    elements.roomLookupStatus.textContent = '超级管理员可留空进入临时房间，也可手动输入现有房间号';
+    setLoginStatus('admin 登录不会自动填写房间号；服务器设备也可使用超级管理员入口。', true);
+  } else if (!admin && !elements.roomIdInput.value) {
+    elements.roomLookupStatus.textContent = '房间号可留空；留空会进入退出即删除的临时房间，也可从在线房间中选择';
+  }
+}
+
+function selectOnlineRoom() {
+  const id = String(elements.onlineRoomSelect?.value || '').trim().toUpperCase();
+  if (!id) return;
+  state.roomIdTouched = true;
+  elements.roomIdInput.value = id;
+  elements.loginRoomPassword.value = '';
+  void loadRoomInfo();
+}
+
+async function loadOnlineRooms() {
+  if (!elements.onlineRoomSelect) return false;
+  try {
+    const response = await fetchWithTimeout('/api/online-rooms', {}, 6000);
+    const result = await response.json();
+    if (!response.ok || !result.success) throw new Error(result.error || '读取在线房间失败');
+    state.onlineRooms = Array.isArray(result.rooms) ? result.rooms : [];
+    const current = String(elements.roomIdInput?.value || '').trim().toUpperCase();
+    elements.onlineRoomSelect.innerHTML = '<option value="">当前服务器在线房间</option>' + state.onlineRooms.map((room) => `<option value="${escapeHtml(room.id)}">[${room.temporary ? '临时房间' : '正式房间'}] ${escapeHtml(room.name)} · ${escapeHtml(room.id)} · ${Number(room.online) || 0}/${Number(room.maxUsers) || 0} 人${room.passwordRequired ? ' · 需密码' : ''}</option>`).join('');
+    if (state.onlineRooms.some((room) => room.id === current)) elements.onlineRoomSelect.value = current;
+    syncEnhancedSelect(elements.onlineRoomSelect);
+    return true;
+  } catch (error) {
+    elements.onlineRoomSelect.innerHTML = '<option value="">在线房间读取失败，可手动输入房间号</option>';
+    syncEnhancedSelect(elements.onlineRoomSelect);
+    return false;
+  }
+}
+
+async function refreshOnlineRooms() {
+  const button = elements.refreshOnlineRoomsBtn;
+  if (!button || button.disabled) return;
+  button.disabled = true;
+  button.classList.add('is-loading');
+  button.setAttribute('aria-busy', 'true');
+  button.title = '正在刷新在线房间';
+  try {
+    const success = await loadOnlineRooms();
+    if (success) toast(`在线房间已刷新，共 ${state.onlineRooms.length} 个`, 'success');
+    else toast('在线房间刷新失败，仍可手动输入房间号', 'error', 7000);
+  } finally {
+    button.disabled = false;
+    button.classList.remove('is-loading');
+    button.removeAttribute('aria-busy');
+    button.title = '刷新在线房间';
+  }
+}
+
+function roomDirectoryStateText(room, currentRoomId = '') {
+  if (String(room.id || '').toUpperCase() === String(currentRoomId || '').toUpperCase()) return '当前所在';
+  if (room.banned) return '已封禁';
+  if (room.archived) return '已存档';
+  if (room.closed) return '未启动';
+  return '运行中';
+}
+
+function renderRoomDirectoryDetails(room) {
+  const storage = room.storage || {};
+  const playback = room.playback || {};
+  const members = Array.isArray(room.members) ? room.members : [];
+  const diskFree = Number(storage.diskTotalBytes) > 0 ? formatSize(storage.diskFreeBytes || 0) : '无限';
+  const diskTotal = Number(storage.diskTotalBytes) > 0 ? formatSize(storage.diskTotalBytes || 0) : '无限';
+  const memberRows = members.length
+    ? members.map((member) => `<li><span>${escapeHtml(member.displayName || member.username || '成员')}${member.isOwner ? ' · 房主' : member.isSuperAdmin ? ' · 超级管理员' : member.isAdmin ? ' · 管理员' : ''}</span><small>${escapeHtml(member.deviceName || member.platform || '在线设备')} · ${member.latency === null || member.latency === undefined ? '延迟检测中' : `${Math.round(Number(member.latency) || 0)}ms`} · ${escapeHtml(member.playbackQuality || 'original')}</small></li>`).join('')
+    : '<li><span>当前没有在线成员</span><small>等待加入</small></li>';
+  return `<div class="room-directory-metrics global-room-metrics"><span><small>房间已使用</small><strong>${formatSize(storage.totalBytes || 0)}</strong></span><span><small>服务器剩余空间</small><strong>${diskFree}</strong></span><span><small>服务器总空间</small><strong>${diskTotal}</strong></span><span><small>文件 / 视频</small><strong>${Number(storage.fileCount) || 0} / ${Number(storage.videoCount) || 0}</strong></span></div><p class="room-directory-playback">原始文件 ${formatSize(storage.originalBytes || 0)} · 兼容缓存 ${formatSize(storage.compatibilityBytes || 0)} · 当前影片：${escapeHtml(playback.fileName || '未播放')} · ${formatTime(playback.currentTime || 0)} · ${playback.isPlaying ? '播放中' : '已暂停'} · 最后活动 ${formatDate(room.lastActivityAt)}</p><ul class="room-directory-members">${memberRows}</ul>`;
+}
+
+function handleRoomDirectoryUpdate(update = {}) {
+  const roomId = String(update.roomId || '').toUpperCase();
+  if (!roomId) return;
+  const mergeRoom = (existing) => update.room ? {
+    ...existing, ...update.room,
+    owned: Boolean(existing?.owned), pinned: Boolean(existing?.pinned), accessRemembered: Boolean(existing?.accessRemembered),
+    note: existing?.note || '', category: existing?.category || '未分类'
+  } : null;
+  if (state.profile?.recentRooms) {
+    const index = state.profile.recentRooms.findIndex((room) => room.id === roomId);
+    if (index >= 0) {
+      if (update.room) state.profile.recentRooms[index] = mergeRoom(state.profile.recentRooms[index]);
+      else state.profile.recentRooms.splice(index, 1);
+    }
+  }
+  if (state.adminSettings?.rooms) {
+    const index = state.adminSettings.rooms.findIndex((room) => room.id === roomId);
+    if (index >= 0) {
+      if (update.room) state.adminSettings.rooms[index] = { ...state.adminSettings.rooms[index], ...update.room };
+      else state.adminSettings.rooms.splice(index, 1);
+    } else if (update.room) state.adminSettings.rooms.push(update.room);
+  }
+  if (!elements.switchRoomModal?.classList.contains('is-hidden')) renderSwitchOwnedRooms(state.profile?.recentRooms || []);
+  if (!elements.accountModal?.classList.contains('is-hidden') && elements.accountNav?.querySelector('[data-account-page="room"].active')) renderProfileRooms();
+  if (state.adminSettings?.rooms && !elements.managementHubModal?.classList.contains('is-hidden')) renderGlobalRooms(state.adminSettings.rooms);
+}
+
+function renderLoginRoomList() {
+  if (!elements.myRoomsList) return;
+  const rooms = state.loginRoomSnapshot;
+  state.selectedLoginRooms = new Set([...state.selectedLoginRooms].filter((id) => rooms.some((room) => room.id === id)));
+  const quotaText = state.loginRoomQuota >= 9999 ? '不限' : state.loginRoomQuota;
+  if (!rooms.length) {
+    elements.myRoomsList.innerHTML = `<p class="room-quota-summary">已拥有 ${state.loginOwnedRoomCount}/${quotaText} 个房间</p><div class="room-directory-empty"><p class="muted">该账号还没有可用的房间记录。</p><button data-login-room-action="create" class="primary-button" type="button">创建第一个正式房间</button></div>`;
+    return;
+  }
+  elements.myRoomsList.innerHTML = `<div class="room-directory-toolbar"><p class="room-quota-summary">已拥有 ${state.loginOwnedRoomCount}/${quotaText} 个房间</p><label class="check-line"><input data-login-room-select-all type="checkbox" ${state.selectedLoginRooms.size === rooms.length ? 'checked' : ''}> 全选</label><button data-login-room-action="delete-selected" class="danger-button" type="button" ${state.selectedLoginRooms.size ? '' : 'disabled'}>删除所选（${state.selectedLoginRooms.size}）</button></div>${rooms.map((room) => {
+    const selected = state.selectedLoginRooms.has(room.id) ? 'checked' : '';
+    const passwordText = room.passwordRequired ? room.accessRemembered ? '密码已记住' : '首次进入需密码' : '无需密码';
+    return `<article class="room-directory-card room-history-choice"><header><label class="global-room-select"><input data-login-room-select type="checkbox" value="${escapeHtml(room.id)}" ${selected}><span>选择</span></label><div><strong>${room.pinned ? '置顶 · ' : ''}${escapeHtml(room.name || '私人影院')} · ${escapeHtml(room.id)}</strong><small>${escapeHtml(roomDirectoryStateText(room))} · ${room.online}/${room.maxUsers} 人 · ${room.owned ? '我拥有' : `房主 ${escapeHtml(room.ownerName || room.ownerUsername || '未设置')}`} · ${passwordText}</small></div><span>${room.passwordRequired ? '需密码' : '公开'}</span></header>${renderRoomDirectoryDetails(room)}<div class="actions"><button data-my-room="${escapeHtml(room.id)}" class="primary-button" type="button" ${room.banned ? 'disabled' : ''}>选择进入</button><button data-login-room-action="delete" data-room-id="${escapeHtml(room.id)}" class="danger-button" type="button">${room.owned ? '永久删除' : '移除记录'}</button></div></article>`;
+  }).join('')}`;
+}
+
+async function loadMyRoomsBeforeLogin() {
+  const username = elements.username.value.trim();
+  const password = elements.password.value;
+  if (!username || !password) return setLoginStatus('请先输入账号和密码，再查看房间记录');
+  elements.myRoomsLoginBtn.disabled = true;
+  try {
+    const result = await emitAck('account-room-list', { username, password }, 30000);
+    if (!result.success) return setLoginStatus(result.error);
+    state.loginRoomSnapshot = Array.isArray(result.rooms) ? result.rooms : [];
+    state.selectedLoginRooms.clear();
+    state.loginRoomQuota = Number(result.roomQuota) || 1;
+    state.loginOwnedRoomCount = Number(result.ownedRoomCount) || 0;
+    renderLoginRoomList();
+    elements.myRoomsModal.classList.remove('is-hidden');
+  } catch (error) { setLoginStatus(localizedError(error, '读取房间记录失败')); }
+  finally { elements.myRoomsLoginBtn.disabled = false; }
+}
+
+function handleLoginRoomSelection(event) {
+  if (event.target.matches('[data-login-room-select-all]')) {
+    state.selectedLoginRooms = event.target.checked ? new Set(state.loginRoomSnapshot.map((room) => room.id)) : new Set();
+  } else if (event.target.matches('[data-login-room-select]')) {
+    if (event.target.checked) state.selectedLoginRooms.add(event.target.value); else state.selectedLoginRooms.delete(event.target.value);
+  } else return;
+  renderLoginRoomList();
+}
+
+async function removeLoginRooms(roomIds) {
+  const ids = [...new Set(roomIds)].filter(Boolean);
+  if (!ids.length) return;
+  const ownedCount = ids.filter((id) => state.loginRoomSnapshot.find((room) => room.id === id)?.owned).length;
+  const confirmed = await showAppConfirm(ownedCount
+    ? `所选项目中有 ${ownedCount} 个自有房间，删除后会永久清除其中的影片、聊天和记录。确定继续吗？`
+    : `确定从“我的房间”中移除所选 ${ids.length} 条连接记录吗？`, {
+    title: ownedCount ? '永久删除房间' : '移除房间记录', confirmText: ownedCount ? '确认永久删除' : '确认移除', danger: true
+  });
+  if (!confirmed) return;
+  const result = await emitAck('account-room-remove', {
+    username: elements.username.value.trim(), password: elements.password.value,
+    roomIds: ids, confirmOwnedDeletion: ownedCount > 0
+  }, 60000);
+  if (!result.success) return toast(result.error || '删除房间失败', 'error', 8000);
+  state.loginRoomSnapshot = Array.isArray(result.rooms) ? result.rooms : [];
+  state.loginRoomQuota = Number(result.roomQuota) || state.loginRoomQuota;
+  state.loginOwnedRoomCount = Number(result.ownedRoomCount) || 0;
+  state.selectedLoginRooms.clear();
+  renderLoginRoomList();
+  toast(result.message || '房间列表已更新', 'success', 7000);
+}
+
+function handleMyRoomsSelection(event) {
+  const actionButton = event.target.closest('[data-login-room-action]');
+  if (actionButton) {
+    const action = actionButton.dataset.loginRoomAction;
+    if (action === 'create') { elements.myRoomsModal.classList.add('is-hidden'); void openCreateRoom(); }
+    else if (action === 'delete') void removeLoginRooms([actionButton.dataset.roomId]);
+    else if (action === 'delete-selected') void removeLoginRooms([...state.selectedLoginRooms]);
+    return;
+  }
+  const button = event.target.closest('[data-my-room]');
+  if (!button || button.disabled) return;
+  state.roomIdTouched = true;
+  elements.roomIdInput.value = button.dataset.myRoom || '';
+  elements.myRoomsModal.classList.add('is-hidden');
+  elements.loginRoomPassword.focus();
+  void loadRoomInfo();
+}
+
+async function loginAsServerAdmin() {
+  const password = elements.password.value;
+  if (!password) return setLoginStatus('请输入服务器管理员密码');
+  elements.serverAdminLoginBtn.disabled = true;
+  setLoginStatus('正在验证服务器超级管理员…', true);
+  try {
+    const result = await emitAck('host-admin-login', { adminPassword: password, roomId: String(elements.roomIdInput?.value || '').trim().toUpperCase(), ...deviceInfo() }, 30000);
+    if (!result.success) return setLoginStatus(result.error);
+    state.token = result.token; state.rememberSession = elements.autoLogin.checked;
+    await finishAuthentication(result, state.rememberSession);
+  } catch (error) { setLoginStatus(localizedError(error, '服务器超级管理员登录失败')); }
+  finally { elements.serverAdminLoginBtn.disabled = false; }
+}
+
+function requireAgreement(agreement = state.publicConfig.legalAgreement) {
+  if (!agreement?.version) return Promise.resolve(true);
+  if (state.agreementResolver) return Promise.resolve(false);
+  elements.agreementTitle.textContent = agreement.title || 'SyncWatch 使用协议';
+  elements.agreementVersion.textContent = `协议版本：${agreement.version}`;
+  elements.agreementText.textContent = agreement.text || '';
+  elements.agreementCheck.checked = false;
+  elements.acceptAgreementBtn.disabled = true;
+  elements.agreementModal.classList.remove('is-hidden');
+  return new Promise((resolve) => { state.agreementResolver = resolve; });
+}
+
+function settleAgreement(accepted) {
+  const resolve = state.agreementResolver;
+  if (!resolve) return;
+  state.agreementResolver = null;
+  elements.agreementModal.classList.add('is-hidden');
+  resolve(Boolean(accepted));
+}
+
+async function ensureAgreementAccepted(result) {
+  if (!result.capabilities?.agreementRequired) return true;
+  const agreement = result.agreement || state.publicConfig.legalAgreement;
+  const accepted = await requireAgreement(agreement);
+  if (!accepted) return false;
+  const confirmation = await emitAck('agreement-accept', { accepted: true, version: agreement.version }, 20000);
+  if (!confirmation.success) { toast(confirmation.error || '协议确认失败', 'error'); return false; }
+  result.capabilities.agreementRequired = false;
+  if (Array.isArray(confirmation.claimedRegistrationRequests)) result.claimedRegistrationRequests = confirmation.claimedRegistrationRequests;
+  return true;
+}
+
+async function handleRuntimeAgreementRequired(agreement) {
+  const accepted = await requireAgreement(agreement);
+  if (!accepted) return logout();
+  const result = await emitAck('agreement-accept', { accepted: true, version: agreement.version }, 20000);
+  if (!result.success) { toast(result.error || '协议确认失败，请重新登录', 'error'); return logout(); }
+  toast('新版本使用协议已确认', 'success');
+}
+
+function openAdminContact() {
+  const contact = state.publicConfig.contact || {};
+  elements.adminContactTitle.textContent = contact.label || '联系服务器管理员';
+  elements.adminContactNoteDisplay.textContent = contact.note || '请选择联系方式，可直接复制或打开对应应用。';
+  const rows = [
+    ['qq', 'QQ', contact.qq], ['wechat', '微信', contact.wechat], ['email', '邮箱', contact.email], ['phone', '电话', contact.phone]
+  ].filter(([, , value]) => value);
+  elements.adminContactList.innerHTML = rows.length ? rows.map(([type, label, value]) => `<div class="contact-row" data-contact-type="${type}" data-contact-value="${escapeHtml(value)}"><span><small>${label}</small><strong>${escapeHtml(value)}</strong></span><div><button data-contact-action="copy" type="button">复制</button>${['qq', 'wechat', 'email', 'phone'].includes(type) ? '<button data-contact-action="open" type="button">打开</button><button data-contact-action="copy-open" type="button">复制并打开</button>' : ''}</div></div>`).join('') : '<p class="muted">服务器管理员尚未填写联系方式。</p>';
+  elements.adminContactModal.classList.remove('is-hidden');
+}
+
+async function resetServerAdminPassword() {
+  if (state.hostToken || state.publicConfig.serverHostLoginAvailable) {
+    const newPassword = await showAppInput({
+      title: '重置超级管理员密码', description: '服务器设备可直接设置新密码，不需要输入旧密码。保存后现有 admin 登录会立即退出。',
+      label: '新密码', password: true, confirmPassword: true, minLength: 8, maxLength: 72, confirmText: '确认重置'
+    });
+    if (newPassword === null) return;
+    try {
+      const response = await fetchWithTimeout('/api/host/reset-admin-password', {
+        method: 'POST', headers: { 'Content-Type': 'application/json', ...(state.hostToken ? { 'X-SyncWatch-Host-Token': state.hostToken } : {}) }, body: JSON.stringify({ newPassword })
+      }, 20000);
+      const result = await response.json();
+      setLoginStatus(result.message || result.error, Boolean(result.success));
+      toast(result.message || result.error, result.success ? 'success' : 'error', 7000);
+      if (result.success) { elements.password.value = ''; void loadPublicConfig(true); }
+    } catch (error) { toast(localizedError(error, '重置管理员密码失败'), 'error'); }
+    return;
+  }
+  const previous = elements.username.value;
+  const previousPassword = elements.password.value;
+  elements.username.value = 'server-admin';
+  void recoverPasswordByEmail().finally(() => {
+    if (elements.username.value === 'server-admin') elements.username.value = previous;
+    if (elements.password.value === previousPassword) elements.password.value = previousPassword;
+  });
+}
+
+async function restartServerSoftware() {
+  if (!state.capabilities.serverHost && !state.capabilities.superAdmin) return toast('只有服务器设备或超级管理员可以重启软件', 'error');
+  const result = await emitAck('admin-action', { action: 'restart-server' }, 20000);
+  toast(result.message || result.error || '已请求重启服务器软件', result.success ? 'success' : 'error', 7000);
+}
+
+async function handleAdminContactAction(event) {
+  const button = event.target.closest('[data-contact-action]');
+  const row = button?.closest('[data-contact-value]');
+  if (!button || !row) return;
+  const value = row.dataset.contactValue || '';
+  const type = row.dataset.contactType || '';
+  const action = button.dataset.contactAction || '';
+  if (action === 'copy' || action === 'copy-open') {
+    try { await navigator.clipboard.writeText(value); toast('联系方式已复制', 'success'); }
+    catch (_) { toast(value, 'success', 7000); }
+    if (action === 'copy') return;
+  }
+  const targets = {
+    qq: `tencent://message/?uin=${encodeURIComponent(String(value).replace(/\D/g, ''))}&Site=&Menu=yes`,
+    wechat: 'weixin://',
+    email: `mailto:${encodeURIComponent(value)}`,
+    phone: `tel:${encodeURIComponent(value)}`
+  };
+  if (targets[type]) await openContactProtocol(type, targets[type]);
+}
+
+async function openContactProtocol(type, protocolUrl) {
+  const official = type === 'qq' ? 'https://im.qq.com/pcqq/' : type === 'wechat' ? 'https://weixin.qq.com/' : '';
+  const bridge = window.SyncWatchDesktop || window.SyncWatchClient;
+  const value = String(document.querySelector(`[data-contact-type="${type}"]`)?.dataset.contactValue || '').trim();
+  const candidates = type === 'wechat' && value
+    ? [`weixin://dl/chat?${encodeURIComponent(value)}`, protocolUrl]
+    : [protocolUrl];
+  let opened = false;
+  for (const candidate of candidates) {
+    if (typeof bridge?.openExternal === 'function') {
+      try {
+        const result = await bridge.openExternal(candidate);
+        if (result?.success) { opened = true; break; }
+      } catch (_) {}
+      continue;
+    }
+    try {
+      const target = window.open(candidate, '_blank', 'noopener,noreferrer');
+      if (target) { opened = true; break; }
+      location.href = candidate; opened = true; break;
+    } catch (_) {}
+  }
+  if (opened || !official) return;
+  const install = await showAppConfirm(`${type === 'qq' ? 'QQ' : '微信'} 未检测到可用客户端或系统协议处理器。是否打开官方下载页面？`, {
+    title: `打开${type === 'qq' ? 'QQ' : '微信'}`, confirmText: '打开官网', cancelText: '关闭'
+  });
+  if (install) {
+    if (typeof bridge?.openExternal === 'function') await bridge.openExternal(official);
+    else window.open(official, '_blank', 'noopener,noreferrer');
+  }
+}
+
+function downloadDesktopClient() {
+  if (!state.publicConfig.clientDownloadAvailable) return toast('服务器尚未提供电脑客户端安装程序', 'error');
+  const link = document.createElement('a'); link.href = '/api/client-download'; link.download = ''; document.body.appendChild(link); link.click(); link.remove();
+}
+
+function macDownloadEntries(kind) {
+  const key = kind === 'server' ? 'macServerDownloads' : 'macClientDownloads';
+  const entries = new Map();
+  for (const raw of Array.isArray(state.publicConfig[key]) ? state.publicConfig[key] : []) {
+    const architecture = String(raw?.architecture || '').toLowerCase();
+    if (!['arm64', 'x64'].includes(architecture)) continue;
+    const formats = [...new Set((Array.isArray(raw?.formats) ? raw.formats : [])
+      .map((format) => String(format || '').toLowerCase()).filter((format) => ['dmg', 'zip'].includes(format)))];
+    if (!formats.length) continue;
+    const sources = [...new Set((Array.isArray(raw?.sources) ? raw.sources : [])
+      .map((source) => String(source || '').toLowerCase()).filter((source) => ['local', 'remote'].includes(source)))];
+    const existing = entries.get(architecture);
+    if (existing) {
+      existing.formats = [...new Set([...existing.formats, ...formats])];
+      existing.sources = [...new Set([...existing.sources, ...sources])];
+      continue;
+    }
+    const requestedPreferred = String(raw?.preferredFormat || '').toLowerCase();
+    entries.set(architecture, {
+      architecture, formats, sources,
+      preferredFormat: formats.includes(requestedPreferred) ? requestedPreferred : formats.includes('dmg') ? 'dmg' : formats[0]
+    });
+  }
+  return ['arm64', 'x64'].map((architecture) => entries.get(architecture)).filter(Boolean);
+}
+
+function macDownloadArchitectures(kind) { return macDownloadEntries(kind).map((entry) => entry.architecture); }
+function macArchitectureLabel(architecture) { return architecture === 'arm64' ? 'Apple Silicon（M 系列）' : 'Intel x64'; }
+function macFormatLabel(format) { return format === 'dmg' ? 'DMG（推荐安装）' : 'ZIP（解压部署）'; }
+function macSourceLabel(source) { return source === 'local' ? '服务器本地文件' : source === 'remote' ? '远程 HTTPS' : '来源未标注'; }
+
+function replaceMacDownloadOptions(select, options, selectedValue = '') {
+  if (!select) return;
+  const fragment = document.createDocumentFragment();
+  if (!options.length) {
+    const option = document.createElement('option'); option.value = ''; option.textContent = '暂无可用选项'; fragment.appendChild(option);
+  } else for (const item of options) {
+    const option = document.createElement('option'); option.value = item.value; option.textContent = item.label; fragment.appendChild(option);
+  }
+  select.replaceChildren(fragment);
+  select.value = options.some((item) => item.value === selectedValue) ? selectedValue : options[0]?.value || '';
+  queueMicrotask(() => syncEnhancedSelect(select));
+}
+
+function renderMacDownloadAvailability(entries) {
+  if (!elements.macDownloadAvailability) return;
+  elements.macDownloadAvailability.replaceChildren();
+  if (!entries.length) {
+    const empty = document.createElement('div'); empty.className = 'mac-download-empty';
+    const title = document.createElement('strong'); title.textContent = '尚未提供真实的 macOS 安装包';
+    const detail = document.createElement('span'); detail.textContent = '请管理员在 macOS 构建机运行 scripts/build-macos.sh 生成 DMG/ZIP，并放入部署目录；也可以通过 mac/mac-distribution.json 配置真实 HTTPS 发布地址。';
+    empty.append(title, detail); elements.macDownloadAvailability.appendChild(empty); return;
+  }
+  for (const entry of entries) {
+    const row = document.createElement('article'); row.className = 'mac-download-availability-row';
+    const heading = document.createElement('strong'); heading.textContent = macArchitectureLabel(entry.architecture);
+    const chips = document.createElement('div'); chips.className = 'mac-download-chips';
+    for (const format of entry.formats) {
+      const chip = document.createElement('span'); chip.className = 'mac-download-chip is-format'; chip.textContent = format.toUpperCase(); chips.appendChild(chip);
+    }
+    for (const source of entry.sources) {
+      const chip = document.createElement('span'); chip.className = `mac-download-chip is-${source}`; chip.textContent = macSourceLabel(source); chips.appendChild(chip);
+    }
+    if (!entry.sources.length) {
+      const chip = document.createElement('span'); chip.className = 'mac-download-chip'; chip.textContent = macSourceLabel(''); chips.appendChild(chip);
+    }
+    row.append(heading, chips); elements.macDownloadAvailability.appendChild(row);
+  }
+}
+
+function syncMacDownloadSelection() {
+  const entries = macDownloadEntries(state.macDownloadKind);
+  const entry = entries.find((candidate) => candidate.architecture === String(elements.macDownloadArch?.value || '').toLowerCase());
+  const previousFormat = String(elements.macDownloadFormat?.value || '').toLowerCase();
+  const formats = entry?.formats || [];
+  const preferredFormat = formats.includes(previousFormat) ? previousFormat : entry?.preferredFormat || formats[0] || '';
+  replaceMacDownloadOptions(elements.macDownloadFormat, formats.map((format) => ({ value: format, label: macFormatLabel(format) })), preferredFormat);
+  const selectedFormat = String(elements.macDownloadFormat?.value || '').toLowerCase();
+  const available = Boolean(entry && formats.includes(selectedFormat));
+  if (elements.confirmMacDownloadBtn) {
+    elements.confirmMacDownloadBtn.disabled = !available;
+    elements.confirmMacDownloadBtn.textContent = available ? `下载 ${selectedFormat.toUpperCase()}` : '暂无可下载文件';
+  }
+  if (!elements.macDownloadStatus) return;
+  elements.macDownloadStatus.textContent = entry
+    ? `${macArchitectureLabel(entry.architecture)} 已发布 ${entry.formats.map((format) => format.toUpperCase()).join('、')}；来源包括：${entry.sources.length ? entry.sources.map(macSourceLabel).join('、') : macSourceLabel('')}。`
+    : '当前服务器尚未上传 macOS 真实产物。Windows 无法生成可运行、已签名和公证的 DMG，请使用 macOS 构建机或 macOS CI 发布后再下载。';
+}
+
+function openMacDownload(kind = 'client') {
+  state.macDownloadKind = kind === 'server' ? 'server' : 'client';
+  const entries = macDownloadEntries(state.macDownloadKind);
+  if (elements.macDownloadTitle) elements.macDownloadTitle.textContent = state.macDownloadKind === 'server' ? '下载苹果服务器' : '下载苹果客户端';
+  const preferredArchitecture = entries.some((entry) => entry.architecture === 'arm64') ? 'arm64' : entries[0]?.architecture || '';
+  replaceMacDownloadOptions(elements.macDownloadArch, entries.map((entry) => ({ value: entry.architecture, label: macArchitectureLabel(entry.architecture) })), preferredArchitecture);
+  renderMacDownloadAvailability(entries);
+  syncMacDownloadSelection();
+  elements.macDownloadModal?.classList.remove('is-hidden');
+}
+
+function closeMacDownload() { elements.macDownloadModal?.classList.add('is-hidden'); }
+
+function confirmMacDownload() {
+  const architecture = String(elements.macDownloadArch?.value || '').toLowerCase();
+  const format = String(elements.macDownloadFormat?.value || '').toLowerCase();
+  const entry = macDownloadEntries(state.macDownloadKind).find((candidate) => candidate.architecture === architecture);
+  if (!entry || !entry.formats.includes(format)) return toast('所选 Mac 架构或文件格式尚未发布', 'error');
+  const endpoint = state.macDownloadKind === 'server' ? '/api/macos-server-download' : '/api/macos-client-download';
+  const link = document.createElement('a');
+  link.href = `${endpoint}?arch=${encodeURIComponent(architecture)}&format=${encodeURIComponent(format)}`;
+  link.download = ''; link.rel = 'noopener'; document.body.appendChild(link); link.click(); link.remove();
+  closeMacDownload();
+  toast(`${state.macDownloadKind === 'server' ? '苹果服务器' : '苹果客户端'} ${format.toUpperCase()} 已开始下载`, 'success');
+}
+
+async function register(event) {
+  event.preventDefault();
+  const username = elements.regUsername.value.trim();
+  const email = elements.regEmail.value.trim();
+  const password = elements.regPassword.value;
+  if (password !== elements.regPasswordConfirm.value) return setLoginStatus('两次输入的密码不一致');
+  if (email && !/^\S+@\S+\.\S+$/.test(email)) return setLoginStatus('请输入有效的邮箱地址');
+  if (email && !elements.regEmailVerificationCode?.value.trim()) return setLoginStatus('填写邮箱后必须先发送并输入邮箱验证码');
+  try {
+    const result = await emitAck('user-register', {
+      username, email, password,
+      emailVerificationCode: elements.regEmailVerificationCode?.value.trim() || ''
+    });
+    if (!result.success) {
+      return setLoginStatus(result.error);
+    }
+    elements.username.value = username; elements.password.value = password;
+    showAuthMode('login'); setLoginStatus(`注册成功，用户 ID 已生成，请登录`, true);
+  } catch (error) { setLoginStatus(localizedError(error, '注册失败，请稍后重试')); }
+}
+
+function updateRegistrationEmailVerificationRequirement() {
+  const emailProvided = Boolean(elements.regEmail?.value.trim());
+  const requiredByServer = Boolean(state.publicConfig.registrationEmailVerificationRequired);
+  elements.registrationEmailVerificationRow?.classList.remove('is-hidden');
+  if (elements.regEmailVerificationCode) elements.regEmailVerificationCode.required = requiredByServer || emailProvided;
+  if (elements.sendRegistrationEmailCodeBtn) elements.sendRegistrationEmailCodeBtn.disabled = false;
+}
+
+function maskEmailAddress(value = '') {
+  const email = String(value || '').trim();
+  const separator = email.lastIndexOf('@');
+  if (separator <= 0) return email ? '已绑定邮箱' : '未提供邮箱';
+  const local = email.slice(0, separator);
+  const domain = email.slice(separator + 1);
+  const visibleLocal = local.length <= 1 ? local[0] || '*' : `${local[0]}***${local.length > 2 ? local.at(-1) : ''}`;
+  const domainParts = domain.split('.');
+  const host = domainParts.shift() || '';
+  const visibleHost = host.length <= 2 ? `${host[0] || '*'}*` : `${host[0]}***${host.at(-1)}`;
+  return `${visibleLocal}@${visibleHost}${domainParts.length ? `.${domainParts.join('.')}` : ''}`;
+}
+
+function verificationDestination(result = {}, fallbackAccount = '', fallbackEmail = '') {
+  const accountName = String(result.accountName || result.username || fallbackAccount || '').trim();
+  maskEmailAddress(result.email || fallbackEmail);
+  return `账号：${accountName || '待注册账号'} · 收件邮箱：${SYNCWATCH_SUPPORT_EMAIL}`;
+}
+
+async function sendRegistrationEmailCode() {
+  const email = elements.regEmail?.value.trim() || '';
+  if (!email || !/^\S+@\S+\.\S+$/.test(email)) return setLoginStatus('请先填写有效的注册邮箱');
+  elements.sendRegistrationEmailCodeBtn.disabled = true;
+  const originalText = elements.sendRegistrationEmailCodeBtn.textContent;
+  elements.sendRegistrationEmailCodeBtn.textContent = '正在发送…';
+  try {
+    const result = await emitAck('registration-email-code-request', {
+      email, username: elements.regUsername?.value.trim() || ''
+    }, 35000);
+    const target = verificationDestination(result, elements.regUsername?.value.trim() || '待注册账号', email);
+    setLoginStatus(result.success ? `验证码已发送（${target}）` : result.error, Boolean(result.success));
+    if (!result.success) {
+      elements.sendRegistrationEmailCodeBtn.disabled = false;
+      elements.sendRegistrationEmailCodeBtn.textContent = originalText;
+      return;
+    }
+    elements.regEmailVerificationCode?.focus();
+    let remaining = 60;
+    const timer = setInterval(() => {
+      remaining -= 1;
+      if (!elements.sendRegistrationEmailCodeBtn || remaining <= 0) {
+        clearInterval(timer);
+        if (elements.sendRegistrationEmailCodeBtn) {
+          elements.sendRegistrationEmailCodeBtn.disabled = false;
+          elements.sendRegistrationEmailCodeBtn.textContent = originalText;
+        }
+        return;
+      }
+      elements.sendRegistrationEmailCodeBtn.textContent = `${remaining} 秒后可重发`;
+    }, 1000);
+  } catch (error) {
+    setLoginStatus(localizedError(error, '注册验证码发送失败'));
+    elements.sendRegistrationEmailCodeBtn.disabled = false;
+    elements.sendRegistrationEmailCodeBtn.textContent = originalText;
+  }
+}
+
+async function requestRegistrationAllowance() {
+  const username = elements.regUsername.value.trim();
+  if (!username) return setLoginStatus('请先填写准备注册的新账号');
+  let requestedCountValue = '1';
+  let reason = '同一网络下需要新增一个独立账号';
+  let step = 0;
+  while (step < 2) {
+    if (step === 0) {
+      const value = await showAppInput({
+        title: '申请注册名额',
+        description: '请输入同一网络还需要注册多少个独立账号。默认申请 1 个，单次最多 50 个。',
+        label: '申请账号数量', inputType: 'number', initialValue: requestedCountValue, maxLength: 2,
+        validate: (input) => Number.isInteger(Number(input)) && Number(input) >= 1 && Number(input) <= 50 ? '' : '请输入 1 到 50 之间的整数',
+        confirmText: '下一步', allowBack: true
+      });
+      if (value === null) return;
+      requestedCountValue = value; step = 1; continue;
+    }
+    const value = await showAppInput({
+      title: `申请 ${Number(requestedCountValue)} 个注册名额`, description: '当前 IP 已注册过账号。请填写申请原因，服务器管理员批准后会一次性发放对应数量。',
+      label: '申请原因', initialValue: reason, maxLength: 200, confirmText: '提交申请', allowBack: true
+    });
+    if (value === APP_DIALOG_BACK) { step = 0; continue; }
+    if (value === null) return;
+    reason = value; step = 2;
+  }
+  const requestedCount = Number(requestedCountValue);
+  elements.requestRegistrationBtn.disabled = true;
+  try {
+    const result = await emitAck('registration-request', { username, requestedCount, reason, ...deviceInfo() }, 20000);
+    setLoginStatus(result.message || result.error, Boolean(result.success));
+    toast(result.message || result.error, result.success ? 'success' : 'error', 7000);
+    if (result.success) elements.requestRegistrationBtn.textContent = result.approved ? '当前 IP 无需申请，可直接注册' : '申请已提交，等待管理员处理';
+  } finally { elements.requestRegistrationBtn.disabled = false; }
+}
+
+async function recoverPasswordByEmail() {
+  if (elements.forgotPasswordBtn.disabled) return;
+  elements.forgotPasswordBtn.disabled = true;
+  try {
+    const identifier = await showAppInput({
+      title: 'QQ 邮箱找回密码',
+      description: '输入登录账号或已验证的绑定邮箱。若账号或邮箱不存在，服务器会立即给出明确提示；重置服务器管理员密码时请输入“服务器管理员”。',
+      label: '账号 / 邮箱', placeholder: '登录账号、绑定邮箱或服务器管理员', maxLength: 120,
+      autocomplete: 'username', confirmText: '发送验证码'
+    });
+    if (identifier === null) return;
+    const scope = /^(?:服务器管理员|server-admin)$/i.test(identifier) ? 'admin' : 'account';
+    setLoginStatus('正在请求邮箱验证码…', true);
+    const requested = await emitAck('password-reset-request', { scope, identifier: scope === 'admin' ? '' : identifier }, 35000);
+    if (!requested.success) { setLoginStatus(requested.error); return toast(requested.error, 'error', 7000); }
+    const destination = verificationDestination(requested, scope === 'admin' ? '服务器管理员' : identifier, requested.email || (identifier.includes('@') ? identifier : ''));
+    toast(`验证码已发送 · ${destination}`, 'success', 7000);
+    const code = await showAppInput({
+      title: '填写邮箱验证码', description: `${destination}\n验证码 10 分钟内有效，仅可使用一次；未收到时请检查垃圾邮件。`, label: '6 位验证码',
+      placeholder: '000000', minLength: 6, maxLength: 6, autocomplete: 'one-time-code', inputType: 'text',
+      validate: (value) => /^\d{6}$/.test(value) ? '' : '请输入邮件中的 6 位数字验证码', confirmText: '验证邮箱'
+    });
+    if (code === null) return setLoginStatus('已取消密码找回');
+    const verified = await emitAck('password-reset-verify', { scope, identifier: scope === 'admin' ? '' : identifier, code });
+    if (!verified.success) { setLoginStatus(verified.error); return toast(verified.error, 'error'); }
+    const minimum = scope === 'admin' ? 8 : 6;
+    let newPassword = '';
+    while (true) {
+      const value = await showAppInput({
+        title: scope === 'admin' ? '设置新的服务器管理员密码' : '设置新的登录密码',
+        description: '邮箱验证已经通过。完成修改后，旧登录会话会立即失效。', label: '新密码', password: true,
+        initialValue: newPassword, minLength: minimum, maxLength: 72, minLengthMessage: `新密码至少 ${minimum} 位`, autocomplete: 'new-password', confirmText: '下一步', allowBack: true
+      });
+      if (value === null) return setLoginStatus('邮箱已验证，但尚未修改密码；重置授权将在 10 分钟后失效');
+      newPassword = value;
+      const confirmation = await showAppInput({
+        title: '确认新密码', description: '请再次输入相同的新密码。', label: '确认密码', password: true,
+        minLength: minimum, maxLength: 72, autocomplete: 'new-password', allowBack: true,
+        validate: (input) => input === newPassword ? '' : '两次输入的密码不一致', confirmText: '修改密码'
+      });
+      if (confirmation === APP_DIALOG_BACK) continue;
+      if (confirmation === null) return setLoginStatus('已取消修改密码');
+      break;
+    }
+    const completed = await emitAck('password-reset-complete', { resetToken: verified.resetToken, newPassword }, 30000);
+    setLoginStatus(completed.message || completed.error, Boolean(completed.success));
+    toast(completed.message || completed.error, completed.success ? 'success' : 'error', 7000);
+    if (completed.success && scope === 'account' && !identifier.includes('@')) {
+      elements.username.value = identifier;
+      elements.password.value = newPassword;
+    }
+  } catch (error) {
+    const message = localizedError(error, '邮箱找回密码失败，请检查连接后重试');
+    setLoginStatus(message);
+    toast(message, 'error', 7000);
+  } finally {
+    elements.forgotPasswordBtn.disabled = false;
+  }
+}
+
+async function login(event) {
+  event.preventDefault(); setLoginStatus('正在登录…', true);
+  try {
+    const roomId = String(elements.roomIdInput?.value || '').trim().toUpperCase();
+    if (roomId && !/^[A-Z0-9]{4,32}$/.test(roomId)) return setLoginStatus('请输入正确的房间号（4-32 位大写字母或数字）');
+    const result = await emitAck('user-login', {
+      username: elements.username.value.trim(), password: elements.password.value, roomId,
+      roomPassword: elements.loginRoomPassword?.value || elements.loginAccessPassword?.value || '', ...deviceInfo()
+    });
+    if (!result.success) return setLoginStatus(result.error);
+    state.token = result.token; state.rememberSession = elements.autoLogin.checked;
+    await finishAuthentication(result, state.rememberSession);
+  } catch (error) {
+    setLoginStatus(`登录初始化失败：${localizedError(error, '请检查服务器连接')}，正在自动重试…`);
+    if (state.token) queueSessionResume(false);
+  }
+}
+
+async function guestLogin() {
+  if (elements.guestLoginBtn?.disabled) return;
+  elements.guestLoginBtn.disabled = true;
+  const originalText = elements.guestLoginBtn.textContent;
+  elements.guestLoginBtn.textContent = '正在进入游客模式…';
+  try {
+    const roomId = String(elements.roomIdInput?.value || '').trim().toUpperCase();
+    let result = await emitAck('guest-login', {
+      roomId,
+      roomPassword: elements.loginRoomPassword?.value || elements.loginAccessPassword?.value || '',
+      ...deviceInfo()
+    }, 30000);
+    let clientFallback = false;
+    if (!result.success && roomId && result.code === 'ROOM_NOT_FOUND') {
+      clientFallback = true;
+      if (elements.roomIdInput) elements.roomIdInput.value = '';
+      if (elements.loginRoomPassword) elements.loginRoomPassword.value = '';
+      const cleanUrl = new URL(location.href); cleanUrl.searchParams.delete('room'); history.replaceState(null, '', cleanUrl.pathname + cleanUrl.search);
+      result = await emitAck('guest-login', { roomId: '', roomPassword: '', ...deviceInfo() }, 30000);
+    }
+    if (!result.success) {
+      const message = result.code === 'GUEST_IP_OCCUPIED'
+        ? (result.error || '当前 IP 已有游客在线，请先退出后再进入')
+        : (result.error || '游客模式登录失败');
+      setLoginStatus(message);
+      toast(message, 'error', 7000);
+      return;
+    }
+    state.token = result.token;
+    state.rememberSession = false;
+    const usedFallback = clientFallback || Boolean(result.roomFallback || result.fallbackTemporary);
+    if (usedFallback && elements.roomIdInput) elements.roomIdInput.value = '';
+    await finishAuthentication(result, false, true);
+    if (usedFallback && state.authenticated) {
+      const cleanUrl = new URL(location.href); cleanUrl.searchParams.delete('room'); history.replaceState(null, '', cleanUrl.pathname + cleanUrl.search);
+      toast('原房间不存在，已自动进入新建的临时房间', 'success', 6500);
+    } else toast('已以游客身份进入', 'success', 5000);
+  } catch (error) {
+    const message = localizedError(error, '游客模式登录失败，请检查服务器连接');
+    setLoginStatus(message);
+    toast(message, 'error', 7000);
+  } finally {
+    elements.guestLoginBtn.disabled = false;
+    elements.guestLoginBtn.textContent = originalText;
+  }
+}
+
+function updateGuestConversionAccess() {
+  const guest = Boolean(state.authenticated && (state.user?.guest || state.capabilities?.guest));
+  elements.guestConvertBtn?.classList.toggle('is-hidden', !guest);
+  if (!guest && elements.guestConvertModal && !elements.guestConvertModal.classList.contains('is-hidden')) closeGuestConversion();
+}
+
+function openGuestConversion() {
+  if (!state.authenticated || !(state.user?.guest || state.capabilities?.guest)) return toast('只有当前游客账户可以转为正式成员', 'error');
+  elements.guestConvertForm?.reset();
+  if (elements.guestConvertStatus) elements.guestConvertStatus.textContent = '房间、聊天、上传记录和当前资料会原地迁移，不会离开房间。';
+  elements.guestConvertModal?.classList.remove('is-hidden');
+  setTimeout(() => elements.guestConvertUsername?.focus(), 80);
+}
+
+function closeGuestConversion() {
+  elements.guestConvertModal?.classList.add('is-hidden');
+  elements.guestConvertForm?.reset();
+}
+
+async function sendGuestConversionEmailCode() {
+  const email = elements.guestConvertEmail?.value.trim() || '';
+  const username = elements.guestConvertUsername?.value.trim() || '';
+  if (!username) return toast('请先填写要注册的正式账号名', 'error');
+  if (!/^\S+@\S+\.\S+$/.test(email)) return toast('请先填写有效邮箱地址', 'error');
+  const button = elements.sendGuestConvertEmailCodeBtn;
+  const original = button.textContent; button.disabled = true; button.textContent = '正在发送…';
+  try {
+    const result = await emitAck('registration-email-code-request', { username, email, purpose: 'guest-conversion' }, 35000);
+    if (!result.success) throw new Error(result.error || '验证码发送失败');
+    if (elements.guestConvertStatus) elements.guestConvertStatus.textContent = `验证码已发送到 ${maskEmailAddress(email)}`;
+    elements.guestConvertEmailCode?.focus();
+    let remaining = 60;
+    const timer = setInterval(() => {
+      remaining -= 1;
+      if (remaining <= 0 || !button.isConnected) { clearInterval(timer); button.disabled = false; button.textContent = original; return; }
+      button.textContent = `${remaining} 秒后可重发`;
+    }, 1000);
+  } catch (error) {
+    button.disabled = false; button.textContent = original;
+    toast(localizedError(error, '验证码发送失败'), 'error');
+  }
+}
+
+async function convertGuestAccount(event) {
+  event.preventDefault();
+  if (!state.authenticated || !(state.user?.guest || state.capabilities?.guest)) return toast('当前账户已不是游客', 'error');
+  const username = elements.guestConvertUsername?.value.trim() || '';
+  const password = elements.guestConvertPassword?.value || '';
+  const confirmation = elements.guestConvertPasswordConfirm?.value || '';
+  const email = elements.guestConvertEmail?.value.trim() || '';
+  const emailCode = elements.guestConvertEmailCode?.value.trim() || '';
+  if (!username) return toast('请输入正式账号名', 'error');
+  if (password !== confirmation) return toast('两次输入的密码不一致', 'error');
+  if (email && !emailCode) return toast('填写邮箱后必须输入邮箱验证码', 'error');
+  const submit = elements.guestConvertForm?.querySelector('[type="submit"]');
+  if (submit) submit.disabled = true;
+  try {
+    const result = await emitAck('guest-convert-account', { username, password, email, emailCode }, 45000);
+    if (!result.success) throw new Error(result.error || '游客账户转换失败');
+    if (result.token) await adoptSessionToken(result.token);
+    state.user = result.user || { ...state.user, username, displayName: username, guest: false };
+    state.capabilities = { ...state.capabilities, ...(result.capabilities || {}), guest: false };
+    state.permissions = { ...state.permissions, ...(result.permissions || {}) };
+    if (result.profile) state.profile = result.profile;
+    elements.accountName.textContent = state.user.displayName || state.user.username;
+    updateAdministrativeAccess(); updateGuestConversionAccess(); renderUsers();
+    closeGuestConversion();
+    toast('已原地转换为正式成员；下次可使用新账号和密码登录', 'success', 8000);
+  } catch (error) {
+    const message = localizedError(error, '游客账户转换失败');
+    if (elements.guestConvertStatus) elements.guestConvertStatus.textContent = message;
+    toast(message, 'error', 7000);
+  } finally { if (submit) submit.disabled = false; }
+}
+
+async function openCreateRoom() {
+  if (!state.authenticated && (!elements.username.value.trim() || !elements.password.value)) return setLoginStatus('请先填写账号和登录密码，再创建房间');
+  if (state.authenticated) await refreshProfile();
+  elements.newRoomName.value = state.user ? `${state.user.displayName || state.user.username} 的房间` : `${elements.username.value.trim()} 的房间`;
+  elements.newRoomPassword.value = '';
+  if (elements.newRoomId) elements.newRoomId.value = '';
+  elements.newRoomMaxUsers.value = 8;
+  const quota = Number(state.profile?.roomQuota) || 1;
+  const owned = Number(state.profile?.ownedRoomCount) || 0;
+  if (elements.roomQuotaStatus) elements.roomQuotaStatus.textContent = state.authenticated ? `当前已拥有 ${owned}/${quota <= 0 || quota >= 9999 ? '不限' : quota} 个房间` : '登录后可查看建房额度';
+  elements.createRoomModal.classList.remove('is-hidden');
+  elements.newRoomName.focus();
+}
+
+async function createRoom(event) {
+  event.preventDefault();
+  const button = elements.createRoomForm.querySelector('button[type="submit"]');
+  button.disabled = true; button.textContent = '正在创建…';
+  try {
+    const result = await emitAck('room-create', {
+      username: state.user?.username || elements.username.value.trim(), password: state.authenticated ? '' : elements.password.value,
+      roomName: elements.newRoomName.value.trim(), roomPassword: elements.newRoomPassword.value,
+      customRoomId: elements.newRoomId?.value.trim().toUpperCase() || '', maxUsers: Number(elements.newRoomMaxUsers.value), ...deviceInfo()
+    }, 30000);
+    if (!result.success) {
+      if (result.code === 'ROOM_QUOTA_REACHED') elements.roomQuotaStatus.textContent = result.error;
+      return toast(result.error, 'error', 7000);
+    }
+    state.token = result.token; state.rememberSession = state.authenticated ? state.rememberSession : elements.autoLogin.checked;
+    elements.createRoomModal.classList.add('is-hidden');
+    await finishAuthentication(result, state.rememberSession);
+    toast(`房间已创建：${result.room.id}`, 'success', 7000);
+  } catch (error) { toast(`创建房间失败：${localizedError(error, '请检查服务器连接后重试')}`, 'error'); }
+  finally { button.disabled = false; button.textContent = '创建并进入房间'; }
+}
+
+function openSwitchRoom(roomId = '') {
+  if (!state.authenticated) return toast('请先登录账号', 'error');
+  elements.switchRoomId.value = String(roomId || '').trim().toUpperCase();
+  elements.switchRoomPassword.value = '';
+  renderSwitchOwnedRooms(state.profile?.recentRooms || [], { loading: !state.profile });
+  elements.switchRoomModal.classList.remove('is-hidden');
+  elements.switchRoomId.focus();
+  void refreshSwitchOwnedRooms(false);
+}
+
+function renderSwitchOwnedRooms(rooms = [], { loading = false, error = '' } = {}) {
+  if (!elements.switchOwnedRoomList) return;
+  const currentRoomId = String(state.room?.id || '').toUpperCase();
+  const ownedRooms = (Array.isArray(rooms) ? rooms : [])
+    .filter((room) => room?.owned)
+    .sort((left, right) => Number(Boolean(right.pinned)) - Number(Boolean(left.pinned)) || String(left.name || left.id).localeCompare(String(right.name || right.id), 'zh-CN'));
+  if (elements.switchOwnedRoomStatus) {
+    elements.switchOwnedRoomStatus.textContent = loading
+      ? '正在刷新…'
+      : error
+        ? '刷新失败，可使用已有列表'
+        : `共 ${ownedRooms.length} 个`;
+  }
+  state.switchOwnedRoomSnapshot = ownedRooms;
+  state.selectedSwitchOwnedRooms = new Set([...state.selectedSwitchOwnedRooms].filter((id) => ownedRooms.some((room) => room.id === id)));
+  if (!ownedRooms.length) {
+    elements.switchOwnedRoomList.innerHTML = `<div class="switch-owned-room-empty"><p>${loading ? '正在读取我的房间…' : error ? escapeHtml(error) : '还没有自己拥有的正式房间。'}</p><button data-switch-room-action="create" class="primary-button" type="button">创建正式房间</button></div>`;
+    return;
+  }
+  elements.switchOwnedRoomList.innerHTML = `<div class="room-directory-toolbar switch-room-toolbar"><label class="check-line"><input data-switch-owned-select-all type="checkbox" ${state.selectedSwitchOwnedRooms.size === ownedRooms.length ? 'checked' : ''}> 全选</label><button data-switch-room-action="delete-selected" class="danger-button" type="button" ${state.selectedSwitchOwnedRooms.size ? '' : 'disabled'}>删除所选（${state.selectedSwitchOwnedRooms.size}）</button></div>${ownedRooms.map((room) => {
+    const id = String(room.id || '').toUpperCase();
+    const current = id === currentRoomId;
+    const disabled = current || room.banned;
+    const selected = state.selectedSwitchOwnedRooms.has(id) ? 'checked' : '';
+    return `<article class="switch-owned-room ${current ? 'current' : ''}"><label class="global-room-select"><input data-switch-owned-select type="checkbox" value="${escapeHtml(id)}" ${selected}><span>选择</span></label><div><strong>${room.pinned ? '★ ' : ''}${escapeHtml(room.name || '私人影院')}</strong><small>${escapeHtml(id)} · ${escapeHtml(roomDirectoryStateText(room, currentRoomId))} · ${Number(room.online) || 0}/${Number(room.maxUsers) || 0} 人</small></div>${renderRoomDirectoryDetails(room)}<div class="actions"><button data-switch-owned-room="${escapeHtml(id)}" class="${current ? 'secondary-button' : 'primary-button'}" type="button" ${disabled ? 'disabled' : ''}>${current ? '当前房间' : '一键进入'}</button><button data-switch-room-action="delete" data-room-id="${escapeHtml(id)}" class="danger-button" type="button">永久删除</button></div></article>`;
+  }).join('')}`;
+}
+
+async function refreshSwitchOwnedRooms(announce = false) {
+  if (state.switchOwnedRoomsLoading || !state.socketAuthenticated) return;
+  state.switchOwnedRoomsLoading = true;
+  if (elements.switchOwnedRoomRefreshBtn) {
+    elements.switchOwnedRoomRefreshBtn.disabled = true;
+    elements.switchOwnedRoomRefreshBtn.textContent = '正在刷新…';
+  }
+  renderSwitchOwnedRooms(state.profile?.recentRooms || [], { loading: true });
+  try {
+    const profile = await refreshProfile();
+    if (!profile) throw new Error('服务器没有返回房间资料');
+    renderSwitchOwnedRooms(profile.recentRooms || []);
+    if (announce) toast('我的房间列表已刷新', 'success');
+  } catch (error) {
+    const message = localizedError(error, '读取我的房间失败');
+    renderSwitchOwnedRooms(state.profile?.recentRooms || [], { error: message });
+    if (announce) toast(`刷新失败：${message}`, 'error');
+  } finally {
+    state.switchOwnedRoomsLoading = false;
+    if (elements.switchOwnedRoomRefreshBtn) {
+      elements.switchOwnedRoomRefreshBtn.disabled = false;
+      elements.switchOwnedRoomRefreshBtn.textContent = '刷新我的房间';
+    }
+  }
+}
+
+async function handleSwitchOwnedRoomAction(event) {
+  const actionButton = event.target.closest('[data-switch-room-action]');
+  if (actionButton) {
+    const action = actionButton.dataset.switchRoomAction;
+    if (action === 'create') { elements.switchRoomModal.classList.add('is-hidden'); void openCreateRoom(); }
+    else if (action === 'delete') void removeSwitchOwnedRooms([actionButton.dataset.roomId]);
+    else if (action === 'delete-selected') void removeSwitchOwnedRooms([...state.selectedSwitchOwnedRooms]);
+    return;
+  }
+  const button = event.target.closest('[data-switch-owned-room]');
+  if (!button || button.disabled) return;
+  const roomId = String(button.dataset.switchOwnedRoom || '').toUpperCase();
+  button.disabled = true; button.textContent = '正在进入…';
+  const switched = await switchToRoomDirect(roomId, { source: '我的房间' });
+  if (switched) elements.switchRoomModal.classList.add('is-hidden');
+  else renderSwitchOwnedRooms(state.profile?.recentRooms || []);
+}
+
+function handleSwitchOwnedRoomSelection(event) {
+  if (event.target.matches('[data-switch-owned-select-all]')) {
+    state.selectedSwitchOwnedRooms = event.target.checked ? new Set(state.switchOwnedRoomSnapshot.map((room) => room.id)) : new Set();
+  } else if (event.target.matches('[data-switch-owned-select]')) {
+    if (event.target.checked) state.selectedSwitchOwnedRooms.add(event.target.value); else state.selectedSwitchOwnedRooms.delete(event.target.value);
+  } else return;
+  renderSwitchOwnedRooms(state.switchOwnedRoomSnapshot);
+}
+
+async function removeSwitchOwnedRooms(roomIds) {
+  const ids = [...new Set(roomIds)].filter(Boolean);
+  if (!ids.length) return;
+  const confirmed = await showAppConfirm(`所选 ${ids.length} 个房间会被永久删除，并清除影片、聊天和记录。确定继续吗？`, {
+    title: '永久删除房间', confirmText: '确认永久删除', danger: true
+  });
+  if (!confirmed) return;
+  const result = await emitAck('account-action', { action: 'remove-rooms', roomIds: ids, confirmOwnedDeletion: true }, 60000);
+  if (!result.success) return toast(result.error || '删除房间失败', 'error', 8000);
+  if (result.profile) state.profile = result.profile;
+  state.selectedSwitchOwnedRooms.clear();
+  renderSwitchOwnedRooms(state.profile?.recentRooms || []);
+  toast(result.message || '我的房间列表已更新', 'success', 7000);
+}
+
+async function switchRoom(event) {
+  event?.preventDefault?.();
+  const roomId = String(elements.switchRoomId.value || '').trim().toUpperCase();
+  const previousRoom = state.room ? `${state.room.name || '当前房间'}（${state.room.id || ''}）` : '当前房间';
+  if (!/^[A-Z0-9]{4,32}$/.test(roomId)) return toast('请输入正确的房间号（4-32 位大写字母或数字）', 'error');
+  const submit = elements.switchRoomForm.querySelector('button[type="submit"]');
+  submit.disabled = true; submit.textContent = '正在切换…';
+  try {
+    const result = await emitAck('room-switch', { roomId, roomPassword: elements.switchRoomPassword.value }, 30000);
+    if (!result.success) return toast(result.error, 'error');
+    elements.switchRoomModal.classList.add('is-hidden');
+    await finishAuthentication(result, state.rememberSession);
+    showRoomSwitchSuccess(previousRoom, `${result.room?.name || '目标房间'}（${result.room?.id || roomId}）`);
+    toast(`已切换到房间 ${roomId}`, 'success');
+  } catch (error) { toast(`切换房间失败：${localizedError(error)}`, 'error'); }
+  finally { submit.disabled = false; submit.textContent = '切换房间'; }
+}
+
+async function switchToRoomDirect(roomId, { address = '', source = '房间列表' } = {}) {
+  const id = String(roomId || '').trim().toUpperCase();
+  if (!state.authenticated) return false;
+  const previousRoom = state.room ? `${state.room.name || '当前房间'}（${state.room.id || ''}）` : '当前房间';
+  let roomPassword = '';
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    const result = await emitAck('room-switch', { roomId: id, roomPassword }, 30000);
+    if (result.success) {
+      await finishAuthentication(result, state.rememberSession);
+      showRoomSwitchSuccess(previousRoom, `${result.room?.name || '目标房间'}（${result.room?.id || id}）`);
+      toast(`已从${source}直接切换到房间 ${id}`, 'success');
+      return true;
+    }
+    if (attempt === 0 && (result.code === 'ROOM_PASSWORD_REQUIRED' || /房间密码/.test(result.error || ''))) {
+      roomPassword = await showAppInput({
+        title: '输入房间密码', description: `房间 ${id} 首次进入需要验证。验证成功后，除非房主修改密码，以后将自动进入。`,
+        label: '房间密码', password: true, trim: false, maxLength: 72, confirmText: '验证并加入'
+      });
+      if (roomPassword === null) return false;
+      continue;
+    }
+    if (address) {
+      try {
+        const targetOrigin = new URL(address, location.href).origin;
+        if (targetOrigin !== location.origin && result.error === '目标房间不存在') {
+          toast('该房间属于另一台服务器，需要在目标服务器登录一次', 'error', 7000);
+          location.href = `${address.replace(/\/$/, '')}/?room=${encodeURIComponent(id)}`;
+          return false;
+        }
+      } catch (_) {}
+    }
+    toast(result.error || '切换房间失败', 'error');
+    return false;
+  }
+  return false;
+}
+
+function showRoomSwitchSuccess(fromRoom, toRoom) {
+  if (!elements.roomSwitchSuccessOverlay) return;
+  clearTimeout(state.roomSwitchSuccessTimer);
+  elements.roomSwitchSuccessText.textContent = `从 ${fromRoom} 切换到 ${toRoom}`;
+  elements.roomSwitchSuccessOverlay.classList.remove('is-hidden');
+  state.roomSwitchSuccessTimer = setTimeout(hideRoomSwitchSuccess, 2600);
+}
+
+function hideRoomSwitchSuccess() {
+  clearTimeout(state.roomSwitchSuccessTimer);
+  elements.roomSwitchSuccessOverlay?.classList.add('is-hidden');
+}
+
+function openManagementHub(section = 'server', { allowLogin = false } = {}) {
+  const canManage = Boolean(state.authenticated && (state.capabilities.owner || state.capabilities.serverHost || state.capabilities.superAdmin || state.permissions.manageRoom || state.permissions.manageChat));
+  if ((!state.authenticated && !allowLogin) || (state.authenticated && !canManage)) return toast('当前账号没有管理权限', 'error');
+  if (!state.managementHomeParent) {
+    state.managementHomeParent = elements.adminTab.parentNode;
+    state.managementHomeNextSibling = elements.adminTab.nextSibling;
+  }
+  elements.managementContentHost.appendChild(elements.adminTab);
+  elements.adminTab.classList.remove('is-hidden');
+  elements.managementHubModal.classList.remove('is-hidden');
+  showManagementSection(section);
+  if (!state.authenticated && allowLogin) {
+    elements.managementAuth?.classList.remove('is-hidden');
+    if (elements.adminUsername) elements.adminUsername.value = elements.username?.value.trim() || '';
+    setTimeout(() => elements.adminUsername?.focus(), 80);
+    return;
+  }
+  if (state.capabilities.superAdmin && !state.adminSettings) void loadAdminSettings();
+}
+
+function openServerSettingsFromLogin() {
+  return openManagementHub('server', { allowLogin: true });
+}
+
+function closeManagementHub() {
+  clearTimeout(state.adminRefreshTimer); state.adminRefreshTimer = null;
+  revokeLoginCubeEditorObjectUrls();
+  elements.managementHubModal.classList.add('is-hidden');
+  elements.adminTab.classList.add('is-hidden');
+  if (state.managementHomeParent) state.managementHomeParent.insertBefore(elements.adminTab, state.managementHomeNextSibling);
+}
+
+function showManagementSection(section = 'room') {
+  state.managementSection = section;
+  if (elements.permissionContextRoom) elements.permissionContextRoom.textContent = state.room?.id || '--';
+  if (elements.permissionContextOwner) {
+    const ownerUsername = state.room?.ownerUsername || '';
+    const owner = state.users.find((member) => member.username === ownerUsername);
+    elements.permissionContextOwner.textContent = ownerUsername ? `${owner?.displayName || ownerUsername}（${ownerUsername}）` : '--';
+  }
+  document.querySelectorAll('[data-management-section]').forEach((button) => button.classList.toggle('active', button.dataset.managementSection === section));
+  elements.adminTab.querySelectorAll('[data-management-panel]').forEach((card) => card.classList.toggle('management-filtered', card.dataset.managementPanel !== section));
+  elements.managementContentHost.scrollTop = 0;
+  clearTimeout(state.adminRefreshTimer);
+  if (section === 'rooms' && state.adminSettings?.serverAdmin) {
+    state.adminRefreshTimer = setTimeout(async function refreshRoomsLoop() {
+      if (elements.managementHubModal.classList.contains('is-hidden') || state.managementSection !== 'rooms') return;
+      if (!state.adminRefreshInFlight) { state.adminRefreshInFlight = true; try { await loadAdminSettings({ silent: true }); } finally { state.adminRefreshInFlight = false; } }
+      state.adminRefreshTimer = setTimeout(refreshRoomsLoop, 3000);
+    }, 3000);
+  }
+}
+
+async function promptAdminPasswordChange() {
+  if (state.publicConfig.initialPasswordReminderEnabled === false || !state.capabilities.mustChangeAdminPassword || !state.capabilities.serverHost) return;
+  const openSettings = await showAppConfirm('当前仍在使用首次启动管理员密码。请在开放其他设备访问前立即修改。', { title: '请先修改服务器管理员密码', confirmText: '现在修改', cancelText: '稍后提醒' });
+  if (openSettings) { openManagementHub('server'); setTimeout(() => elements.newAdminPassword?.focus(), 100); }
+}
+
+async function showClaimedRegistrationRequests(requests = []) {
+  const pending = Array.isArray(requests) ? requests.filter((request) => request?.id) : [];
+  if (!pending.length || !state.authenticated || !state.capabilities.superAdmin) return;
+  if (activeAppDialog || state.accountPasswordPromptActive) {
+    setTimeout(() => void showClaimedRegistrationRequests(pending), 500);
+    return;
+  }
+  const preview = pending.slice(0, 5).map((request) => {
+    const count = Math.max(1, Number(request.requestedCount) || 1);
+    return `${request.username || '未命名账号'}（${count} 个名额${request.reason ? ` · ${request.reason}` : ''}）`;
+  }).join('\n');
+  const extra = pending.length > 5 ? `\n另有 ${pending.length - 5} 条申请。` : '';
+  const openNow = await showAppConfirm(`您是本次上线后第一个登录的超级管理员，共有 ${pending.length} 条待处理的多账号注册申请：\n\n${preview}${extra}\n\n其他后续登录的管理员不会再看到此弹窗，但仍可在用户申请中心处理。`, {
+    title: '多账号注册申请', confirmText: '立即处理', cancelText: '稍后处理'
+  });
+  if (!openNow) return;
+  openManagementHub('applications');
+  await loadAdminSettings();
+  setTimeout(() => elements.registrationRequestList?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 180);
+}
+
+// APP_DIALOG_BACK is a real state transition in promptRequiredAccountPasswordChange,
+// so returning to an earlier field never submits or restarts the whole wizard.
+async function promptRequiredAccountPasswordChange() {
+  if (state.publicConfig.initialPasswordReminderEnabled === false || state.accountPasswordPromptActive || state.initialAdminPasswordSetupSkipped || !state.capabilities.mustChangeAccountPassword || !state.authenticated) return;
+  state.accountPasswordPromptActive = true;
+  try {
+    const initialSetup = Boolean(state.capabilities.canSetInitialAccountPassword && state.capabilities.serverHost && state.user?.username === 'admin');
+    const policy = state.publicConfig.passwordPolicy || { minLength: 6, maxLength: 72 };
+    const minimum = initialSetup ? Math.max(8, Number(policy.minLength) || 6) : Math.max(1, Number(policy.minLength) || 6);
+    const maximum = Math.max(minimum, Number(policy.maxLength) || 72);
+    let step = 0;
+    let currentPassword = '';
+    let newPassword = '';
+    while (state.authenticated && state.capabilities.mustChangeAccountPassword) {
+      if (step === 0) {
+        const value = await showAppInput({
+          title: '首次登录需要修改密码', description: '先校验当前密码，校验正确后才能设置新密码。',
+          label: '当前密码', password: true, trim: false, minLength: 1, maxLength: 72, initialValue: currentPassword,
+          confirmText: '校验并进入下一步', cancelText: initialSetup ? '暂不更改' : '退出登录'
+        });
+        if (value === null) {
+          if (initialSetup) { state.initialAdminPasswordSetupSkipped = true; toast('已暂不更改初始密码，请尽快完成修改', 'error', 8000); return; }
+          await logout(); return;
+        }
+        currentPassword = value;
+        const verified = await emitAck('verify-current-password', { currentPassword }, 15000);
+        if (!verified.success) { toast(verified.error || '当前密码不正确，请重新输入', 'error'); currentPassword = ''; continue; }
+        step = 1;
+      }
+      if (step === 1) {
+        const value = await showAppInput({
+          title: initialSetup ? '设置新的 admin 与服务器管理员密码' : '设置新的登录密码',
+          description: initialSetup ? '设置后会同时替换 admin 初始密码和服务器管理员密码。' : '当前密码已校验，请按照服务器规则设置新密码。',
+          label: '新密码', password: true, trim: false, minLength: minimum, maxLength: maximum, initialValue: newPassword,
+          minLengthMessage: `新密码至少 ${minimum} 位`, validate: (input) => input === currentPassword ? '新密码不能与当前密码相同' : '',
+          confirmText: '下一步', allowBack: true, backText: '上一步', cancelText: initialSetup ? '暂不更改' : '退出登录'
+        });
+        if (value === APP_DIALOG_BACK) { step = 0; continue; }
+        if (value === null) {
+          if (initialSetup) { state.initialAdminPasswordSetupSkipped = true; toast('已暂不更改初始密码，请尽快完成修改', 'error', 8000); return; }
+          await logout(); return;
+        }
+        newPassword = value; step = 2;
+      }
+      if (step === 2) {
+        const confirmation = await showAppInput({
+          title: '确认新密码', description: '再次输入新密码；如需修改可点击“上一步”。', label: '确认密码', password: true, trim: false,
+          minLength: minimum, maxLength: maximum, validate: (value) => value === newPassword ? '' : '两次输入的密码不一致',
+          confirmText: '修改并继续', allowBack: true, backText: '上一步', cancelText: initialSetup ? '暂不更改' : '退出登录'
+        });
+        if (confirmation === APP_DIALOG_BACK) { step = 1; continue; }
+        if (confirmation === null) {
+          if (initialSetup) { state.initialAdminPasswordSetupSkipped = true; return; }
+          await logout(); return;
+        }
+        const result = await emitAck('account-action', { action: 'change-password', currentPassword, newPassword, initialSetup }, 30000);
+        if (!result.success) {
+          toast(result.error || '密码修改失败，请重试', 'error');
+          step = result.code === 'CURRENT_PASSWORD_INVALID' ? 0 : 1;
+          if (step === 0) currentPassword = '';
+          continue;
+        }
+        if (result.token) await adoptSessionToken(result.token);
+        state.capabilities.mustChangeAccountPassword = false;
+        if (result.initialSetup) {
+          state.capabilities.mustChangeAdminPassword = false;
+          state.capabilities.canSetInitialAccountPassword = false;
+          elements.defaultPasswordWarning?.classList.add('is-hidden');
+        }
+        toast('登录密码已更新，可以继续使用全部功能', 'success', 7000);
+        return;
+      }
+    }
+  } finally { state.accountPasswordPromptActive = false; }
+}
+
+async function dissolveCurrentRoom() {
+  if (!state.capabilities.owner) return toast('只有房主可以解散房间', 'error');
+  const preserve = await showAppConfirm('解散后是否存档房间数据？存档会保留影片、聊天、播放队列、播放位置和房间记录，下次输入相同房间号即可恢复。', { title: '解散房间', confirmText: '保存并解散', cancelText: '不保存' });
+  if (!preserve) {
+    const remove = await showAppConfirm('不保存会永久删除本房间上传文件和记录。确定彻底删除吗？', { title: '永久删除房间数据', confirmText: '删除并解散', cancelText: '取消', danger: true });
+    if (!remove) return;
+  }
+  const result = await ownerAction('dissolve-room', { preserveData: preserve });
+  if (result.success) closeManagementHub();
+}
+
+async function openLanScan() {
+  elements.lanScanModal.classList.remove('is-hidden');
+  await scanLanRooms();
+}
+
+async function scanLanRooms() {
+  elements.lanRoomList.innerHTML = '<p class="muted">正在扫描所有公开房间…</p>';
+  const discoveries = [];
+  try {
+    const onlineResponse = await fetchWithTimeout('/api/online-rooms', {}, 6000);
+    if (onlineResponse.ok) discoveries.push(await onlineResponse.json());
+  } catch (_) {}
+  try {
+    const response = await fetchWithTimeout('/api/lan-rooms', {}, 6000);
+    if (response.ok) discoveries.push(await response.json());
+  } catch (_) {}
+  const bridge = window.SyncWatchAndroid;
+  if (bridge && typeof bridge.scanLanRooms === 'function') {
+    try {
+      const nativePromise = new Promise((resolve) => {
+        state.lanScanResolver = resolve;
+        setTimeout(() => { if (state.lanScanResolver === resolve) { state.lanScanResolver = null; resolve([]); } }, 4500);
+      });
+      const started = await Promise.resolve(bridge.scanLanRooms());
+      if (started !== false && started !== 'false') discoveries.push(...await nativePromise);
+    } catch (_) { state.lanScanResolver = null; }
+  }
+  state.lanRooms = normalizeLanDiscoveries(discoveries);
+  renderLanRooms();
+}
+
+function receiveNativeLanRooms(payload) {
+  let parsed = payload;
+  try { if (typeof payload === 'string') parsed = JSON.parse(payload); } catch (_) { parsed = []; }
+  const values = Array.isArray(parsed) ? parsed : [parsed];
+  const resolver = state.lanScanResolver; state.lanScanResolver = null;
+  resolver?.(values);
+}
+
+function normalizeLanDiscoveries(discoveries) {
+  const rooms = new Map();
+  for (const discovery of discoveries.flatMap((item) => Array.isArray(item) ? item : [item])) {
+    if (!discovery || typeof discovery !== 'object') continue;
+    const addresses = Array.isArray(discovery.addresses) ? discovery.addresses : discovery.address ? [discovery.address] : [location.origin];
+    for (const room of Array.isArray(discovery.rooms) ? discovery.rooms : []) {
+      const id = String(room.id || '').toUpperCase(); if (!/^[A-Z0-9]{4,32}$/.test(id)) continue;
+      const address = String(addresses[0] || location.origin).replace(/\/$/, '');
+      rooms.set(`${address}|${id}`, { ...room, id, address, server: discovery.server || '' });
+    }
+  }
+  return [...rooms.values()].sort((left, right) => Number(right.online || 0) - Number(left.online || 0));
+}
+
+function renderLanRooms() {
+  if (!state.lanRooms.length) { elements.lanRoomList.innerHTML = '<p class="muted">没有发现公开房间。服务器离线或房间已被封禁时不会出现在扫描结果中。</p>'; return; }
+  elements.lanRoomList.innerHTML = state.lanRooms.map((room) => `<div class="history-row" data-lan-room="${escapeHtml(room.id)}" data-lan-address="${escapeHtml(room.address)}"><div><strong><span class="room-type-badge ${room.temporary ? 'temporary' : 'formal'}">${room.temporary ? '临时房间' : '正式房间'}</span> ${escapeHtml(room.name || '私人影院')} · ${escapeHtml(room.id)}</strong><p>${escapeHtml(room.server || room.address)} · ${Number(room.online) || 0}/${Number(room.maxUsers) || 0} 人${room.passwordRequired ? ' · 需要密码' : ''}</p></div><button data-lan-action="join" type="button">加入</button></div>`).join('');
+}
+
+function handleLanRoomAction(event) {
+  const button = event.target.closest('[data-lan-action="join"]'); if (!button) return;
+  const row = button.closest('[data-lan-room]'); const address = String(row?.dataset.lanAddress || ''); const roomId = row?.dataset.lanRoom || '';
+  elements.lanScanModal.classList.add('is-hidden');
+  if (!state.authenticated) {
+    state.pendingJoinRoomId = roomId;
+    showAuthMode('login');
+    elements.roomIdInput.value = roomId;
+    state.roomIdTouched = true;
+    void loadRoomInfo();
+    setLoginStatus(`已选择房间 ${roomId}，请输入账号和密码后进入`, true);
+    elements.username?.focus();
+    return;
+  }
+  void switchToRoomDirect(roomId, { address, source: '扫描结果' });
+}
+
+function queueSessionResume(reconnecting = false) {
+  if (!state.token || (state.authenticated && state.socketAuthenticated)) return;
+  state.resumeNeeded = true; state.resumeReconnect = state.resumeReconnect || reconnecting;
+  clearTimeout(state.resumeRetryTimer);
+  if (!state.socket?.connected || state.resumeInFlight) return;
+  void resumeSession();
+}
+
+async function resumeSession() {
+  if (state.resumeInFlight || !state.resumeNeeded || !state.socket?.connected || !state.token) return;
+  state.resumeInFlight = true; state.resumeNeeded = false;
+  const reconnecting = state.resumeReconnect || state.authenticated; state.resumeReconnect = false;
+  const socketId = state.socket.id;
+  try {
+    const result = await emitAck('session-resume', { token: state.token, ...deviceInfo() });
+    if (socketId !== state.socket.id || !state.socket.connected || result.transient) {
+      state.resumeNeeded = Boolean(state.token);
+      if (!reconnecting) setLoginStatus(result.error || '连接发生变化，正在重试…');
+      return;
+    }
+    if (!result.success) {
+      clearSession(); setLoginStatus(result.error);
+      if (reconnecting) setTimeout(() => location.reload(), 250);
+      else { updateConnection(true); setReconnectState(false); }
+      return;
+    }
+    state.token = result.token || state.token;
+    await finishAuthentication(result, state.rememberSession, reconnecting);
+  } catch (error) {
+    state.socketAuthenticated = false; state.resumeNeeded = Boolean(state.token);
+    updateConnection(false, '验证重试中');
+    setReconnectState(Boolean(state.authenticated));
+    if (!reconnecting) setLoginStatus(localizedError(error, '登录失败，请稍后重试'));
+  } finally {
+    state.resumeInFlight = false;
+    if (state.resumeNeeded && state.socket?.connected && state.token) {
+      state.resumeRetryTimer = setTimeout(() => queueSessionResume(reconnecting), 500);
+    }
+  }
+}
+
+function resetRoomScopedClientState() {
+  void leaveLiveVoice(Boolean(state.socketAuthenticated));
+  if (state.localCapture) stopLocalCapture(true);
+  if (state.nativeCapture) stopNativeCapture(true);
+  state.users = [];
+  state.messages = []; state.chatHasMore = true; state.chatBeforeId = ''; state.chatBefore = '';
+  state.chatManageAccounts = []; resetChatManagerMessages();
+  state.playbackRevision = -1; state.playbackAnchor = null; state.pendingPlayback = null;
+  state.files = new Map(); state.queue = []; state.currentFile = null; clearStage();
+}
+
+async function finishAuthentication(result, remember, reconnecting = false) {
+  const wasAuthenticated = state.authenticated;
+  if (!wasAuthenticated) state.initialAdminPasswordSetupSkipped = false;
+  const previousRoomId = state.room?.id || '';
+  const nextRoomId = result.room?.id || '';
+  const roomChanged = Boolean(previousRoomId && nextRoomId && previousRoomId !== nextRoomId);
+  const generation = ++state.authGeneration; const socketId = state.socket?.id;
+  const token = result.token || state.token;
+  state.token = token;
+  if (Number.isFinite(Number(result.serverTime))) updateServerClock(Number(result.serverTime), Date.now(), Date.now(), 100);
+  const sessionResponse = await fetchWithTimeout('/api/session', { method: 'POST', headers: authHeaders({}, token) }, 12000);
+  if (!sessionResponse.ok) throw new Error('无法建立媒体访问会话，请重新登录');
+  if (!await ensureAgreementAccepted(result)) {
+    try { await fetchWithTimeout('/api/logout', { method: 'POST', headers: authHeaders({}, token) }, 5000); } catch (_) {}
+    clearSession();
+    updateConnection(Boolean(state.socket?.connected), state.socket?.connected ? '已连接' : '连接中断');
+    setLoginStatus('未同意服务协议，已取消本次登录');
+    void refreshLoginSurfaceAfterCancelledAuthentication();
+    return;
+  }
+  const files = await fetchFiles(token);
+  if (!state.socket?.connected || state.socket.id !== socketId || generation !== state.authGeneration) throw new Error('连接在初始化期间发生变化');
+
+  if (roomChanged) resetRoomScopedClientState();
+  state.token = token; state.user = result.user; state.room = result.room;
+  state.capabilities = result.capabilities || {}; state.permissions = result.permissions || {};
+  state.authenticated = true; state.socketAuthenticated = true; state.resumeNeeded = false; state.rememberSession = Boolean(remember); state.intentionalLogout = false;
+  // Keep the room focused on playback on every fresh entry; users can reopen chat with one click.
+  state.mobileChatCollapsed = true;
+  try { localStorage.setItem('syncwatchMobileChatCollapsed', '1'); } catch (_) {}
+  if (remember) localStorage.setItem('syncwatchToken', state.token); else localStorage.removeItem('syncwatchToken');
+  elements.loginPage.classList.add('is-hidden'); elements.mainPage.classList.remove('is-hidden');
+  elements.loginMusicAudio?.pause();
+  elements.loginBackgroundVideo?.pause();
+  elements.loginBackgroundVideo?.classList.add('is-hidden');
+  stopLoginCubeMotion();
+  elements.mainPage.classList.add('room-entering');
+  setTimeout(() => elements.mainPage.classList.remove('room-entering'), 900);
+  elements.roomHeader.classList.remove('is-hidden'); elements.accountMenuBtn.classList.remove('is-hidden');
+  elements.accountName.textContent = state.user.displayName || state.user.username; elements.logoutBtn.classList.remove('is-hidden');
+  updateGuestConversionAccess();
+  elements.newRoomBtn?.classList.remove('is-hidden'); elements.switchRoomBtn?.classList.remove('is-hidden'); elements.lanScanBtn?.classList.remove('is-hidden'); elements.webShareBtn?.classList.remove('is-hidden');
+  elements.androidApkBtn?.classList.toggle('is-hidden', !state.publicConfig.androidApkAvailable);
+  elements.hostTunnelCard.classList.toggle('is-hidden', !(state.capabilities.serverHost || state.capabilities.superAdmin));
+  elements.ownerControls.classList.toggle('is-hidden', !(state.capabilities.owner || state.capabilities.superAdmin));
+  elements.dissolveRoomCard?.classList.toggle('is-hidden', !state.capabilities.owner);
+  document.querySelectorAll('.owner-chat').forEach((item) => item.classList.toggle('is-hidden', !(state.capabilities.owner || state.capabilities.superAdmin)));
+  updateAdministrativeAccess(); applyPublicConfig(); updateAccountAvatar('');
+  refreshSelfAccess(); renderUsers();
+  applyFiles(files);
+  applyRoom(result.room);
+  if (result.room?.passwordEnforcementRequired && result.capabilities?.owner && !result.room?.passwordRequired) {
+    setTimeout(() => toastWithAction('服务器要求当前房间设置访问密码。完成设置前，房主的播放控制会暂停；其他成员可以继续观看。', '现在设置', () => {
+      openManagementHub('room'); setTimeout(() => elements.accessPassword?.focus(), 160);
+    }, 0), 280);
+  }
+  for (const notification of Array.isArray(result.notifications) ? result.notifications : []) showAccountNotification(notification);
+  state.friendSettings = { ...state.friendSettings, ...(result.friendSettings || {}) };
+  for (const notification of Array.isArray(result.friendNotifications) ? result.friendNotifications : []) {
+    addPersistentRequest({ ...notification, kind: 'friend-message', own: false });
+  }
+  for (const request of Array.isArray(result.friendRoomRequests) ? result.friendRoomRequests : []) {
+      if (!request.snoozedUntil || Date.parse(request.snoozedUntil) <= Date.now()) addPersistentRequest({ ...request, requestType: request.kind, kind: 'friend-room', own: false });
+  }
+  if (!wasAuthenticated || roomChanged || !state.messages.length) await loadChatHistory(false);
+  else if (reconnecting) await synchronizeMissedChat();
+  if (state.localCapture) await restoreLocalScreenShare();
+  updateConnection(true); setReconnectState(false); setReconnectMessage('正在重新连接…');
+  void refreshAccountAvatar();
+  sessionStorage.setItem('syncwatchRoomId', state.room.id);
+  const currentUrl = new URL(location.href); currentUrl.searchParams.set('room', state.room.id); history.replaceState(null, '', currentUrl.pathname + currentUrl.search);
+  if (state.capabilities.serverHost || state.capabilities.superAdmin) startTunnelPolling(); else stopTunnelPolling();
+  if (!reconnecting && roomChanged || !wasAuthenticated) setTimeout(showF11PromptIfNeeded, 420);
+   // Request location as soon as the room is entered. Browsers may still
+   // require a user gesture; the room toolbar remains a retry action.
+   setTimeout(() => void reportMemberLocation({ interactive: !reconnecting }), 250);
+  if (state.capabilities.mustChangeAccountPassword) {
+    setTimeout(async () => {
+      await promptRequiredAccountPasswordChange();
+      await showClaimedRegistrationRequests(result.claimedRegistrationRequests);
+    }, 350);
+  } else if (state.capabilities.mustChangeAdminPassword) {
+    setTimeout(async () => {
+      await promptAdminPasswordChange();
+      await showClaimedRegistrationRequests(result.claimedRegistrationRequests);
+    }, 350);
+  } else setTimeout(() => void showClaimedRegistrationRequests(result.claimedRegistrationRequests), 350);
+  if (reconnecting && state.liveVoiceMode === 'room') setTimeout(joinRoomVoice, 500);
+  else if (reconnecting && state.liveVoiceMode === 'private') void leaveLiveVoice(false);
+  if (reconnecting) toast('连接已恢复，播放状态已重新同步', 'success', 2400);
+}
+
+async function refreshLoginSurfaceAfterCancelledAuthentication() {
+  state.intentionalLogout = false;
+  if (!state.socket?.connected) state.socket?.connect();
+  await loadPublicConfig(true);
+  await Promise.allSettled([loadOnlineRooms(), loadRoomInfo()]);
+  updateConnection(Boolean(state.socket?.connected), state.socket?.connected ? '已连接' : '正在自动重连');
+}
+
+async function reportMemberLocation({ interactive = false } = {}) {
+  if (!interactive && state.locationPromptDisabled) {
+    if (state.socketAuthenticated) try { await emitAck('member-location', { status: 'suppressed' }, 5000); } catch (_) {}
+    return;
+  }
+  if (state.socketAuthenticated) {
+    try { await emitAck('member-location', { status: 'requested' }, 5000); } catch (_) {}
+  }
+  if (!state.socketAuthenticated || !navigator.geolocation) {
+    if (interactive) toast('当前浏览器不支持位置授权', 'error');
+    return;
+  }
+  if (!window.isSecureContext && !window.SyncWatchAndroid && !['localhost', '127.0.0.1', '[::1]'].includes(location.hostname)) {
+    if (interactive) toast('位置授权要求 HTTPS；局域网 HTTP 只能显示设备网络信息', 'error');
+    try { await emitAck('member-location', { status: 'unavailable' }, 8000); } catch (_) {}
+    return;
+  }
+  const locationResult = await new Promise((resolve) => navigator.geolocation.getCurrentPosition(
+    (position) => resolve({ position, error: null }),
+    (error) => resolve({ position: null, error }), {
+    enableHighAccuracy: true, timeout: 15000, maximumAge: 60 * 1000
+  }));
+  const position = locationResult.position;
+  if (!position) {
+    try { await emitAck('member-location', { status: 'denied' }, 8000); } catch (_) {}
+    if (interactive && !state.locationPromptDisabled) toastWithActions(
+      locationResult.error?.code === 1 ? '浏览器拒绝了位置授权，请在地址栏权限中允许后重试' : '暂时无法获取位置，请检查系统定位服务后重试',
+      [
+        { label: '重新授权', callback: () => reportMemberLocation({ interactive: true }) },
+        { label: '永久不再提示', callback: disableLocationPrompt }
+      ], 0, 'error'
+    );
+    return;
+  }
+  const latitude = Number(position.coords.latitude); const longitude = Number(position.coords.longitude);
+  if (!Number.isFinite(latitude) || !Number.isFinite(longitude) || (Math.abs(latitude) < 0.000001 && Math.abs(longitude) < 0.000001)) {
+    try { await emitAck('member-location', { status: 'unavailable' }, 8000); } catch (_) {}
+    if (interactive) toast('设备没有返回有效的位置坐标，请稍后重试', 'error');
+    return;
+  }
+  const locationPayload = {
+    status: 'authorized', latitude, longitude, accuracy: Math.max(0, Number(position.coords.accuracy) || 0),
+    country: '', province: '', city: '', district: '', street: ''
+  };
+  try {
+    const response = await fetchWithTimeout('/api/location/reverse', {
+      method: 'POST', headers: authHeaders({ 'Content-Type': 'application/json' }), body: JSON.stringify({ latitude, longitude })
+    }, 10000);
+    if (response.ok) {
+      const result = await response.json(); const address = result.location || {};
+      locationPayload.country = address.country || ''; locationPayload.province = address.province || '';
+      locationPayload.city = address.city || ''; locationPayload.district = address.district || '';
+      locationPayload.street = address.street || '';
+    }
+  } catch (_) {}
+  try {
+    await emitAck('member-location', locationPayload, 10000);
+    state.locationPromptDisabled = false; localStorage.removeItem('syncwatchLocationPromptDisabled');
+    if (interactive) toast('位置授权成功，管理员已收到您的授权状态', 'success');
+  } catch (_) {}
+}
+
+function currentMemberLocation() {
+  return state.users.find((user) => user.username === state.user?.username)?.location || state.user?.location || null;
+}
+
+function updateLocationActions() {
+  const location = currentMemberLocation();
+  const authorized = location?.status === '已授权位置' || (Number.isFinite(Number(location?.latitude)) && Number.isFinite(Number(location?.longitude)));
+  elements.authorizeLocationBtn?.classList.toggle('is-hidden', authorized);
+  elements.revokeLocationBtn?.classList.toggle('is-hidden', !authorized);
+  if (elements.authorizeLocationBtn) elements.authorizeLocationBtn.textContent = authorized ? '已授权位置' : '授权位置';
+}
+
+async function revokeMemberLocation() {
+  if (!state.socketAuthenticated) return toast('请先登录后再取消位置授权', 'error');
+  if (!await showAppConfirm('取消后服务器会立即清除已保存的精确位置，管理员和房间成员将不再看到您的位置。浏览器地址栏权限需要另外手动关闭。', {
+    title: '取消位置授权', confirmText: '确认取消', danger: true
+  })) return;
+  const result = await emitAck('member-location-revoke', {}, 10000);
+  toast(result.message || result.error || '位置授权已取消', result.success ? 'success' : 'error', 7000);
+  if (!result.success) return;
+  state.user = { ...state.user, location: result.location || { status: '已撤销位置授权' } };
+  state.users = state.users.map((user) => user.username === state.user.username ? { ...user, location: state.user.location } : user);
+  updateLocationActions(); renderUsers();
+}
+
+function disableLocationPrompt() {
+  state.locationPromptDisabled = true;
+  localStorage.setItem('syncwatchLocationPromptDisabled', '1');
+  toast('已永久关闭位置授权提示，可在“我的资料 → 安全设置”中重新开启', 'success', 7000);
+}
+
+function enableLocationPrompt() {
+  state.locationPromptDisabled = false;
+  localStorage.removeItem('syncwatchLocationPromptDisabled');
+  toast('已重新开启位置授权提示', 'success');
+}
+
+function locationStatusNoticeMuted() {
+  if (state.locationStatusNoticeNever) return true;
+  if (state.locationStatusNoticeMuteUntil > Date.now()) return true;
+  if (state.locationStatusNoticeMuteUntil) {
+    state.locationStatusNoticeMuteUntil = 0;
+    localStorage.removeItem('syncwatchLocationStatusNoticeMuteUntil');
+  }
+  return false;
+}
+
+function muteLocationStatusNotices(durationMs = 0) {
+  if (durationMs < 0) {
+    state.locationStatusNoticeNever = true;
+    state.locationStatusNoticeMuteUntil = 0;
+    localStorage.setItem('syncwatchLocationStatusNoticeNever', '1');
+    localStorage.removeItem('syncwatchLocationStatusNoticeMuteUntil');
+    toast('已永久关闭成员位置状态通知，可在“我的资料 → 安全设置”中恢复', 'success', 7000);
+    return;
+  }
+  state.locationStatusNoticeNever = false;
+  state.locationStatusNoticeMuteUntil = Date.now() + Math.max(0, Number(durationMs) || 0);
+  localStorage.removeItem('syncwatchLocationStatusNoticeNever');
+  localStorage.setItem('syncwatchLocationStatusNoticeMuteUntil', String(state.locationStatusNoticeMuteUntil));
+  toast(`成员位置状态通知已暂停至 ${formatDate(new Date(state.locationStatusNoticeMuteUntil).toISOString())}`, 'success', 7000);
+}
+
+async function configureLocationStatusNotices() {
+  const choice = await showAppSelect({
+    title: '位置状态通知设置',
+    description: '选择后，本设备将在对应时段内不再显示“成员拒绝位置授权”等状态通知；可随时在安全设置中恢复。',
+    label: '免打扰时长',
+    options: [
+      { value: '3600000', label: '1 小时不提示' },
+      { value: '86400000', label: '24 小时不提示' },
+      { value: '604800000', label: '7 天不提示' },
+      { value: 'never', label: '永久不再提示' }
+    ],
+    confirmText: '应用设置'
+  });
+  if (choice === null) return;
+  muteLocationStatusNotices(choice === 'never' ? -1 : Number(choice));
+}
+
+function restoreLocationStatusNotices(announce = true) {
+  state.locationStatusNoticeNever = false;
+  state.locationStatusNoticeMuteUntil = 0;
+  localStorage.removeItem('syncwatchLocationStatusNoticeNever');
+  localStorage.removeItem('syncwatchLocationStatusNoticeMuteUntil');
+  if (announce) toast('已恢复成员位置状态通知', 'success');
+}
+
+function requestOwnerExitChoice() {
+  if (!elements.ownerExitModal) return Promise.resolve('leave');
+  if (state.ownerExitResolver) return Promise.resolve(null);
+  elements.ownerExitModal.classList.remove('is-hidden');
+  return new Promise((resolve) => { state.ownerExitResolver = resolve; });
+}
+
+function handleOwnerExitChoice(event) {
+  const button = event.target.closest('[data-owner-exit]');
+  if (!button || !state.ownerExitResolver) return;
+  const choice = button.dataset.ownerExit;
+  const resolve = state.ownerExitResolver; state.ownerExitResolver = null;
+  elements.ownerExitModal.classList.add('is-hidden');
+  resolve(choice === 'cancel' ? null : choice);
+}
+
+function showDesktopClosePrompt() {
+  if (!elements.desktopCloseModal) {
+    void window.SyncWatchDesktop?.completeCloseChoice?.('cancel');
+    return;
+  }
+  state.desktopClosePending = true;
+  if (elements.desktopCloseStatus) elements.desktopCloseStatus.textContent = '';
+  elements.desktopCloseModal.classList.remove('is-hidden');
+  queueMicrotask(() => elements.desktopCloseModal.querySelector('[data-desktop-close="minimize"]')?.focus());
+}
+
+async function handleDesktopCloseChoice(event) {
+  const button = event.target.closest('[data-desktop-close]');
+  if (!button || !state.desktopClosePending) return;
+  const choice = button.dataset.desktopClose;
+  if (!['minimize', 'quit', 'restart', 'cancel'].includes(choice)) return;
+  state.desktopClosePending = false;
+  elements.desktopCloseModal.classList.add('is-hidden');
+  const result = await window.SyncWatchDesktop?.completeCloseChoice?.(choice);
+  if (result && result.success === false) {
+    state.desktopClosePending = true;
+    elements.desktopCloseModal.classList.remove('is-hidden');
+    if (elements.desktopCloseStatus) elements.desktopCloseStatus.textContent = result.error || '关闭操作失败，请重试';
+  }
+}
+
+async function logout({ preserveCredentials = false } = {}) {
+  let ownerExitAction = 'leave';
+  if (state.capabilities.owner) {
+    ownerExitAction = state.room?.temporary ? 'delete' : await requestOwnerExitChoice();
+    if (!ownerExitAction) return;
+    if (ownerExitAction === 'delete') {
+      const confirmed = await showAppConfirm('永久删除会清除本房间全部影片、聊天、播放队列和历史记录，且无法恢复。', { title: '确认永久删除房间', confirmText: '永久删除并退出', cancelText: '返回选择', danger: true });
+      if (!confirmed) return;
+    }
+  }
+  state.intentionalLogout = true;
+  try {
+    if (preserveCredentials) sessionStorage.setItem('syncwatchRetainedLogin', JSON.stringify({ username: elements.username?.value || state.user?.username || '', password: elements.password?.value || state.lastLoginPassword || '' }));
+    else sessionStorage.removeItem('syncwatchRetainedLogin');
+  } catch (_) {}
+  await leaveLiveVoice(true);
+  try {
+    await fetchWithTimeout('/api/logout', {
+      method: 'POST', headers: authHeaders({ 'Content-Type': 'application/json' }), body: JSON.stringify({ ownerExitAction })
+    }, 30000);
+  } catch (_) {}
+  if (state.user?.guest) {
+    try { sessionStorage.setItem('syncwatchGuestLogoutNotice', '1'); } catch (_) {}
+  }
+  clearSession(); location.reload();
+}
+
+function forcedLogout(message) { state.intentionalLogout = true; clearSession(); toast(message || '已退出登录', 'error'); setTimeout(() => location.reload(), 900); }
+function clearSession() {
+  state.token = ''; state.user = null; state.authenticated = false; state.socketAuthenticated = false;
+  updateGuestConversionAccess();
+  state.friendDirectory = []; state.friendDirectoryLoaded = false; state.friendDirectoryLoading = false;
+  state.friendMessages.clear(); state.selectedDevices.clear();
+  if (elements.friendVideoNoticeLayer) elements.friendVideoNoticeLayer.replaceChildren();
+  state.initialAdminPasswordSetupSkipped = false;
+  state.authGeneration += 1; state.resumeNeeded = false; clearTimeout(state.resumeRetryTimer); localStorage.removeItem('syncwatchToken'); sessionStorage.removeItem('syncwatchRoomId');
+  if (state.nativeCapture) stopNativeCapture(false);
+  void leaveLiveVoice(false);
+  stopTunnelPolling(); cancelUpload(true);
+}
+function authHeaders(extra = {}, token = state.token) { return { Authorization: `Bearer ${token}`, ...extra }; }
+
+function updateConnection(online, label = online ? '已连接' : '连接中断') {
+  elements.connectionBadge.classList.toggle('online', online); elements.connectionBadge.classList.toggle('offline', !online);
+  elements.connectionBadge.querySelector('span').textContent = label;
+}
+function setReconnectState(show) { elements.reconnectOverlay.classList.toggle('is-hidden', !show); }
+function setReconnectMessage(message) { elements.reconnectMessage.textContent = message || '正在重新连接…'; }
+function retryConnectionNow() {
+  setReconnectMessage('正在立即重试…');
+  if (!navigator.onLine) return toast('当前设备仍处于离线状态', 'error');
+  if (!state.socket.connected) state.socket.connect();
+  else if (state.token && !state.socketAuthenticated) queueSessionResume(true);
+  else if (state.authenticated) refreshRoom();
+  void loadPublicConfig(true);
+}
+
+async function fetchWithTimeout(resource, options = {}, timeout = 10000) {
+  const controller = new AbortController(); const timer = setTimeout(() => controller.abort(), timeout);
+  try { return await fetch(resource, { ...options, signal: controller.signal }); }
+  catch (error) { if (error?.name === 'AbortError') throw new Error('请求服务器超时'); throw error; }
+  finally { clearTimeout(timer); }
+}
+
+async function loadPublicConfig(silent = false) {
+  clearTimeout(state.publicConfigRetryTimer);
+  try {
+    const response = await fetchWithTimeout('/api/public-config', { headers: state.hostToken ? { 'X-SyncWatch-Host-Token': state.hostToken } : {} }, 8000);
+    if (!response.ok) throw new Error(`服务器返回 ${response.status}`);
+    state.publicConfig = { ...state.publicConfig, ...await response.json() }; state.publicConfigKnown = true;
+    if (!localStorage.getItem('syncwatchPlaybackQuality')) state.playbackQuality = state.publicConfig.defaultPlaybackQuality || 'original';
+    if (elements.playbackQualitySelect) elements.playbackQualitySelect.value = state.playbackQuality;
+    applyPublicConfig(); void loadRoomInfo(); void loadOnlineRooms();
+    if (!state.authenticated && /读取服务器配置失败/.test(elements.loginStatus.textContent)) setLoginStatus('');
+    return true;
+  } catch (error) {
+    state.publicConfigKnown = false; applyPublicConfig();
+    if (!silent && !state.authenticated) setLoginStatus(`读取服务器配置失败：${localizedError(error, '请检查服务器连接')}，正在重试…`);
+    state.publicConfigRetryTimer = setTimeout(() => loadPublicConfig(true), 2500);
+    return false;
+  }
+}
+
+function applyPublicConfig() {
+  elements.versionText.textContent = state.publicConfig.version || 'v2.1.5';
+  const branding = state.publicConfig.branding || {};
+  if (elements.copyrightNotice) elements.copyrightNotice.textContent = branding.notice || `版权所有 © ${branding.owner || 'xuan'}，保留所有权利。`;
+  if (elements.loginVersionInfo) elements.loginVersionInfo.textContent = `版本 ${state.publicConfig.version || 'v2.1.5'} · ${branding.notice || `版权所有 © ${branding.owner || 'xuan'}，保留所有权利。`}`;
+  applyLoginMarquee(state.publicConfig.marqueeNotice || {});
+  applyLoginMusic(state.publicConfig.loginMusic || {});
+  applyLoginVideo(state.publicConfig.loginVideo || {});
+  applyLoginCubeSettings(state.publicConfig.loginCube || {});
+  if (elements.currentDeviceIp) elements.currentDeviceIp.textContent = state.publicConfig.clientIp || '未能识别';
+  elements.defaultPasswordWarning.classList.toggle('is-hidden', !state.publicConfig.defaultAdminPassword || !state.capabilities.serverHost);
+  elements.defaultAdminLoginHint?.classList.toggle('is-hidden', !state.publicConfig.defaultAdminPassword || state.authenticated);
+  if (elements.loginAccessGroup) elements.loginAccessGroup.classList.add('is-hidden');
+  if (elements.loginRoomPassword) elements.loginRoomPassword.closest('label')?.classList.toggle('is-hidden', false);
+  if (elements.registerAccessGroup) elements.registerAccessGroup.classList.add('is-hidden');
+  const registrationEmailRequired = Boolean(state.publicConfig.registrationEmailVerificationRequired);
+  elements.registrationEmailVerificationRow?.classList.remove('is-hidden');
+  if (elements.regEmail) {
+    elements.regEmail.required = registrationEmailRequired;
+    elements.regEmail.placeholder = registrationEmailRequired ? '必填，需先获取验证码' : '选填；填写后必须输入邮箱验证码';
+  }
+  updateRegistrationEmailVerificationRequirement();
+  elements.androidApkBtn?.classList.toggle('is-hidden', !state.authenticated || !state.publicConfig.androidApkAvailable);
+  elements.aiWorkbenchBtn?.classList.toggle('is-hidden', !state.authenticated);
+  elements.serverAdminLoginBtn?.classList.toggle('is-hidden', !state.publicConfig.serverHostLoginAvailable || state.authenticated);
+  const canManageServer = Boolean(state.authenticated && (state.capabilities.serverHost || state.capabilities.superAdmin));
+  const serverMenu = Boolean(state.publicConfig.serverHostLoginAvailable || state.hostToken || canManageServer);
+  elements.serverSettingsLoginBtn?.classList.toggle('is-hidden', state.authenticated && !canManageServer);
+  elements.resetAdminPasswordBtn?.classList.toggle('is-hidden', !serverMenu);
+  elements.restartServerBtn?.classList.toggle('is-hidden', !canManageServer);
+  elements.downloadClientBtn?.classList.toggle('is-hidden', state.authenticated);
+  if (elements.downloadClientBtn) {
+    elements.downloadClientBtn.title = state.publicConfig.clientDownloadAvailable ? '下载 Windows 服务器客户端' : '当前服务器尚未提供 Windows 客户端文件';
+    elements.downloadClientBtn.dataset.available = String(Boolean(state.publicConfig.clientDownloadAvailable));
+  }
+  elements.downloadClientMainBtn?.classList.toggle('is-hidden', !state.authenticated || !state.publicConfig.clientDownloadAvailable);
+  elements.downloadLoginApkBtn?.classList.toggle('is-hidden', state.authenticated);
+  if (elements.downloadLoginApkBtn) {
+    elements.downloadLoginApkBtn.title = state.publicConfig.androidApkAvailable ? '下载 Android 客户端' : '当前服务器尚未提供 Android 安装包';
+    elements.downloadLoginApkBtn.dataset.available = String(Boolean(state.publicConfig.androidApkAvailable));
+  }
+  const macServerEntries = macDownloadEntries('server');
+  const macClientEntries = macDownloadEntries('client');
+  for (const button of [elements.downloadMacServerBtn, elements.downloadMacServerMainBtn]) if (button) {
+    button.dataset.available = String(macServerEntries.length > 0);
+    button.title = macServerEntries.length
+      ? macServerEntries.map((entry) => `${macArchitectureLabel(entry.architecture)} ${entry.formats.map((format) => format.toUpperCase()).join('/')}`).join('；')
+      : '当前服务器尚未上传 macOS 服务器真实安装包';
+  }
+  for (const button of [elements.downloadMacClientBtn, elements.downloadMacClientMainBtn]) if (button) {
+    button.dataset.available = String(macClientEntries.length > 0);
+    button.title = macClientEntries.length
+      ? macClientEntries.map((entry) => `${macArchitectureLabel(entry.architecture)} ${entry.formats.map((format) => format.toUpperCase()).join('/')}`).join('；')
+      : '当前服务器尚未上传 macOS 客户端真实安装包';
+  }
+  const canSeePort = Boolean(state.authenticated && (state.capabilities.serverHost || state.capabilities.superAdmin));
+  elements.headerServerPortGroup?.classList.toggle('is-hidden', !canSeePort);
+  if (elements.headerServerPort) elements.headerServerPort.textContent = canSeePort ? String(state.publicConfig.port || location.port || '默认') : '--';
+  const contact = state.publicConfig.contact || {};
+  elements.adminContactBtn?.classList.toggle('is-hidden', ![contact.qq, contact.wechat, contact.email, contact.phone, contact.note].some(Boolean));
+  if (elements.adminContactBtn) {
+    const contactLabel = contact.label || '联系服务器管理员';
+    const buttonLabel = elements.adminContactBtn.querySelector('.button-label');
+    if (buttonLabel) buttonLabel.textContent = contactLabel;
+    else elements.adminContactBtn.textContent = contactLabel;
+    elements.adminContactBtn.title = contactLabel;
+  }
+  const policy = state.publicConfig.passwordPolicy || { mode: 'unrestricted', minLength: 6, maxLength: 72 };
+  if (elements.regPassword) {
+    elements.regPassword.minLength = Math.max(1, Number(policy.minLength) || 6);
+    elements.regPassword.maxLength = Math.max(elements.regPassword.minLength, Number(policy.maxLength) || 72);
+    const policyLabels = { unrestricted: '字符不限', chinese: '仅中文', english: '仅英文', digits: '仅数字', chinese_english: '中文和英文', chinese_digits: '中文和数字', english_digits: '英文和数字', chinese_english_digits: '中文、英文和数字' };
+    elements.regPassword.placeholder = `${elements.regPassword.minLength}-${elements.regPassword.maxLength} 位，${policyLabels[policy.mode] || '按服务器规则'}`;
+  }
+  const roomIdPolicy = state.publicConfig.roomIdPolicy || { enabled: false, minLength: 4, maxLength: 32 };
+  for (const input of [elements.roomIdInput, elements.newRoomId, elements.switchRoomId]) {
+    if (!input) continue;
+    input.maxLength = Number(roomIdPolicy.maxLength) || 32;
+    input.placeholder = roomIdPolicy.enabled ? `${roomIdPolicy.minLength}-${roomIdPolicy.maxLength} 位房间号` : '4-32 位大写字母或数字';
+  }
+  const size = state.publicConfig.maxUploadBytes ? `最大 ${formatSize(state.publicConfig.maxUploadBytes)}` : '大小不限';
+  const time = state.publicConfig.uploadTimeLimitSeconds ? `最长 ${state.publicConfig.uploadTimeLimitSeconds} 秒` : '时长不限';
+  elements.uploadLimitText.textContent = `${size} · ${time} · 支持拖动上传 MKV/MP4/WebM/字幕`;
+}
+
+function applyUiTheme(themeId) {
+  const validTheme = UI_THEMES.some(([id]) => id === themeId) ? themeId : 'silver-screen';
+  state.uiTheme = validTheme;
+  if (validTheme === 'original') delete document.documentElement.dataset.uiTheme;
+  else document.documentElement.dataset.uiTheme = validTheme;
+  const theme = UI_THEMES.find(([id]) => id === validTheme) || UI_THEMES[0];
+  if (elements.headerThemeStatus) elements.headerThemeStatus.textContent = `${theme[3] || '00'} ${theme[1]}`;
+}
+
+function applyTopbarDisplayMode(mode) {
+  const nextMode = mode === 'compact' ? 'compact' : 'text';
+  state.topbarDisplayMode = nextMode;
+  document.body.classList.toggle('topbar-compact', nextMode === 'compact');
+  if (!elements.topbarDisplayModeBtn) return;
+  const compact = nextMode === 'compact';
+  elements.topbarDisplayModeBtn.setAttribute('aria-pressed', String(compact));
+  elements.topbarDisplayModeBtn.title = compact ? '切换为文字模式' : '切换为精简模式';
+  const label = elements.topbarDisplayModeBtn.querySelector('.button-label');
+  if (label) label.textContent = compact ? '精简模式' : '文字模式';
+}
+
+function toggleTopbarDisplayMode() {
+  const nextMode = state.topbarDisplayMode === 'compact' ? 'text' : 'compact';
+  applyTopbarDisplayMode(nextMode);
+  localStorage.setItem('syncwatchTopbarDisplayModeV2', nextMode);
+  const message = nextMode === 'compact' ? '已切换精简模式，顶部只显示功能图标' : '已切换文字模式，顶部显示功能名称';
+  const existing = findMatchingToast(message, 'success');
+  if (existing) dismissToast(existing);
+  toast(message, 'success');
+}
+
+function renderThemeChoices() {
+  if (!elements.themeGrid) return;
+  elements.themeGrid.innerHTML = UI_THEMES.map(([id, name, description, imageNumber]) => {
+    const preview = imageNumber
+      ? `<img src="/themes/concept-${imageNumber}.png" alt="${escapeHtml(name)}界面预览" loading="lazy">`
+      : '<div class="theme-original-preview"><span></span><span></span><span></span></div>';
+    const code = imageNumber || '00';
+    return `<button class="theme-choice ${state.uiTheme === id ? 'active' : ''}" data-theme-id="${id}" type="button" aria-pressed="${state.uiTheme === id}">${preview}<span><b class="theme-code">编号 ${code}</b><strong class="theme-name">${escapeHtml(name)}</strong><small>${escapeHtml(description)}</small></span></button>`;
+  }).join('');
+}
+
+function selectUiTheme(themeId) {
+  const previousTheme = UI_THEMES.find(([id]) => id === state.uiTheme) || UI_THEMES[0];
+  applyUiTheme(themeId);
+  const nextTheme = UI_THEMES.find(([id]) => id === state.uiTheme) || UI_THEMES[0];
+  localStorage.setItem('syncwatchUiTheme', state.uiTheme);
+  renderThemeChoices();
+  if (previousTheme[0] === nextTheme[0]) toast(`当前已经是“${nextTheme[1]}”`, 'success');
+  else toast(`界面风格已从“${previousTheme[1]}”切换为“${nextTheme[1]}”`, 'success');
+}
+
+function canRequestThemeSync() {
+  return Boolean(state.authenticated && (state.capabilities.owner || state.capabilities.superAdmin || state.permissions.manageRoom));
+}
+
+async function requestThemeSync() {
+  if (!canRequestThemeSync()) return toast('只有房主或管理员可以同步界面风格', 'error');
+  const selectedOnly = Boolean(elements.themeSyncSelected?.checked);
+  const targetUsernames = selectedOnly
+    ? [...(elements.themeSyncMemberList?.querySelectorAll('[data-theme-sync-username]:checked') || [])].map((input) => input.dataset.themeSyncUsername).filter(Boolean)
+    : [];
+  if (selectedOnly && !targetUsernames.length) return toast('请至少选择一位需要同步风格的成员', 'error');
+  const button = elements.syncThemeBtn;
+  if (button) button.disabled = true;
+  try {
+    const result = await emitAck('theme-sync-request', { themeId: state.uiTheme, targetUsernames }, 15000);
+    toast(result.message || result.error || '界面风格同步邀请发送失败', result.success ? 'success' : 'error', 6000);
+  } catch (error) {
+    toast(`发送风格同步邀请失败：${localizedError(error, '请检查网络')}`, 'error');
+  } finally {
+    if (button) button.disabled = false;
+  }
+}
+
+function renderThemeSyncTargets() {
+  if (!elements.themeSyncTargets || !elements.themeSyncMemberList) return;
+  const allowed = canRequestThemeSync();
+  elements.themeSyncTargets.classList.toggle('is-hidden', !allowed);
+  if (!allowed) return;
+  const selectedOnly = Boolean(elements.themeSyncSelected?.checked);
+  const previous = new Set([...elements.themeSyncMemberList.querySelectorAll('[data-theme-sync-username]:checked')].map((input) => input.dataset.themeSyncUsername));
+  const members = state.users.filter((user) => user.username !== state.user?.username && user.connectionState !== 'reconnecting');
+  elements.themeSyncMemberList.innerHTML = members.map((user) => `<label><input type="checkbox" data-theme-sync-username="${escapeHtml(user.username)}" ${previous.has(user.username) ? 'checked' : ''}><span>${escapeHtml(user.displayName || user.username)}<small>${escapeHtml(user.username)}</small></span></label>`).join('') || '<p class="muted">当前没有其他在线成员</p>';
+  elements.themeSyncMemberList.classList.toggle('is-hidden', !selectedOnly);
+}
+
+function enqueueThemeSyncRequest(request = {}) {
+  const themeId = String(request.themeId || '');
+  if (!UI_THEMES.some(([id]) => id === themeId) || !request.id) return;
+  if (state.themeSyncQueue.some((entry) => entry.id === request.id)) return;
+  state.themeSyncQueue.push(request);
+  processThemeSyncQueue();
+}
+
+async function processThemeSyncQueue() {
+  if (state.themeSyncPromptActive || !state.themeSyncQueue.length) return;
+  if (activeAppDialog) {
+    setTimeout(processThemeSyncQueue, 500);
+    return;
+  }
+  const request = state.themeSyncQueue.shift();
+  state.themeSyncPromptActive = true;
+  try {
+    const accepted = await showAppConfirm(`${request.requestedByName || request.requestedBy || '管理员'} 希望将您的界面风格同步为“${request.themeName || request.themeId}”。您可以选择是否应用。`, {
+      title: '同步界面风格', confirmText: '同意并同步', cancelText: '保持当前风格'
+    });
+    if (accepted) selectUiTheme(request.themeId);
+    const result = await emitAck('theme-sync-response', { requestId: request.id, accepted }, 15000);
+    if (!result.success) toast(result.error || '风格同步响应未送达', 'error');
+  } catch (error) {
+    toast(`处理风格同步邀请失败：${localizedError(error, '请稍后重试')}`, 'error');
+  } finally {
+    state.themeSyncPromptActive = false;
+    setTimeout(processThemeSyncQueue, 0);
+  }
+}
+
+function handleThemeSyncResponse(response = {}) {
+  const name = response.displayName || response.username || '成员';
+  const action = response.accepted ? '已同步' : '保持了自己的风格';
+  toast(`${name}${action}“${response.themeName || '当前'}”`, response.accepted ? 'success' : '', 5000);
+}
+
+function muteMediaElement(media) {
+  if (!(media instanceof HTMLMediaElement)) return;
+  if (!state.masterMuteStates.has(media)) state.masterMuteStates.set(media, { muted: media.muted, volume: media.volume });
+  media.muted = true;
+}
+
+function applyMasterMute() {
+  document.querySelectorAll('audio, video').forEach((media) => {
+    if (state.masterMuted) muteMediaElement(media);
+    else {
+      const previous = state.masterMuteStates.get(media);
+      if (!previous) return;
+      media.volume = previous.volume;
+      media.muted = previous.muted;
+      state.masterMuteStates.delete(media);
+    }
+  });
+  const playbackContext = state.screenPlaybackAudioContext;
+  if (playbackContext) {
+    const operation = state.masterMuted ? playbackContext.suspend?.() : playbackContext.resume?.();
+    Promise.resolve(operation).catch(() => {});
+  }
+  const bridge = window.SyncWatchDesktop || window.SyncWatchClient;
+  if (typeof bridge?.setAudioMuted === 'function') Promise.resolve(bridge.setAudioMuted(state.masterMuted)).catch(() => {});
+  if (elements.masterMuteBtn) {
+    elements.masterMuteBtn.setAttribute('aria-pressed', String(state.masterMuted));
+    elements.masterMuteBtn.title = state.masterMuted ? '恢复当前客户端的全部声音' : '一键静音当前客户端的全部声音';
+    const icon = elements.masterMuteBtn.querySelector('[aria-hidden="true"]');
+    const label = elements.masterMuteBtn.querySelector('.button-label');
+    if (icon) icon.textContent = state.masterMuted ? '🔇' : '🔊';
+    if (label) label.textContent = state.masterMuted ? '恢复声音' : '全部静音';
+  }
+  syncVideoMuteButton();
+}
+
+function toggleMasterMute() {
+  state.masterMuted = !state.masterMuted;
+  localStorage.setItem('syncwatchMasterMuted', state.masterMuted ? '1' : '0');
+  applyMasterMute();
+  if (state.masterMuted) showMuteWarmHint(); else toast('当前客户端的声音已恢复', 'success');
+}
+
+function handleThemeSelection(event) {
+  const choice = event.target.closest('[data-theme-id]');
+  if (!choice) return;
+  selectUiTheme(choice.dataset.themeId);
+}
+
+function normalizedWebUrl(value) {
+  const raw = String(value || '').trim();
+  if (!raw) throw new Error('请输入网页地址');
+  const candidate = /^[a-z][a-z\d+.-]*:/i.test(raw) ? raw : `https://${raw}`;
+  const parsed = new URL(candidate);
+  if (!['http:', 'https:'].includes(parsed.protocol)) throw new Error('只支持 HTTP 或 HTTPS 网页');
+  return parsed.href;
+}
+
+function openWebShare() {
+  if (!state.authenticated) return toast('请先登录后使用网页共享', 'error');
+  elements.webShareModal.classList.remove('is-hidden');
+  updateWebSharePreviewState();
+  if (elements.webShareStatus && !elements.webUrlInput.value.trim()) elements.webShareStatus.textContent = '';
+  elements.webUrlInput.focus();
+}
+
+function updateWebSharePreviewState() {
+  const hasUrl = Boolean(String(elements.webUrlInput?.value || '').trim());
+  elements.webShareEmpty?.classList.toggle('is-hidden', hasUrl);
+  elements.webFrame?.classList.toggle('is-hidden', !hasUrl);
+}
+
+function openWebUrl() {
+  try {
+    const url = normalizedWebUrl(elements.webUrlInput.value);
+    elements.webUrlInput.value = url;
+    elements.webFrame.src = url;
+    updateWebSharePreviewState();
+    elements.webShareStatus.textContent = '网页已在软件内打开；若站点禁止嵌入，请点击“共享当前网页/窗口”选择对应浏览器标签页。';
+  } catch (error) { elements.webShareStatus.textContent = error.message; }
+}
+
+function clearLocalWebViews() {
+  if (elements.webFrame) { elements.webFrame.src = 'about:blank'; elements.webFrame.dataset.initialized = ''; }
+  if (elements.sharedWebViewer) { elements.sharedWebViewer.classList.add('is-hidden'); elements.sharedWebViewer.src = 'about:blank'; elements.sharedWebViewer.dataset.shareUpdatedAt = '0'; }
+  elements.sharedWebEmpty?.classList.add('is-hidden');
+  if (elements.webUrlInput) elements.webUrlInput.value = '';
+  if (elements.webProbeResults) { elements.webProbeResults.classList.add('is-hidden'); elements.webProbeResults.replaceChildren(); }
+}
+
+async function closeAndClearWebShare() {
+  elements.webShareModal.classList.add('is-hidden');
+  await clearWebShare();
+}
+
+async function probeWebUrl() {
+  let url;
+  try { url = normalizedWebUrl(elements.webUrlInput.value); }
+  catch (error) { elements.webShareStatus.textContent = error.message; return; }
+  elements.probeWebUrlBtn.disabled = true;
+  elements.webShareStatus.textContent = '正在识别网页中的公开媒体资源…';
+  try {
+    const response = await fetchWithTimeout('/api/web-probe', {
+      method: 'POST', headers: authHeaders({ 'Content-Type': 'application/json' }), body: JSON.stringify({ url })
+    }, 15000);
+    const result = await response.json();
+    if (!response.ok || !result.success) throw new Error(result.error || '网页识别失败');
+    elements.webUrlInput.value = result.finalUrl || url;
+    const resources = Array.isArray(result.resources) ? result.resources : [];
+    elements.webProbeResults.classList.remove('is-hidden');
+    elements.webProbeResults.innerHTML = resources.length
+      ? `<strong>${escapeHtml(result.title || '识别结果')}</strong>${resources.map((resource) => `<button data-web-resource="${escapeHtml(resource.url)}" type="button"><span>${escapeHtml(resource.type || '媒体')}</span><small>${escapeHtml(resource.url)}</small></button>`).join('')}`
+      : '<p class="muted">没有发现公开的 MP4、WebM 或 HLS 地址。受保护的视频站点可直接共享网页或窗口。</p>';
+    elements.webShareStatus.textContent = resources.length ? `已识别 ${resources.length} 个公开媒体资源` : '网页识别完成';
+  } catch (error) {
+    elements.webProbeResults.classList.add('is-hidden');
+    elements.webShareStatus.textContent = localizedError(error, '无法识别该网页');
+  } finally { elements.probeWebUrlBtn.disabled = false; }
+}
+
+function handleWebProbeAction(event) {
+  const button = event.target.closest('[data-web-resource]');
+  if (!button) return;
+  elements.webUrlInput.value = button.dataset.webResource;
+  openWebUrl();
+}
+
+async function shareCurrentWebWindow() {
+  elements.webShareModal.classList.add('is-hidden');
+  toast('请在系统选择器中选中刚打开的网页标签页或软件窗口，并勾选共享音频。');
+  await toggleScreenShare();
+}
+
+async function pasteWebUrl() {
+  const value = await readClipboardTextFromAvailableSources();
+  if (value) {
+    applyClipboardText(elements.webUrlInput, value);
+    openWebUrl();
+    return;
+  }
+  const pasted = trySystemPaste(elements.webUrlInput, {
+    label: '网址',
+    onValue: () => openWebUrl()
+  });
+  if (!pasted && elements.webShareStatus) elements.webShareStatus.textContent = '剪贴板权限受限：输入框已聚焦，请按 Ctrl+V，手机请长按输入框选择“粘贴”。粘贴后会自动预览。';
+}
+
+async function pasteIntoInput(input, uppercase = false) {
+  if (!input) return;
+  const value = await readClipboardTextFromAvailableSources();
+  if (value) {
+    applyClipboardText(input, value, uppercase);
+    input.focus();
+    return;
+  }
+  trySystemPaste(input, { uppercase, label: input === elements.switchRoomPassword ? '房间密码' : '房间号' });
+}
+
+function normalizeClipboardBridgeValue(result) {
+  if (typeof result === 'string') return result.trim();
+  if (!result || typeof result !== 'object' || result.success === false) return '';
+  return String(result.text ?? result.value ?? result.data ?? '').trim();
+}
+
+async function readClipboardTextFromAvailableSources() {
+  const readers = [];
+  if (typeof navigator.clipboard?.readText === 'function') readers.push(() => navigator.clipboard.readText());
+  for (const bridge of [window.SyncWatchDesktop, window.SyncWatchClient, window.SyncWatchAndroid]) {
+    if (!bridge) continue;
+    for (const method of ['readClipboardText', 'getClipboardText', 'readClipboard']) {
+      if (typeof bridge[method] === 'function') readers.push(() => bridge[method]());
+    }
+  }
+  for (const read of readers) {
+    try {
+      const value = normalizeClipboardBridgeValue(await Promise.resolve(read()));
+      if (value) return value;
+    } catch (_) {}
+  }
+  return '';
+}
+
+function applyClipboardText(input, value, uppercase = false) {
+  if (!input) return '';
+  const normalized = uppercase ? String(value || '').trim().toUpperCase() : String(value || '').trim();
+  input.value = normalized;
+  input.dispatchEvent(new Event('input', { bubbles: true }));
+  return normalized;
+}
+
+function trySystemPaste(input, { uppercase = false, label = '内容', onValue = null } = {}) {
+  if (!input) return false;
+  const previous = state.clipboardPasteFallbacks.get(input);
+  if (previous) input.removeEventListener('paste', previous);
+  let handled = false;
+  const cleanup = () => {
+    input.removeEventListener('paste', handlePaste);
+    if (state.clipboardPasteFallbacks.get(input) === handlePaste) state.clipboardPasteFallbacks.delete(input);
+  };
+  const acceptValue = (value) => {
+    const applied = applyClipboardText(input, value, uppercase);
+    if (!applied) return false;
+    handled = true; cleanup();
+    if (elements.webShareStatus && input === elements.webUrlInput) elements.webShareStatus.textContent = '已从系统粘贴网址';
+    toast(`${label}已粘贴`, 'success', 2600);
+    if (typeof onValue === 'function') onValue(applied);
+    return true;
+  };
+  function handlePaste(event) {
+    const value = event.clipboardData?.getData('text/plain') || event.clipboardData?.getData('text') || '';
+    if (!value) return;
+    event.preventDefault();
+    acceptValue(value);
+  }
+  state.clipboardPasteFallbacks.set(input, handlePaste);
+  input.addEventListener('paste', handlePaste);
+  input.focus();
+  input.select?.();
+  const before = input.value;
+  try {
+    const commandAccepted = typeof document.execCommand === 'function' && document.execCommand('paste');
+    if (!handled && commandAccepted && input.value !== before) acceptValue(input.value);
+  } catch (_) {}
+  if (handled) return true;
+  const shortcut = /Android|iPhone|iPad|Mobile/i.test(navigator.userAgent) || window.SyncWatchAndroid
+    ? '请长按输入框并选择“粘贴”'
+    : '请按 Ctrl+V（macOS 请按 Command+V）';
+  toast(`系统限制了自动读取，${label}输入框已聚焦，${shortcut}。`, '', 9000);
+  return false;
+}
+
+async function clearWebShare() {
+  clearLocalWebViews();
+  elements.webShareStatus.textContent = '画面已清空';
+  if (state.authenticated && state.socketAuthenticated) {
+    const result = await emitAck('web-share-stop', {}, 15000);
+    if (!result.success) return toast(result.error || '清空共享画面失败', 'error');
+  }
+  applyWebShareState({ active: false });
+}
+
+async function shareWebUrl() {
+  let url;
+  try { url = normalizedWebUrl(elements.webUrlInput.value); }
+  catch (error) { elements.webShareStatus.textContent = error.message; return; }
+  let title = '共享网页';
+  try { title = new URL(url).hostname || title; } catch (_) {}
+  const result = await emitAck('web-share-start', { url, title }, 20000);
+  elements.webShareStatus.textContent = result.message || result.error;
+  if (!result.success) return toast(result.error, 'error');
+  elements.webShareModal.classList.add('is-hidden');
+  if (elements.webFrame) { elements.webFrame.src = 'about:blank'; elements.webFrame.dataset.initialized = ''; }
+  applyWebShareState(result.webShare);
+  toast(result.message, 'success');
+}
+
+function applyWebShareState(webShare = {}) {
+  state.webShare = { active: Boolean(webShare.active), url: webShare.url || '', title: webShare.title || '', updatedAt: Number(webShare.updatedAt) || 0 };
+  if (state.room) state.room.webShare = { ...webShare };
+  if (!state.webShare.active) {
+    clearLocalWebViews();
+    restorePlaybackStage();
+    return;
+  }
+  if (state.screenShareActive) hideScreenShare();
+  hidePlaybackViews();
+  elements.emptyStage.classList.add('is-hidden');
+  elements.sharedWebEmpty?.classList.remove('is-hidden');
+  const incomingRevision = String(state.webShare.updatedAt || state.webShare.url);
+  const currentSharedUrl = elements.sharedWebViewer.getAttribute('src') || '';
+  if (elements.sharedWebViewer.dataset.shareUpdatedAt !== incomingRevision || currentSharedUrl !== state.webShare.url) {
+    elements.sharedWebViewer.dataset.shareUpdatedAt = incomingRevision;
+    elements.sharedWebViewer.setAttribute('src', 'about:blank');
+    setTimeout(() => {
+      if (state.webShare.active && String(state.webShare.updatedAt || state.webShare.url) === incomingRevision) {
+        elements.sharedWebViewer.setAttribute('src', state.webShare.url);
+      }
+    }, 0);
+  }
+  elements.sharedWebViewer.classList.remove('is-hidden');
+  elements.nowPlayingName.textContent = `网页：${state.webShare.title || state.webShare.url}`;
+  elements.syncStatus.textContent = '网址共享中';
+  updateControlAccess();
+}
+
+async function downloadAndroidApk() {
+  if (!state.publicConfig.androidApkAvailable) return toast('安卓安装包尚未生成', 'error');
+  if (window.SyncWatchAndroid) {
+    const link = document.createElement('a');
+    link.href = new URL('/api/android-apk', location.href).href;
+    link.download = 'SyncWatch-v2.1.5.apk';
+    link.rel = 'noopener'; document.body.appendChild(link); link.click(); link.remove();
+    toast('已交给安卓下载管理器处理', 'success');
+    return;
+  }
+  const button = elements.androidApkBtn;
+  if (button) { button.disabled = true; button.setAttribute('aria-busy', 'true'); }
+  try {
+    const response = await fetchWithTimeout('/api/android-apk', state.authenticated ? { headers: authHeaders() } : {}, 120000);
+    if (!response.ok) {
+      let message = `下载失败（${response.status}）`;
+      try { message = (await response.json()).error || message; } catch (_) {}
+      throw new Error(message);
+    }
+    const blob = await response.blob();
+    if (!blob.size) throw new Error('服务器返回的安装包为空');
+    const url = URL.createObjectURL(blob); const link = document.createElement('a');
+    link.href = url; link.download = 'SyncWatch-v2.1.5.apk';
+    document.body.appendChild(link); link.click(); link.remove(); setTimeout(() => URL.revokeObjectURL(url), 60000);
+    toast('安卓安装包已开始下载', 'success');
+  } catch (error) { toast(`安卓安装包下载失败：${localizedError(error, '请稍后重试')}`, 'error'); }
+  finally { if (button) { button.disabled = false; button.removeAttribute('aria-busy'); } }
+}
+
+function scheduleRoomInfoLookup() {
+  clearTimeout(state.roomInfoTimer);
+  state.roomInfoTimer = setTimeout(() => loadRoomInfo(), 300);
+}
+
+async function loadRoomInfo() {
+  const id = String(elements.roomIdInput?.value || '').trim().toUpperCase();
+  elements.roomLookupStatus?.classList.remove('success');
+  if (!id) {
+    if (elements.roomLookupStatus) elements.roomLookupStatus.textContent = elements.username.value.trim().toLowerCase() === 'admin'
+      ? '超级管理员留空将进入退出即删除的临时房间' : '房间号可留空；留空会进入退出即删除的临时房间，也可选择在线房间';
+    return;
+  }
+  if (!/^[A-Z0-9]{4,32}$/.test(id)) {
+    if (elements.roomLookupStatus) elements.roomLookupStatus.textContent = '房间号需为 4-32 位大写字母或数字';
+    return;
+  }
+  try {
+    const response = await fetchWithTimeout(`/api/rooms/${encodeURIComponent(id)}/public`, {}, 6000);
+    const result = await response.json();
+    if (!response.ok || !result.success) throw new Error(result.error || '房间不存在');
+    const label = elements.loginRoomPassword?.closest('label');
+    label?.classList.toggle('password-optional', !result.room.passwordRequired);
+    if (elements.loginRoomPassword) elements.loginRoomPassword.placeholder = result.room.passwordRequired ? `“${result.room.name}”需要房间密码` : `“${result.room.name}”未设置密码，可留空`;
+    if (elements.roomLookupStatus) {
+      elements.roomLookupStatus.textContent = `已找到：${result.room.name} · 当前 ${result.room.online}/${result.room.maxUsers} 人${result.room.passwordRequired ? ' · 需要房间密码' : ' · 无需房间密码'}`;
+      elements.roomLookupStatus.classList.add('success');
+    }
+    if (elements.onlineRoomSelect && [...elements.onlineRoomSelect.options].some((option) => option.value === id)) elements.onlineRoomSelect.value = id;
+  } catch (error) {
+    if (elements.roomLookupStatus) {
+      elements.roomLookupStatus.textContent = `未找到该房间：${localizedError(error, '请检查房间号或服务器连接')}`;
+      elements.roomLookupStatus.classList.remove('success');
+    }
+  }
+}
+
+function showAuthMode(mode) {
+  const registering = mode === 'register';
+  elements.loginForm.classList.toggle('is-hidden', registering); elements.registerForm.classList.toggle('is-hidden', !registering);
+  elements.authTitle.textContent = registering ? '创建 SyncWatch 账号' : '加入观影房间';
+  elements.authHint.textContent = registering ? '注册账号不需要房间密码，注册后会自动生成 SW 用户 ID。' : '一个账号同一时间只能在一台设备登录哦~';
+  if (registering && elements.requestRegistrationBtn) {
+    elements.requestRegistrationBtn.classList.remove('is-hidden');
+    elements.requestRegistrationBtn.textContent = '当前 IP 已注册？申请一次注册名额';
+  }
+  setLoginStatus('');
+}
+function setLoginStatus(message, success = false) {
+  const text = String(message || '');
+  elements.loginStatus.textContent = text;
+  elements.loginStatus.classList.toggle('success', success);
+  elements.loginStatusWrap?.classList.toggle('is-hidden', !text);
+  elements.loginStatusWrap?.classList.toggle('success', success);
+  clearTimeout(setLoginStatus.timer);
+  if (text && success) setLoginStatus.timer = setTimeout(() => setLoginStatus(''), 3600);
+}
+
+async function loadFiles() {
+  try { applyFiles(await fetchFiles(state.token)); }
+  catch (error) { toast(`读取文件列表失败：${localizedError(error, '请稍后重试')}`, 'error'); }
+}
+
+async function fetchFiles(token) {
+  const response = await fetchWithTimeout('/api/files', { headers: authHeaders({}, token) }, 12000);
+  if (!response.ok) throw new Error(`服务器返回 ${response.status}`);
+  const files = await response.json(); if (!Array.isArray(files)) throw new Error('文件列表格式无效'); return files;
+}
+
+function compatibilityGeneration(compatibility = {}) {
+  return [compatibility.fileName || '', Number(compatibility.recipeVersion) || 0,
+    Number(compatibility.sourceSize) || 0, Number(compatibility.sourceMtimeMs) || 0].join('|');
+}
+function mergeFileSnapshot(previous, incoming) {
+  if (!previous || !incoming) return incoming || previous;
+  const before = previous.compatibility || {};
+  const next = incoming.compatibility || {};
+  if (compatibilityGeneration(before) !== compatibilityGeneration(next)) return incoming;
+  if (before.ready && !next.ready) return { ...incoming, url: previous.url || incoming.url, compatibility: before };
+  if (before.status === 'converting' && next.status === 'converting' && Number(before.progress) > Number(next.progress)) {
+    return { ...incoming, compatibility: before };
+  }
+  return incoming;
+}
+
+function applyFiles(files) {
+  const currentRoomId = activeClientRoomId();
+  const currentRoomFiles = files.filter((file) => !currentRoomId || fileBelongsToCurrentRoom(file));
+  const previousFiles = state.files;
+  state.files = new Map(currentRoomFiles.map((file) => [file.id, mergeFileSnapshot(previousFiles.get(file.id), file)])); renderFiles(); renderQueue();
+  if (state.currentFile) {
+    const previous = state.currentFile;
+    const updated = state.files.get(state.currentFile.id);
+    if (updated) {
+      state.currentFile = updated;
+      if (previous?.url && updated.url && previous.url !== updated.url && updated.compatibility?.ready) loadFile(updated);
+      else { attachSubtitleTracks(updated); updateControlAccess(); updatePlayerInfo(updated); }
+    }
+    else clearStage();
+  }
+  if (state.pendingPlayback) applyPendingPlayback(true);
+}
+
+function upsertFile(file) {
+  if (!fileBelongsToCurrentRoom(file)) {
+    syncProfileFileSnapshot(file);
+    if (state.currentFile && !fileBelongsToCurrentRoom(state.currentFile)) clearStage();
+    return false;
+  }
+  const previous = state.files.get(file.id);
+  file = mergeFileSnapshot(previous, file);
+  state.files.set(file.id, file); renderFiles(); renderQueue();
+  if (state.videoManagementVisible) renderVideoManagementList();
+  syncProfileFileSnapshot(file);
+  if (state.currentFile?.id === file.id) {
+    state.currentFile = file;
+    if (previous?.url && file.url && previous.url !== file.url && file.compatibility?.ready) loadFile(file);
+    else updatePlayerInfo(file);
+  }
+  if (state.currentFile && (file.category === 'subtitle' || file.id === state.currentFile.id)) attachSubtitleTracks(state.currentFile);
+  if (state.pendingPlayback?.playback?.fileId === file.id) applyPendingPlayback(true);
+  return true;
+}
+
+function activeClientRoomId() { return String(state.user?.roomId || state.room?.id || '').trim().toUpperCase(); }
+function fileBelongsToCurrentRoom(file) {
+  const currentRoomId = activeClientRoomId();
+  return Boolean(file && (!currentRoomId || String(file.roomId || '').trim().toUpperCase() === currentRoomId));
+}
+
+function handleFileDeleted(id) {
+  const deleted = state.files.get(id); state.files.delete(id);
+  if (state.profile) {
+    for (const key of ['myFiles', 'favoriteFiles']) {
+      if (Array.isArray(state.profile[key])) state.profile[key] = state.profile[key].filter((file) => file.id !== id);
+    }
+    refreshVisibleProfileFiles();
+  }
+  if (state.currentFile?.id === id) clearStage();
+  else if (deleted?.category === 'subtitle' && state.currentFile) attachSubtitleTracks(state.currentFile);
+  renderFiles(); renderQueue();
+  if (state.videoManagementVisible) renderVideoManagementList();
+  if (!elements.conversionProgressModal?.classList.contains('is-hidden')) renderConversionProgress();
+}
+
+function syncProfileFileSnapshot(file) {
+  if (!state.profile || !file?.id) return;
+  let changed = false;
+  for (const key of ['myFiles', 'favoriteFiles']) {
+    if (!Array.isArray(state.profile[key])) continue;
+    state.profile[key] = state.profile[key].map((entry) => {
+      if (entry.id !== file.id) return entry;
+      changed = true;
+      return mergeFileSnapshot(entry, file);
+    });
+  }
+  if (changed) refreshVisibleProfileFiles();
+}
+
+function refreshVisibleProfileFiles() {
+  if (elements.accountModal?.classList.contains('is-hidden')) return;
+  const page = elements.accountNav?.querySelector('[data-account-page].active')?.dataset.accountPage;
+  if (page === 'media' || page === 'favorites') renderAccountPage(page);
+}
+
+function renderFiles() {
+  updateUploadEntryAttention();
+  const files = [...state.files.values()].filter((file) => file.category !== 'subtitle')
+    .filter((file) => !state.mediaCategoryFilter || String(file.collection || '未分类') === state.mediaCategoryFilter)
+    .sort((left, right) => String(left.relativePath || left.originalName).localeCompare(String(right.relativePath || right.originalName), 'zh-CN'));
+  const categories = [...new Set([...(state.mediaCategories || []), ...[...state.files.values()].filter((file) => file.category !== 'subtitle').map((file) => file.collection || '未分类')])]
+    .sort((a, b) => a.localeCompare(b, 'zh-CN'));
+  state.mediaCategories = categories;
+  if (elements.mediaCategoryFilter) {
+    const selected = state.mediaCategoryFilter;
+    elements.mediaCategoryFilter.innerHTML = '<option value="">全部分类</option>' + categories.map((category) => `<option value="${escapeHtml(category)}">${escapeHtml(category)}</option>`).join('');
+    elements.mediaCategoryFilter.value = categories.includes(selected) ? selected : '';
+  }
+  elements.fileCount.textContent = files.length;
+  if (!files.length) { elements.fileList.innerHTML = '<div class="empty-stage"><span>🎞️</span><small>上传第一部影片开始观影</small></div>'; return; }
+  const groups = new Map();
+  for (const file of files) {
+    const collection = fileCollectionName(file);
+    if (!groups.has(collection)) groups.set(collection, []);
+    groups.get(collection).push(file);
+  }
+  elements.fileList.innerHTML = [...groups.entries()].map(([collection, entries]) => `<section class="folder-group"><header><span>📁</span><strong>${escapeHtml(collection)}</strong><small>${entries.length} 个文件</small></header>${entries.map(renderFileCard).join('')}</section>`).join('');
+}
+
+function updateUploadEntryAttention() {
+  if (!elements.chooseFileBtn) return;
+  const hasVideo = [...state.files.values()].some((file) => file.category === 'video' && file.status !== 'rejected');
+  const needsFirstVideo = Boolean(state.authenticated && !hasVideo);
+  elements.chooseFileBtn.classList.toggle('needs-first-video', needsFirstVideo);
+  elements.chooseFileBtn.setAttribute('aria-label', needsFirstVideo ? '上传影片或字幕，当前房间还没有影片' : '上传影片或字幕');
+  elements.chooseFileBtn.title = needsFirstVideo ? '当前房间还没有影片，上传第一部影片后提示会自动停止' : '';
+}
+
+function renderFileCard(file) {
+    const metadata = file.metadata || {};
+    const compatibility = file.compatibility || {};
+    const quality = metadata.height ? `${metadata.height}P` : ({ video: '视频', audio: '音频', subtitle: '字幕', document: '文档' }[file.category] || '文件');
+    const codec = metadata.videoCodec || metadata.audioCodec || '';
+    const duration = metadata.duration ? formatTime(metadata.duration) : '';
+    const thumbnail = file.thumbnailUrl ? `<img class="file-thumb" src="${escapeHtml(file.thumbnailUrl)}" alt="">` : `<div class="file-thumb">${fileIcon(file.category)}</div>`;
+    const manageable = state.capabilities.owner || state.permissions.delete || file.uploadedBy === state.user?.username;
+    const timed = isTimedFile(file); const approved = file.status === 'approved';
+    const processing = compatibility.required && !compatibility.ready && ['queued', 'converting'].includes(compatibility.status);
+    const disabled = approved && !processing ? '' : 'disabled';
+    const primaryActions = processing
+      ? '<button data-file-action="processing-progress" type="button">查看处理进度</button>'
+      : timed
+        ? `<button data-file-action="play" ${disabled}>播放</button><button data-file-action="queue" ${disabled}>加入队列</button>`
+        : `<button data-file-action="view" ${disabled}>查看</button>`;
+    const compatibilityTag = compatibility.required
+      ? compatibility.ready
+        ? '<span title="已自动转换为所有现代浏览器都能播放的 H.264/AAC">公网兼容版</span>'
+        : compatibility.status === 'converting'
+          ? `<span title="服务器正在后台转换，点击播放可将它提升到队首">兼容版 ${Math.max(0, Number(compatibility.progress) || 0)}%</span>`
+          : compatibility.status === 'failed'
+            ? '<span title="点击播放可重新尝试生成">兼容版失败</span>'
+            : compatibility.status === 'unavailable'
+              ? '<span title="当前服务器没有媒体转码组件，远端设备必须支持原始编码">依赖设备解码</span>'
+              : '<span title="服务器已排队生成 H.264/AAC 公网兼容版">兼容版排队中</span>'
+      : '';
+    const processingProgress = processing ? `<div class="file-processing" role="status"><div><span style="width:${Math.max(0, Math.min(100, Number(compatibility.progress) || 0))}%"></span></div><small>${compatibility.status === 'converting' ? `正在转换 ${Math.max(0, Number(compatibility.progress) || 0)}%` : '等待转换'} · 完成前暂不可操作</small></div>` : '';
+    return `<article class="file-card ${file.status === 'pending' ? 'pending' : ''} ${processing ? 'processing' : ''} ${state.currentFile?.id === file.id ? 'active' : ''}" data-file-id="${file.id}">
+      ${thumbnail}<div class="file-body"><strong title="${escapeHtml(file.originalName)}">${escapeHtml(file.originalName)}</strong>
+      <div class="file-meta"><span>${formatSize(file.size)}</span><span>${duration}</span><span>分类 ${escapeHtml(file.collection || '未分类')}</span><span>上传者 ${escapeHtml(file.uploadedByName || file.uploadedBy)}</span></div>
+      <div class="file-tags"><span>${quality}</span>${codec ? `<span>${escapeHtml(codec)}</span>` : ''}${compatibilityTag}${metadata.language ? `<span>${escapeHtml(localizedMediaLanguage(metadata.language))}</span>` : ''}${file.status === 'pending' ? '<span>待审核</span>' : ''}</div>${processingProgress}</div>
+      <div class="file-actions">${primaryActions}<button data-file-action="favorite" ${processing ? 'disabled' : ''}>收藏</button>${manageable ? `<button data-file-action="rename" ${processing ? 'disabled' : ''}>重命名</button><button data-file-action="category" ${processing ? 'disabled' : ''}>分类</button><button data-file-action="delete" ${processing ? 'disabled' : ''}>删除</button>` : ''}</div></article>`;
+}
+
+async function handleFileAction(event) {
+  const button = event.target.closest('[data-file-action]'); if (!button) return;
+  const id = button.closest('[data-file-id]')?.dataset.fileId; const file = state.files.get(id); if (!file) return;
+  const action = button.dataset.fileAction;
+  if (action === 'processing-progress') { openConversionProgress(); state.mediaProcessingSearch = file.originalName || ''; if (elements.mediaProcessingSearch) elements.mediaProcessingSearch.value = state.mediaProcessingSearch; return; }
+  if (button.closest('.file-card.processing')) return toast('影片仍在转换，完成前暂不可操作', 'error');
+  if (action === 'play') return selectFile(id);
+  if (action === 'queue') return queueAction('add', id);
+  if (action === 'view') return viewStaticFile(file);
+  if (action === 'favorite') { const result = await emitAck('account-action', { action: 'toggle-favorite', fileId: id }); if (result.success) toast('收藏状态已更新', 'success'); return; }
+  if (action === 'rename') return renameFile(file);
+  if (action === 'category') return setFileCategory(file);
+  if (action === 'delete') return deleteFile(file);
+}
+
+async function setFileCategory(file) {
+  const previousCategory = String(file.collection || '未分类');
+  const category = await chooseMediaCategory({
+    title: '设置影片分类', description: '从已有分类中选择，也可以新建一个分类。', initialValue: previousCategory,
+    confirmText: '保存分类'
+  });
+  if (category === null) return;
+  const response = await fetchWithTimeout(`/api/files/${encodeURIComponent(file.id)}/category`, { method: 'PATCH', headers: { ...authHeaders({ 'Content-Type': 'application/json' }) }, body: JSON.stringify({ collection: category.trim() || '未分类' }) }, 20000);
+  const result = await response.json();
+  if (!response.ok || !result.success) return toast(result.error || '分类保存失败', 'error');
+  const nextCategory = String(result.file?.collection || category.trim() || '未分类');
+  if (state.mediaCategoryFilter === previousCategory) state.mediaCategoryFilter = nextCategory;
+  upsertFile(result.file); toast(result.message || '分类已保存', 'success');
+}
+
+async function manageMediaCategories() {
+  const current = state.mediaCategories || [];
+  const value = await showAppInput({ title: '新建影片分类', description: `当前分类：${current.join('、') || '未分类'}。创建后可在单个影片或批量移动时直接选择。`, label: '新分类名称', maxLength: 80, confirmText: '创建分类', validate: validateMediaCategoryName });
+  if (value === null) return;
+  const next = value.trim();
+  if (!next) return toast('分类名称不能为空', 'error');
+  state.mediaCategories = [...new Set([...current, next])].sort((a, b) => a.localeCompare(b, 'zh-CN'));
+  if (elements.mediaCategoryFilter) {
+    elements.mediaCategoryFilter.innerHTML = '<option value="">全部分类</option>' + state.mediaCategories.map((category) => `<option value="${escapeHtml(category)}">${escapeHtml(category)}</option>`).join('');
+  }
+  renderFiles(); renderQueue();
+  toast(`分类“${next}”已创建，可在影片卡片上归类`, 'success');
+}
+
+function validateMediaCategoryName(value) {
+  const name = String(value || '').trim();
+  if (!name) return '分类名称不能为空';
+  if (/[\\/]/.test(name)) return '分类名称不能包含斜杠';
+  return '';
+}
+
+function mediaCategoryChoices(initialValue = '') {
+  const categories = [...new Set(['未分类', ...(state.mediaCategories || []), initialValue].map((value) => String(value || '').trim()).filter(Boolean))]
+    .sort((left, right) => left === '未分类' ? -1 : right === '未分类' ? 1 : left.localeCompare(right, 'zh-CN'));
+  return [...categories.map((category) => ({ value: category, label: category })), { value: '__new__', label: '＋ 新建分类…' }];
+}
+
+async function chooseMediaCategory({ title = '选择影片分类', description = '', initialValue = '未分类', confirmText = '确定' } = {}) {
+  const selected = await showAppSelect({
+    title, description, label: '目标分类', initialValue, options: mediaCategoryChoices(initialValue), confirmText,
+    requiredMessage: '请选择目标分类'
+  });
+  if (selected === null) return null;
+  if (selected !== '__new__') return selected;
+  const created = await showAppInput({
+    title: '新建影片分类', description: '输入一次分类名称，之后设置影片时可直接从下拉选项中选择。',
+    label: '分类名称', maxLength: 80, confirmText: '创建并选择', validate: validateMediaCategoryName
+  });
+  if (created === null) return null;
+  const category = created.trim();
+  state.mediaCategories = [...new Set([...(state.mediaCategories || []), category])].sort((left, right) => left.localeCompare(right, 'zh-CN'));
+  return category;
+}
+
+function manageableMediaFiles() {
+  return [...state.files.values()].filter((file) => {
+    if (file.category === 'subtitle') return false;
+    if (state.mediaCategoryFilter && fileCollectionName(file) !== state.mediaCategoryFilter) return false;
+    const compatibility = file.compatibility || {};
+    if (compatibility.required && !compatibility.ready && ['queued', 'converting'].includes(compatibility.status)) return false;
+    return canManageVideoSystem() || file.uploadedBy === state.user?.username;
+  });
+}
+
+function canManageVideoSystem() {
+  return Boolean(state.capabilities.owner || state.capabilities.superAdmin || state.capabilities.serverHost || state.permissions.manageMedia || state.permissions.delete);
+}
+
+async function batchMoveMediaCategory() {
+  const files = manageableMediaFiles();
+  if (!files.length) return toast('当前筛选范围没有可移动分类的影片', 'error');
+  state.selectedMediaFiles = new Set();
+  elements.mediaBatchSearch.value = '';
+  elements.mediaBatchModal.classList.remove('is-hidden');
+  populateMediaBatchCategories();
+  renderMediaBatchList();
+}
+
+function populateMediaBatchCategories() {
+  const options = [...new Set(['未分类', ...(state.mediaCategories || [])])];
+  const markup = '<option value="">请选择分类</option>' + options.map((value) => `<option value="${escapeHtml(value)}">${escapeHtml(value)}</option>`).join('');
+  if (elements.mediaBatchCategory) elements.mediaBatchCategory.innerHTML = markup;
+  if (elements.videoManagementCategory) elements.videoManagementCategory.innerHTML = '<option value="">全部分类</option>' + options.map((value) => `<option value="${escapeHtml(value)}">${escapeHtml(value)}</option>`).join('');
+}
+
+function mediaBatchFiles() {
+  const query = String(elements.mediaBatchSearch?.value || '').trim().toLocaleLowerCase();
+  return manageableMediaFiles().filter((file) => !query || [file.originalName, fileCollectionName(file), file.uploadedBy].join(' ').toLocaleLowerCase().includes(query));
+}
+
+function renderMediaBatchList() {
+  const files = mediaBatchFiles();
+  elements.mediaBatchList.innerHTML = files.length ? files.map((file) => `<label class="manage-select-row"><input type="checkbox" data-media-batch-file="${escapeHtml(file.id)}" ${state.selectedMediaFiles.has(file.id) ? 'checked' : ''}><span>${fileIcon(file.category)}</span><span><strong>${escapeHtml(file.originalName)}</strong><small>${escapeHtml(fileCollectionName(file))} · ${formatSize(file.size)} · ${escapeHtml(file.uploadedBy || '')}</small></span></label>`).join('') : '<p class="muted">没有符合条件的影片</p>';
+  elements.mediaBatchCount.textContent = `已选 ${state.selectedMediaFiles.size}`;
+  elements.mediaBatchSelectAll.checked = Boolean(files.length) && files.every((file) => state.selectedMediaFiles.has(file.id));
+  updateMediaBatchConfirmState();
+}
+
+function handleMediaBatchSelection(event) {
+  const input = event.target.closest('[data-media-batch-file]'); if (!input) return;
+  if (input.checked) state.selectedMediaFiles.add(input.dataset.mediaBatchFile); else state.selectedMediaFiles.delete(input.dataset.mediaBatchFile);
+  renderMediaBatchList();
+}
+
+function toggleMediaBatchSelectAll() {
+  const files = mediaBatchFiles();
+  if (elements.mediaBatchSelectAll.checked) files.forEach((file) => state.selectedMediaFiles.add(file.id)); else files.forEach((file) => state.selectedMediaFiles.delete(file.id));
+  renderMediaBatchList();
+}
+
+function updateMediaBatchConfirmState() {
+  if (elements.mediaBatchConfirmBtn) elements.mediaBatchConfirmBtn.disabled = !state.selectedMediaFiles.size || !elements.mediaBatchCategory?.value;
+}
+
+async function confirmMediaBatchMove() {
+  const ids = [...state.selectedMediaFiles]; const collection = elements.mediaBatchCategory.value;
+  if (!ids.length || !collection) return toast('请先选择影片和目标分类', 'error');
+  if (!await showAppConfirm(`确定把 ${ids.length} 个影片移动到“${collection}”吗？`, { title: '确认批量移动', confirmText: '批量移动' })) return;
+  try {
+    const response = await fetchWithTimeout('/api/files/category/batch', { method: 'PATCH', headers: authHeaders({ 'Content-Type': 'application/json' }), body: JSON.stringify({ fileIds: ids, collection }) }, 30000);
+    const result = await response.json(); if (!response.ok || !result.success) return toast(result.error || '批量移动分类失败', 'error');
+    for (const file of result.files || []) upsertFile(file);
+    state.selectedMediaFiles.clear(); elements.mediaBatchModal.classList.add('is-hidden'); renderFiles(); renderQueue(); toast(result.message || '批量移动完成', 'success');
+  } catch (error) { toast(`批量移动分类失败：${localizedError(error, '请稍后重试')}`, 'error'); }
+}
+
+async function renameFile(file) {
+  const name = await showAppInput({
+    title: '重命名文件', description: '只修改影片库中的显示名称，不会移动文件。', label: '新的显示文件名',
+    initialValue: file.originalName, maxLength: 180, requiredMessage: '文件名不能为空', confirmText: '保存名称'
+  });
+  if (!name || name === file.originalName) return;
+  try {
+    const response = await fetchWithTimeout(`/api/files/${encodeURIComponent(file.id)}`, { method: 'PATCH', headers: authHeaders({ 'Content-Type': 'application/json' }), body: JSON.stringify({ originalName: name }) }, 12000);
+    const result = await response.json(); if (!response.ok) return toast(result.error || `重命名失败（${response.status}）`, 'error'); upsertFile(result.file); toast('文件已重命名', 'success');
+  } catch (error) { toast(`重命名失败：${localizedError(error, '请稍后重试')}`, 'error'); }
+}
+
+async function deleteFile(file) {
+  if (!await showAppConfirm(`确定删除“${file.originalName}”吗？此操作会删除服务器上的实际文件。`, { title: '删除文件', confirmText: '删除文件', danger: true })) return;
+  try {
+    const response = await fetchWithTimeout(`/api/files/${encodeURIComponent(file.id)}`, { method: 'DELETE', headers: authHeaders() }, 12000);
+    const result = await response.json(); if (!response.ok) toast(result.error || `删除失败（${response.status}）`, 'error'); else toast('文件已删除', 'success');
+  } catch (error) { toast(`删除失败：${localizedError(error, '请稍后重试')}`, 'error'); }
+}
+
+function managedVideoFiles() {
+  const query = String(state.mediaManagementSearch || '').trim().toLocaleLowerCase();
+  return manageableMediaFiles().filter((file) => {
+    if (state.mediaManagementCategory && fileCollectionName(file) !== state.mediaManagementCategory) return false;
+    return !query || [file.originalName, fileCollectionName(file), file.note, file.uploadedBy].join(' ').toLocaleLowerCase().includes(query);
+  });
+}
+
+function openVideoManagement() {
+  if (!state.authenticated) return toast('请先登录后管理影片', 'error');
+  state.videoManagementVisible = true;
+  state.selectedManagementFiles.clear();
+  elements.videoManagementModal?.classList.remove('is-hidden');
+  populateMediaBatchCategories();
+  renderVideoManagementList();
+}
+
+function renderVideoManagementList() {
+  if (!elements.videoManagementList) return;
+  const allowed = canManageVideoSystem();
+  for (const control of [elements.videoManagementSearch, elements.videoManagementCategory, elements.videoManagementSelectAll, elements.videoManagementBatchCategoryBtn, elements.videoManagementBatchNoteBtn, elements.videoManagementBatchDeleteBtn, elements.exportVideoManagementBtn, elements.importVideoManagementBtn]) {
+    if (control) control.disabled = !allowed;
+  }
+  elements.videoManagementModal?.classList.toggle('permission-denied-view', !allowed);
+  if (!allowed) {
+    elements.videoManagementList.innerHTML = `<section class="video-management-denied"><span aria-hidden="true">🔒</span><h3>暂无视频管理权限</h3><p>您仍可以正常观看影片。申请通过后，这里的搜索、批量分类、备注和删除按钮会立即恢复。</p><button class="primary-button" data-video-manage="request-access" type="button" ${state.mediaManagementRequestPending ? 'disabled' : ''}>${state.mediaManagementRequestPending ? '申请处理中' : '申请查看与管理'}</button></section>`;
+    return;
+  }
+  const files = managedVideoFiles();
+  state.selectedManagementFiles = new Set([...state.selectedManagementFiles].filter((id) => manageableMediaFiles().some((file) => file.id === id)));
+  elements.videoManagementList.innerHTML = files.length ? files.map((file) => {
+    const processing = file.compatibility?.required && !file.compatibility?.ready && ['queued', 'converting'].includes(file.compatibility?.status);
+    return `<article class="video-management-row ${processing ? 'processing' : ''}" data-managed-file="${escapeHtml(file.id)}"><label class="manage-row-check"><input type="checkbox" data-managed-file-select="${escapeHtml(file.id)}" ${state.selectedManagementFiles.has(file.id) ? 'checked' : ''} ${processing ? 'disabled' : ''}><span>选择</span></label><span class="video-management-icon">${fileIcon(file.category)}</span><div><strong>${escapeHtml(file.originalName)}</strong><p>${escapeHtml(fileCollectionName(file))} · ${formatSize(file.size)} · ${escapeHtml(file.uploadedBy || '')}</p><small>${escapeHtml(file.note || '暂无备注')}${processing ? ` · 正在转换 ${Math.round(Number(file.compatibility.progress) || 0)}%` : ''}</small></div><div class="actions"><button data-video-manage="${processing ? 'processing-progress' : 'play'}" type="button">${processing ? '查看处理进度' : isTimedFile(file) ? '播放' : '查看'}</button><button data-video-manage="rename" type="button" ${processing ? 'disabled' : ''}>重命名</button><button data-video-manage="category" type="button" ${processing ? 'disabled' : ''}>分类</button><button data-video-manage="note" type="button" ${processing ? 'disabled' : ''}>备注</button><button data-video-manage="favorite" type="button" ${processing ? 'disabled' : ''}>收藏</button><button data-video-manage="delete" class="danger-text-button" type="button" ${processing ? 'disabled' : ''}>删除</button></div></article>`;
+  }).join('') : '<p class="muted">没有符合条件的上传影片</p>';
+  if (elements.videoManagementSelectAll) elements.videoManagementSelectAll.checked = Boolean(files.length) && files.every((file) => state.selectedManagementFiles.has(file.id));
+}
+
+function handleVideoManagementSelection(event) {
+  const input = event.target.closest('[data-managed-file-select]'); if (!input) return;
+  if (input.checked) state.selectedManagementFiles.add(input.dataset.managedFileSelect); else state.selectedManagementFiles.delete(input.dataset.managedFileSelect);
+  renderVideoManagementList();
+}
+
+function toggleVideoManagementSelectAll() {
+  const files = managedVideoFiles();
+  if (elements.videoManagementSelectAll.checked) files.forEach((file) => state.selectedManagementFiles.add(file.id)); else files.forEach((file) => state.selectedManagementFiles.delete(file.id));
+  renderVideoManagementList();
+}
+
+async function handleVideoManagementAction(event) {
+  const button = event.target.closest('[data-video-manage]'); if (!button) return;
+  if (button.dataset.videoManage === 'request-access') return requestMediaManagementAccess();
+  const file = state.files.get(button.closest('[data-managed-file]')?.dataset.managedFile); if (!file) return;
+  const action = button.dataset.videoManage;
+  if (action === 'processing-progress') { state.mediaProcessingSearch = file.originalName || ''; if (elements.mediaProcessingSearch) elements.mediaProcessingSearch.value = state.mediaProcessingSearch; elements.videoManagementModal.classList.add('is-hidden'); state.videoManagementVisible = false; return openConversionProgress(); }
+  if (action === 'play') { elements.videoManagementModal.classList.add('is-hidden'); state.videoManagementVisible = false; return selectFile(file.id); }
+  if (action === 'rename') await renameFile(file);
+  else if (action === 'category') await setFileCategory(file);
+  else if (action === 'note') await editManagedVideoNote(file);
+  else if (action === 'favorite') { const result = await emitAck('account-action', { action: 'toggle-favorite', fileId: file.id }); toast(result.success ? '收藏状态已更新' : result.error, result.success ? 'success' : 'error'); }
+  else if (action === 'delete') await deleteFile(file);
+  renderVideoManagementList();
+}
+
+async function requestMediaManagementAccess() {
+  if (state.mediaManagementRequestPending) return toast('视频管理权限申请正在等待管理员处理');
+  const reason = await showAppInput({
+    title: '申请视频管理权限', description: `申请管理当前房间${state.room?.name ? `“${state.room.name}”` : ''}的视频库。管理员处理前申请会一直保留。`,
+    label: '申请说明', required: false, maxLength: 240, initialValue: '需要整理影片分类和备注', confirmText: '发送申请'
+  });
+  if (reason === null) return;
+  const result = await emitAck('media-management-request', { reason }, 15000);
+  toast(result.message || result.error, result.success ? 'success' : 'error', 7000);
+  if (!result.success) return;
+  if (result.alreadyGranted) state.permissions.manageMedia = true;
+  else {
+    state.mediaManagementRequestPending = true;
+    addPersistentRequest({ ...(result.request || {}), id: result.request?.id || `media-management-${Date.now()}`, kind: 'media-management', own: true });
+  }
+  renderVideoManagementList();
+}
+
+function handleMediaManagementResolution(result = {}) {
+  if (result.request?.id || result.requestId) removePersistentRequest(result.request?.id || result.requestId);
+  state.mediaManagementRequestPending = false;
+  if (result.approved || result.granted) state.permissions.manageMedia = true;
+  toast(result.message || (result.approved ? '视频管理权限已开通' : '视频管理权限申请已被拒绝'), result.approved || result.granted ? 'success' : 'error', 8000);
+  updateAdministrativeAccess();
+  if (state.videoManagementVisible) renderVideoManagementList();
+}
+
+function handleMediaManagementPermissionUpdated(update = {}) {
+  if (update.username !== state.user?.username || (update.roomId && update.roomId !== state.room?.id)) return;
+  state.permissions.manageMedia = update.granted === true;
+  state.mediaManagementRequestPending = false;
+  if (update.requestId) removePersistentRequest(update.requestId);
+  if (state.videoManagementVisible) renderVideoManagementList();
+}
+
+async function editManagedVideoNote(file) {
+  const note = await showAppInput({ title: '影片备注', description: file.originalName, label: '备注内容', initialValue: file.note || '', maxLength: 500, confirmText: '保存备注' });
+  if (note === null) return;
+  const response = await fetchWithTimeout(`/api/files/${encodeURIComponent(file.id)}`, { method: 'PATCH', headers: authHeaders({ 'Content-Type': 'application/json' }), body: JSON.stringify({ note }) }, 20000);
+  const result = await response.json(); if (!response.ok || !result.success) return toast(result.error || '备注保存失败', 'error');
+  upsertFile(result.file); toast(result.message || '备注已保存', 'success');
+}
+
+async function patchManagedVideos(payload) {
+  const fileIds = [...state.selectedManagementFiles];
+  if (!fileIds.length) return toast('请先选择影片', 'error');
+  const response = await fetchWithTimeout('/api/files/manage/batch', { method: 'PATCH', headers: authHeaders({ 'Content-Type': 'application/json' }), body: JSON.stringify({ fileIds, ...payload }) }, 30000);
+  const result = await response.json(); if (!response.ok || !result.success) return toast(result.error || '批量管理失败', 'error');
+  for (const file of result.files || []) upsertFile(file);
+  renderFiles(); renderVideoManagementList(); toast(result.message || '批量管理完成', 'success');
+}
+
+async function batchCategorizeManagedVideos() {
+  if (!state.selectedManagementFiles.size) return toast('请先选择影片', 'error');
+  const collection = await chooseMediaCategory({ title: '批量设置分类', description: `已选择 ${state.selectedManagementFiles.size} 个影片`, confirmText: '保存分类' });
+  if (collection !== null) await patchManagedVideos({ collection });
+}
+
+async function batchNoteManagedVideos() {
+  if (!state.selectedManagementFiles.size) return toast('请先选择影片', 'error');
+  const note = await showAppInput({ title: '批量设置备注', description: `将为 ${state.selectedManagementFiles.size} 个影片设置相同备注`, label: '备注内容', maxLength: 500, confirmText: '保存备注' });
+  if (note !== null) await patchManagedVideos({ note });
+}
+
+async function batchDeleteManagedVideos() {
+  const ids = [...state.selectedManagementFiles]; if (!ids.length) return toast('请先选择影片', 'error');
+  if (!await showAppConfirm(`确定永久删除所选的 ${ids.length} 个影片及其文件吗？`, { title: '批量删除影片', confirmText: '永久删除', danger: true })) return;
+  let deleted = 0;
+  for (const id of ids) {
+    const response = await fetchWithTimeout(`/api/files/${encodeURIComponent(id)}`, { method: 'DELETE', headers: authHeaders() }, 60000);
+    if (response.ok) { deleted += 1; state.selectedManagementFiles.delete(id); }
+  }
+  toast(`已删除 ${deleted}/${ids.length} 个影片`, deleted === ids.length ? 'success' : 'error'); renderVideoManagementList();
+}
+
+function exportVideoManagement() {
+  const files = manageableMediaFiles().map((file) => ({ id: file.id, originalName: file.originalName, collection: fileCollectionName(file), note: file.note || '', uploadedAt: file.uploadedAt, size: file.size }));
+  downloadJsonFile(`SyncWatch-影片管理-${new Date().toISOString().slice(0, 10)}.json`, { version: '2.1.5', type: 'syncwatch-media-management', files });
+}
+
+async function importVideoManagement() {
+  const file = elements.importVideoManagementInput.files?.[0]; if (!file) return;
+  try {
+    const parsed = JSON.parse(await file.text());
+    if (parsed?.type !== 'syncwatch-media-management' || !Array.isArray(parsed.files)) throw new Error('不是有效的 SyncWatch 影片管理文件');
+    const local = new Map(manageableMediaFiles().map((item) => [item.id, item])); let updated = 0;
+    for (const item of parsed.files.slice(0, 500)) {
+      if (!local.has(String(item.id || ''))) continue;
+      state.selectedManagementFiles = new Set([String(item.id)]);
+      await patchManagedVideos({ collection: String(item.collection || '未分类'), note: String(item.note || '') }); updated += 1;
+    }
+    state.selectedManagementFiles.clear(); toast(`已导入 ${updated} 个影片的分类与备注`, 'success');
+  } catch (error) { toast(`导入失败：${localizedError(error)}`, 'error'); }
+  finally { elements.importVideoManagementInput.value = ''; }
+}
+
+function downloadJsonFile(filename, value) {
+  const blob = new Blob([JSON.stringify(value, null, 2)], { type: 'application/json;charset=utf-8' });
+  const link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = filename; link.click(); setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+}
+
+function uploadFile() { void startUploadBatch([...elements.fileInput.files]); }
+
+function setUploadProgressBackgrounded(backgrounded) {
+  state.uploadProgressBackgrounded = Boolean(backgrounded && state.uploadBatch);
+  elements.uploadProgress?.classList.toggle('backgrounded', state.uploadProgressBackgrounded);
+  if (elements.backgroundUploadBtn) {
+    elements.backgroundUploadBtn.textContent = state.uploadProgressBackgrounded ? '展开' : '后台处理';
+    elements.backgroundUploadBtn.setAttribute('aria-expanded', String(!state.uploadProgressBackgrounded));
+    elements.backgroundUploadBtn.title = state.uploadProgressBackgrounded ? '展开上传进度' : '收起到右上角后台继续上传';
+  }
+}
+
+function toggleUploadProgressBackground() {
+  setUploadProgressBackgrounded(!state.uploadProgressBackgrounded);
+}
+
+async function addRemoteVideo() {
+  if (!state.socketAuthenticated) return;
+  let url = '';
+  let name = '';
+  let step = 0;
+  while (step < 2) {
+    if (step === 0) {
+      const value = await showAppInput({ title: '添加云端视频', description: '粘贴腾讯云 COS / 阿里云 OSS 的 HTTPS 公开视频直链。对象存储需要允许浏览器跨域读取并支持 HTTP Range。', label: '视频 HTTPS 直链', initialValue: url, maxLength: 2000, confirmText: '下一步', allowBack: true });
+      if (value === null) return;
+      url = value; if (!name) name = url.split('/').pop()?.split('?')[0] || '云端视频.mp4';
+      step = 1; continue;
+    }
+    const value = await showAppInput({ title: '视频名称', description: '名称用于房间影片库显示，例如“第20集 丛林保卫战.mp4”。', label: '视频名称', initialValue: name, maxLength: 180, confirmText: '添加视频', allowBack: true });
+    if (value === APP_DIALOG_BACK) { step = 0; continue; }
+    if (value === null) return;
+    name = value; step = 2;
+  }
+  const result = await emitAck('add-remote-video', { url: url.trim(), name: name.trim() }, 20000);
+  toast(result.message || result.error || '云端视频添加失败', result.success ? 'success' : 'error', 7000);
+}
+
+async function chooseUploadFolder() {
+  const bridge = window.SyncWatchAndroid;
+  if (!bridge || typeof bridge.chooseFolder !== 'function') { elements.folderInput.click(); return; }
+  window.__syncWatchNativeFolderPaths = [];
+  try {
+    const pending = bridge.chooseFolder();
+    const result = pending && typeof pending.then === 'function' ? await pending : pending;
+    if (result === false || result === 'false') return toast('安卓文件夹选择器未能打开', 'error');
+    elements.folderInput.click();
+  } catch (error) { toast(`无法打开文件夹选择器：${localizedError(error, '当前设备不支持选择文件夹')}`, 'error'); }
+}
+
+function uploadFolder() {
+  const files = [...elements.folderInput.files];
+  const relativePaths = Array.isArray(window.__syncWatchNativeFolderPaths) ? window.__syncWatchNativeFolderPaths.map((path) => String(path || '').replace(/\\/g, '/')) : [];
+  window.__syncWatchNativeFolderPaths = [];
+  void startUploadBatch(files, relativePaths);
+}
+
+async function startUploadBatch(files, relativePaths = []) {
+  if (!files.length) return;
+  if (state.uploadBatch) return toast('已有上传任务正在进行，可先点击“中止上传”', 'error');
+  const collection = await chooseUploadCollection(files, relativePaths);
+  if (collection === null) { elements.fileInput.value = ''; if (elements.folderInput) elements.folderInput.value = ''; return; }
+  const totalBytes = files.reduce((sum, file) => sum + (Number(file.size) || 0), 0);
+  const batch = { files, relativePaths, collection, totalBytes, completedBytes: 0, currentLoaded: 0, currentXhr: null, cancelled: false, succeeded: 0, failed: 0, startedAt: performance.now() };
+  state.uploadBatch = batch;
+  setUploadProgressBackgrounded(false);
+  elements.uploadProgress.classList.remove('is-hidden'); elements.cancelUploadBtn?.classList.remove('is-hidden');
+  if (elements.cancelUploadBtn) elements.cancelUploadBtn.disabled = false;
+  elements.uploadProgressBar.style.width = '0%';
+  if (elements.uploadProgressTitle) elements.uploadProgressTitle.textContent = `文件上传任务 · 0%`;
+  elements.uploadProgressText.textContent = `准备上传 1/${files.length}…`;
+  elements.chooseFileBtn.disabled = true; if (elements.chooseFolderBtn) elements.chooseFolderBtn.disabled = true;
+  try {
+    for (let index = 0; index < files.length && !batch.cancelled; index += 1) {
+      const file = files[index]; batch.currentLoaded = 0;
+      const result = await uploadOneFile(file, index, batch);
+      if (result.cancelled) break;
+      if (result.success) {
+        batch.succeeded += 1; upsertFile(result.file);
+      } else {
+        batch.failed += 1;
+        if (result.requestable) await promptUploadExceptionRequest(file, result);
+        else toast(`${file.name}：${result.error || '上传失败'}`, 'error', 6500);
+      }
+      batch.completedBytes += Number(file.size) || batch.currentLoaded; batch.currentLoaded = 0;
+    }
+  } catch (error) {
+    batch.failed += 1;
+    toast(`上传任务异常：${localizedError(error, '请检查网络与存储空间后重试')}`, 'error', 6500);
+  } finally {
+    const cancelled = batch.cancelled;
+    const succeeded = batch.succeeded; const failed = batch.failed;
+    finishUpload();
+    if (cancelled) toast(`上传已中止，已完成 ${succeeded}/${files.length} 个文件；未完成文件不会保留`, 'error', 6500);
+    else toast(`批量上传完成：成功 ${succeeded} 个${failed ? `，失败 ${failed} 个` : ''}`, failed ? '' : 'success', 6500);
+  }
+}
+
+async function chooseUploadCollection(files, relativePaths = []) {
+  const firstPath = String(files[0]?.webkitRelativePath || relativePaths[0] || '').replace(/\\/g, '/').replace(/^\/+|\/+$/g, '');
+  const folderCollection = firstPath.includes('/') ? firstPath.split('/')[0] : '';
+  const initialValue = state.mediaCategoryFilter || folderCollection || '未分类';
+  return chooseMediaCategory({
+    title: files.length > 1 ? `选择 ${files.length} 个文件的分类` : '选择上传分类',
+    description: '从已有分类中选择上传位置；需要新的分类时选择“＋ 新建分类…”。',
+    initialValue, confirmText: '上传到此分类'
+  });
+}
+
+function uploadOneFile(file, index, batch) {
+  const retryKey = `${index}:${file.name}:${file.size}`;
+  const retryCount = Number(batch.uploadRetries?.[retryKey] || 0);
+  const retry = (resolve, result) => {
+    if (!batch.cancelled && result?.transient && retryCount < 2) {
+      batch.uploadRetries ||= {};
+      batch.uploadRetries[retryKey] = retryCount + 1;
+      const delayMs = 800 * (2 ** retryCount);
+      elements.uploadProgressText.textContent = `上传连接暂时中断，${Math.ceil(delayMs / 1000)} 秒后自动重试（${retryCount + 1}/3）…`;
+      window.setTimeout(() => uploadOneFile(file, index, batch).then(resolve), delayMs);
+      return true;
+    }
+    delete batch.uploadRetries?.[retryKey];
+    return false;
+  };
+  return new Promise((resolve) => {
+    if (batch.cancelled) return resolve({ success: false, cancelled: true });
+    batch.currentLoaded = 0;
+    const form = new FormData(); form.append('file', file, file.name);
+    form.append('relativePath', file.webkitRelativePath || batch.relativePaths?.[index] || file.name);
+    form.append('collection', batch.collection || '未分类');
+    const xhr = new XMLHttpRequest(); batch.currentXhr = xhr;
+    xhr.open('POST', '/api/upload'); xhr.timeout = 0; xhr.setRequestHeader('Authorization', `Bearer ${state.token}`);
+    xhr.upload.onprogress = (event) => {
+      state.networkUploadBytes += Math.max(0, Number(event.loaded) - Math.max(0, Number(batch.currentLoaded) || 0));
+      batch.currentLoaded = event.loaded;
+      const loaded = Math.min(batch.totalBytes || 1, batch.completedBytes + event.loaded);
+      const percent = batch.totalBytes ? Math.round(loaded / batch.totalBytes * 100) : 0;
+      const elapsedSeconds = Math.max(.25, (performance.now() - batch.startedAt) / 1000);
+      const speed = loaded / elapsedSeconds;
+      const etaSeconds = speed > 0 ? Math.max(0, (batch.totalBytes - loaded) / speed) : 0;
+      elements.uploadProgressBar.style.width = `${percent}%`;
+      if (elements.uploadProgressTitle) elements.uploadProgressTitle.textContent = `文件上传任务 · ${percent}%`;
+      elements.uploadProgressText.textContent = `正在上传 ${index + 1}/${batch.files.length}：${file.name} · ${percent}% · ${formatSize(speed)}/秒 · 预计 ${formatEta(etaSeconds)} · ${formatSize(loaded)}/${formatSize(batch.totalBytes)}`;
+    };
+    xhr.onload = () => {
+      batch.currentXhr = null; let result; try { result = JSON.parse(xhr.responseText); } catch (_) { result = {}; }
+      const success = xhr.status >= 200 && xhr.status < 300 && result.success !== false;
+      const transient = !success && [408, 425, 429, 500, 502, 503, 504].includes(xhr.status);
+      const payload = success ? { success: true, ...result } : { success: false, ...result, transient, error: result.error || `服务器返回 ${xhr.status}` };
+      if (retry(resolve, payload)) return;
+      resolve(payload);
+    };
+    xhr.onerror = () => {
+      batch.currentXhr = null;
+      const payload = { success: false, transient: true, error: '上传连接中断，正在自动重试…' };
+      if (retry(resolve, payload)) return;
+      resolve({ ...payload, error: '上传连接中断，服务器不会保留不完整文件' });
+    };
+    xhr.ontimeout = () => {
+      batch.currentXhr = null;
+      const payload = { success: false, transient: true, error: '上传请求超时，正在自动重试…' };
+      if (retry(resolve, payload)) return;
+      resolve(payload);
+    };
+    xhr.onabort = () => { batch.currentXhr = null; resolve({ success: false, cancelled: true }); };
+    xhr.send(form);
+  });
+}
+
+async function promptUploadExceptionRequest(file, result) {
+  const storageBlocked = result.code === 'ROOM_STORAGE_LIMIT_REACHED';
+  const description = storageBlocked
+    ? `房间存储空间已达到上限，无法上传“${file.name}”。是否向管理员申请扩容？`
+    : `当前仅允许上传指定类型，“${file.name}”暂不可上传。是否向管理员申请开放此文件类型？`;
+  const confirmed = await showAppConfirm(description, {
+    title: storageBlocked ? '申请房间扩容' : '申请其他文件类型', confirmText: '发送申请', cancelText: '暂不申请'
+  });
+  if (!confirmed) return;
+  const eventName = storageBlocked ? 'storage-quota-request' : 'upload-policy-request';
+  const requestedLimitBytes = storageBlocked
+    ? Math.max(Number(result.storage?.limitBytes) || 0, (Number(result.storage?.usedBytes) || 0) + (Number(result.fileSize) || Number(file.size) || 0))
+    : 0;
+  const payload = storageBlocked
+    ? { requestedLimitBytes, reason: `上传 ${file.name} 需要更多房间存储空间` }
+    : { category: result.category || inferUploadCategory(file), fileName: file.name, reason: `需要上传 ${file.name}` };
+  const response = await emitAck(eventName, payload, 15000);
+  if (!response.success) return toast(response.error || '申请发送失败', 'error');
+  const request = { ...(response.request || payload), id: response.request?.id || `${eventName}-${Date.now()}`, kind: storageBlocked ? 'storage' : 'upload-policy', own: true };
+  addPersistentRequest(request);
+  toast(response.message || '申请已发送，等待管理员处理', 'success');
+}
+
+function inferUploadCategory(file) {
+  const type = String(file?.type || '').toLowerCase(); const name = String(file?.name || '').toLowerCase();
+  if (type.startsWith('image/')) return 'image';
+  if (type.startsWith('audio/')) return 'audio';
+  if (type === 'application/pdf' || name.endsWith('.pdf')) return 'pdf';
+  if (/\.(?:srt|ass|ssa|vtt)$/.test(name)) return 'subtitle';
+  if (type.startsWith('text/') || /\.(?:txt|md)$/.test(name)) return 'text';
+  if (/\.(?:docx?|xlsx?)$/.test(name)) return 'document';
+  return 'other';
+}
+
+function addPersistentRequest(request) {
+  if (!request) return;
+  const registrationId = request.kind === 'account-registration'
+    ? `account-registration-${request.username || 'unknown'}-${request.registeredAt || request.createdAt || Date.now()}`
+    : '';
+  const id = String(request.id || request.requestId || registrationId || `${request.kind || 'request'}-${Date.now()}`);
+  if (state.dismissedPersistentRequests.has(id)) return;
+  state.persistentRequests.set(id, { ...request, id });
+  renderPersistentRequests();
+}
+
+function removePersistentRequest(id, rememberDismissal = false) {
+  if (rememberDismissal && id) state.dismissedPersistentRequests.add(String(id));
+  state.persistentRequests.delete(String(id || ''));
+  renderPersistentRequests();
+}
+
+function renderPersistentRequests() {
+  if (!elements.persistentRequestCenter) return;
+  const requests = [...state.persistentRequests.values()];
+  elements.persistentRequestCenter.classList.toggle('is-hidden', !requests.length);
+  elements.persistentRequestCenter.innerHTML = requests.map((request) => {
+    const storage = request.kind === 'storage' || request.requestedLimitBytes || request.fileSize;
+    const friend = request.kind === 'friend';
+    const friendMessage = request.kind === 'friend-message';
+    const friendRoom = request.kind === 'friend-room';
+    const playback = request.kind === 'playback';
+    const registration = request.kind === 'account-registration';
+    const locationRequest = request.kind === 'location-authorization';
+    const mediaManagement = request.kind === 'media-management';
+    const title = friend ? '好友申请' : friendMessage ? '好友消息' : friendRoom ? '好友房间请求' : playback ? '播放申请' : registration ? '新账号注册' : locationRequest ? '位置授权邀请' : mediaManagement ? '视频管理权限申请' : storage ? '房间存储扩容申请' : '上传类型权限申请';
+    const actor = request.displayName || request.username || request.from || request.requestedBy || (request.own ? '我' : '成员');
+    const roomLabel = request.roomName || request.roomId ? ` · ${request.roomName || '房间'}（${request.roomId || '未知房间号'}）` : '';
+    const detail = friend
+      ? `${actor} 请求添加您为好友${request.message ? `：${request.message}` : ''}`
+      : friendMessage
+      ? `${actor} 发来消息：${request.message || '好友消息'}`
+      : friendRoom
+      ? `${actor}${(request.requestType || request.kind) === 'invite' ? '邀请您加入' : '申请加入您的房间'}${roomLabel}`
+      : playback
+      ? `${actor} 申请播放《${request.fileName || '影片'}》${roomLabel}`
+      : registration
+      ? `${request.message || `新账号已注册：${request.displayName || request.username || '未知账号'}`} · ${formatDate(request.registeredAt || request.createdAt)}`
+      : locationRequest
+      ? `${request.requestedByName || request.requestedBy || '管理员'} 邀请您重新授权位置${roomLabel}`
+      : mediaManagement
+      ? `${actor} 申请查看和管理房间视频库${roomLabel}${request.reason ? `：${request.reason}` : ''}`
+      : storage
+      ? `${actor} 申请将房间容量提高到 ${formatSize(request.requestedLimitBytes || request.storage?.limitBytes || 0)}${roomLabel}`
+      : `${actor} 申请上传 ${request.fileName || request.originalName || request.category || '其他类型文件'}${roomLabel}`;
+    const actions = registration
+      ? '<button data-request-action="open-accounts" type="button">打开账号管理</button>'
+      : locationRequest
+      ? '<button data-request-action="authorize-location" type="button">同意并授权</button><button data-request-action="deny-location" class="danger-text-button" type="button">拒绝</button>'
+      : mediaManagement
+      ? request.own ? '<button data-request-action="close" type="button">知道了</button>' : '<button data-request-action="approve-media-management" type="button">同意</button><button data-request-action="reject-media-management" class="danger-text-button" type="button">拒绝</button>'
+      : friendMessage
+      ? '<button data-request-action="open-friend-message" type="button">打开对话</button><select data-request-mute-duration aria-label="免打扰时长"><option value="3600000">1 小时免打扰</option><option value="86400000">24 小时免打扰</option><option value="604800000">7 天免打扰</option><option value="0">恢复提醒</option></select><button data-request-action="mute-friend" type="button">设置提醒</button>'
+      : friendRoom
+      ? '<button data-request-action="approve-room" type="button">同意并加入</button><button data-request-action="reject-room" class="danger-text-button" type="button">拒绝</button><select data-request-snooze-duration aria-label="暂不提醒时长"><option value="3600000">1 小时不提醒</option><option value="86400000">24 小时不提醒</option><option value="604800000">7 天不提醒</option></select><button data-request-action="snooze-room" type="button">暂不提醒</button>'
+      : playback
+      ? '<button data-request-action="approve-playback" type="button">同意</button><button data-request-action="reject-playback" class="danger-text-button" type="button">拒绝</button><select data-request-suppress-duration aria-label="申请提醒时长"><option value="0">继续提醒</option><option value="3600000">1 小时不提醒</option><option value="86400000">24 小时不提醒</option><option value="604800000">7 天不提醒</option></select>'
+      : `<button data-request-action="${friend ? 'open-friend' : 'open'}" type="button">${friend ? '打开好友' : '打开设置'}</button>${request.own ? '' : '<button data-request-action="approve" type="button">同意</button><button data-request-action="reject" class="danger-text-button" type="button">拒绝</button>'}`;
+    return `<article class="persistent-request" data-request-id="${escapeHtml(request.id)}"><button class="persistent-request-close" data-request-action="close" type="button" aria-label="关闭申请提示">×</button><strong>${title}</strong><p>${escapeHtml(detail)}</p><div>${actions}</div></article>`;
+  }).join('');
+}
+
+function prunePersistentRequestsForRoom(roomId) {
+  if (state.capabilities.serverHost || state.capabilities.superAdmin) return;
+  let changed = false;
+  for (const [id, request] of state.persistentRequests) {
+    if (!request.roomId || String(request.roomId).toUpperCase() === String(roomId || '').toUpperCase()) continue;
+    state.persistentRequests.delete(id); changed = true;
+  }
+  if (changed) renderPersistentRequests();
+}
+
+async function handlePersistentRequestAction(event) {
+  const button = event.target.closest('[data-request-action]'); if (!button) return;
+  const item = button.closest('[data-request-id]'); const request = state.persistentRequests.get(item?.dataset.requestId);
+  if (!request) return;
+  const action = button.dataset.requestAction;
+  if (action === 'close') return removePersistentRequest(request.id, true);
+  if (action === 'authorize-location' || action === 'deny-location') {
+    if (action === 'authorize-location') {
+      enableLocationPrompt(); await reportMemberLocation({ interactive: true });
+    } else {
+      const result = await emitAck('member-location', { status: 'denied' }, 8000);
+      if (!result.success) return toast(result.error || '位置授权状态发送失败', 'error');
+      toast('已拒绝本次位置授权邀请', '', 5000);
+    }
+    removePersistentRequest(request.id); return;
+  }
+  if (action === 'approve-media-management' || action === 'reject-media-management') {
+    const result = await adminAction('resolve-media-management-request', { requestId: request.id, approved: action === 'approve-media-management' });
+    toast(result.message || result.error, result.success && action === 'approve-media-management' ? 'success' : result.success ? '' : 'error');
+    if (result.success) removePersistentRequest(request.id);
+    return;
+  }
+  if (action === 'open-friend-message') {
+    removePersistentRequest(request.id);
+    await openAccount('friends');
+    return openFriendChat(request.username);
+  }
+  if (action === 'open-accounts') {
+    removePersistentRequest(request.id);
+    openManagementHub('accounts');
+    return;
+  }
+  if (action === 'mute-friend') {
+    const durationMs = Number(item.querySelector('[data-request-mute-duration]')?.value || 0);
+    const result = await emitAck('account-action', { action: 'friend-notification-mute', username: request.username, durationMs });
+    toast(result.message || result.error, result.success ? 'success' : 'error');
+    if (result.success) removePersistentRequest(request.id);
+    return;
+  }
+  if (action === 'approve-room' || action === 'reject-room') {
+    const result = await emitAck('account-action', { action: 'friend-room-respond', requestId: request.id, accepted: action === 'approve-room' }, 30000);
+    if (result.success && result.auth?.success) await finishAuthentication(result.auth, state.rememberSession, true);
+    toast(result.message || result.error, result.success && result.accepted ? 'success' : result.success ? '' : 'error', 0);
+    if (result.success) removePersistentRequest(request.id);
+    return;
+  }
+  if (action === 'snooze-room') {
+    const durationMs = Number(item.querySelector('[data-request-snooze-duration]')?.value || 3600000);
+    const result = await emitAck('account-action', { action: 'friend-room-request-snooze', requestId: request.id, durationMs });
+    toast(result.message || result.error, result.success ? 'success' : 'error');
+    if (result.success) removePersistentRequest(request.id);
+    return;
+  }
+  if (action === 'approve-playback' || action === 'reject-playback') {
+    const suppressDurationMs = Number(item.querySelector('[data-request-suppress-duration]')?.value || 0);
+    const result = await emitAck('playback-request-action', { requestId: request.id, approved: action === 'approve-playback', suppressDurationMs }, 15000);
+    toast(result.message || result.error, result.success && action === 'approve-playback' ? 'success' : result.success ? '' : 'error');
+    if (result.success) removePersistentRequest(request.id);
+    return;
+  }
+  if (action === 'open') {
+    openManagementHub('room');
+    setTimeout(() => document.querySelector('[data-management-panel="room"]')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 180);
+    return;
+  }
+  if (action === 'open-friend') { void openAccount('friends'); return; }
+  if (request.kind === 'friend') {
+    const result = await emitAck('account-action', { action: 'friend-respond', requestId: request.id, accepted: action === 'approve' });
+    toast(result.message || result.error, result.success ? 'success' : 'error'); if (result.success) removePersistentRequest(request.id); return;
+  }
+  const storage = request.kind === 'storage' || request.requestedLimitBytes || request.fileSize;
+  const result = await adminAction(storage ? 'resolve-storage-quota-request' : 'resolve-upload-policy-request', {
+    requestId: request.id, approved: action === 'approve',
+    ...(storage && action === 'approve' ? { approvedLimitBytes: Number(request.requestedLimitBytes) || undefined } : {})
+  });
+  toast(result.message || result.error, result.success ? 'success' : 'error');
+  if (result.success) removePersistentRequest(request.id);
+}
+
+function hydratePersistentRequests(admin = {}) {
+  for (const request of admin.uploadPolicyRequests || []) if (request.status === 'pending') addPersistentRequest({ ...request, kind: 'upload-policy' });
+  for (const request of admin.storageQuotaRequests || []) if (request.status === 'pending') addPersistentRequest({ ...request, kind: 'storage' });
+  for (const request of admin.mediaManagementRequests || []) if (request.status === 'pending') addPersistentRequest({ ...request, kind: 'media-management' });
+}
+
+function cancelUpload(silent = false) {
+  const batch = state.uploadBatch;
+  if (!batch) {
+    setUploadProgressBackgrounded(false);
+    elements.uploadProgress.classList.add('is-hidden'); elements.uploadProgressBar.style.width = '0%'; elements.uploadProgressText.textContent = '等待上传';
+    if (elements.uploadProgressTitle) elements.uploadProgressTitle.textContent = '文件上传任务';
+    if (elements.cancelUploadBtn) { elements.cancelUploadBtn.disabled = true; elements.cancelUploadBtn.classList.add('is-hidden'); }
+    return;
+  }
+  batch.cancelled = true; batch.currentXhr?.abort();
+  if (elements.cancelUploadBtn) elements.cancelUploadBtn.disabled = true;
+  if (!silent) elements.uploadProgressText.textContent = '正在中止上传并清理未完成文件…';
+}
+
+function finishUpload() {
+  if (state.uploadBatch) { state.uploadBatch.currentXhr = null; state.uploadBatch.currentLoaded = 0; }
+  state.uploadBatch = null; setUploadProgressBackgrounded(false); elements.fileInput.value = ''; if (elements.folderInput) elements.folderInput.value = '';
+  elements.uploadProgress.classList.add('is-hidden'); elements.uploadProgressBar.style.width = '0%'; elements.uploadProgressText.textContent = '等待上传';
+  if (elements.uploadProgressTitle) elements.uploadProgressTitle.textContent = '文件上传任务';
+  if (elements.cancelUploadBtn) { elements.cancelUploadBtn.disabled = true; elements.cancelUploadBtn.classList.add('is-hidden'); }
+  elements.chooseFileBtn.disabled = false; if (elements.chooseFolderBtn) elements.chooseFolderBtn.disabled = false;
+  elements.filePanel.classList.remove('mobile-open');
+}
+
+function applyLibraryCollapsed() {
+  document.querySelector('.workspace')?.classList.toggle('files-collapsed', state.libraryCollapsed);
+  if (elements.collapseFilesBtn) {
+    const label = state.libraryCollapsed ? '展开影片库' : '折叠影片库';
+    elements.collapseFilesBtn.textContent = state.libraryCollapsed ? '›' : '‹';
+    elements.collapseFilesBtn.title = label;
+    elements.collapseFilesBtn.setAttribute('aria-label', label);
+    elements.collapseFilesBtn.setAttribute('aria-expanded', String(!state.libraryCollapsed));
+  }
+}
+function toggleLibraryCollapsed() { state.libraryCollapsed = !state.libraryCollapsed; localStorage.setItem('syncwatchFilesCollapsed', state.libraryCollapsed ? '1' : '0'); applyLibraryCollapsed(); }
+
+function viewStaticFile(file) {
+  if (!file || isTimedFile(file) || file.status !== 'approved') return toast('该文件当前不可查看', 'error');
+  return selectFile(file.id);
+}
+async function selectFile(fileId) {
+  const file = state.files.get(fileId);
+  if (!file || file.category === 'subtitle' || file.status !== 'approved') return toast('只能预览已审核的媒体或文件', 'error');
+  if (!fileBelongsToCurrentRoom(file)) {
+    state.files.delete(fileId); if (state.currentFile?.id === fileId) clearStage(); renderFiles(); renderQueue();
+    return toast('影片不属于当前房间，影片库已刷新，请重新选择', 'error');
+  }
+  if (!canControlPlayback()) {
+    const requested = await showAppConfirm(`您当前没有播放权限。是否向房主申请打开《${file.originalName}》？`, { title: '申请打开文件', confirmText: '发送申请', cancelText: '取消' });
+    if (!requested) return;
+    const requestResult = await emitAck('request-playback', { fileId });
+    return toast(requestResult.message || requestResult.error, requestResult.success ? 'success' : 'error', 6500);
+  }
+  const result = await emitAck('select-file', { fileId });
+  if (!result.success) {
+    if (result.refreshFiles || result.code === 'MEDIA_NOT_AVAILABLE_IN_ROOM') await Promise.all([loadFiles(), refreshRoom()]);
+    if (result.compatibility) {
+      const latest = state.files.get(fileId) || file;
+      state.files.set(fileId, mergeFileSnapshot(latest, { ...latest, compatibility: result.compatibility })); renderFiles(); renderQueue();
+    }
+    const preparing = ['MEDIA_ANALYSIS_PREPARING', 'MEDIA_COMPATIBILITY_PREPARING'].includes(result.code);
+    toast(result.error, preparing ? '' : 'error', preparing ? 9000 : 5000);
+  }
+}
+async function queueAction(action, fileId, index) {
+  const file = state.files.get(fileId);
+  if (action === 'add' && (!isTimedFile(file) || file.status !== 'approved')) return toast('播放队列只能加入已审核的视频或音频', 'error');
+  if (action === 'add' && !fileBelongsToCurrentRoom(file)) {
+    state.files.delete(fileId); if (state.currentFile?.id === fileId) clearStage(); renderFiles(); renderQueue();
+    return toast('影片不属于当前房间，影片库已刷新', 'error');
+  }
+  if (!canControlPlayback()) return permissionDeniedToast('控制播放队列');
+  const result = await emitAck('queue-action', { action, fileId, index }); if (!result.success) toast(result.error, 'error');
+}
+function fileCollectionName(file) {
+  if (file?.collection) return String(file.collection);
+  const relativePath = String(file?.relativePath || '').replace(/\\/g, '/').replace(/^\/+|\/+$/g, '');
+  return relativePath.includes('/') ? relativePath.split('/')[0] : '未分类';
+}
+function renderQueueModeControls() {
+  if (!elements.queueModeSelect || !elements.queueCategorySelect) return;
+  const mode = state.room?.playbackMode?.mode || 'autoplay';
+  const selectedCategory = state.room?.playbackMode?.category || '';
+  const categories = [...new Set([...state.files.values()].filter((file) => isTimedFile(file) && file.status === 'approved').map(fileCollectionName))].sort((a, b) => a.localeCompare(b, 'zh-CN'));
+  elements.queueModeSelect.value = mode;
+  elements.queueCategoryGroup.classList.toggle('is-hidden', mode !== 'category');
+  elements.queueCategorySelect.innerHTML = `<option value="">请选择分类</option>${categories.map((category) => `<option value="${escapeHtml(category)}">${escapeHtml(category)}</option>`).join('')}`;
+  elements.queueCategorySelect.value = categories.includes(selectedCategory) ? selectedCategory : '';
+  const editable = canControlPlayback();
+  elements.queueModeSelect.disabled = !editable;
+  elements.queueCategorySelect.disabled = !editable;
+}
+async function updateQueueMode() {
+  if (!canControlPlayback()) return permissionDeniedToast('更改播放模式');
+  const mode = elements.queueModeSelect.value;
+  const category = mode === 'category' ? elements.queueCategorySelect.value : '';
+  if (mode === 'category' && !category) { renderQueueModeControls(); return toast('请选择要循环播放的影片分类', 'error'); }
+  const result = await emitAck('queue-action', { action: 'set-mode', mode, category });
+  if (!result.success) { renderQueueModeControls(); return toast(result.error, 'error'); }
+  state.room = { ...state.room, playbackMode: result.playbackMode || { mode, category } };
+  renderQueueModeControls(); toast(result.message || '播放模式已更新', 'success');
+}
+function renderQueue() {
+  const modeLabels = { autoplay: '顺序到结尾', single: '单片循环', list: '列表循环', category: '分类循环', reverse: '倒序播放', off: '播完停止' };
+  elements.queueList.innerHTML = state.queue.map((id) => state.files.get(id)).filter((file) => isTimedFile(file) && file.status === 'approved').map((file) => {
+    const ownMode = state.room?.queueFileModes?.[file.id]?.mode || 'inherit';
+    return `<li data-file-id="${file.id}"><span>${escapeHtml(file.originalName)}<small>${ownMode === 'inherit' ? '跟随列表模式' : modeLabels[ownMode] || ownMode}</small></span><button data-queue-action="mode" title="设置此影片播放模式">模式</button><button data-queue-action="play" title="立即播放">▶</button><button data-queue-action="remove" title="移出队列">×</button></li>`;
+  }).join('') || '<li><span>队列为空</span></li>';
+  renderQueueModeControls();
+}
+async function handleQueueAction(event) {
+  const button = event.target.closest('[data-queue-action]'); if (!button) return;
+  const id = button.closest('[data-file-id]')?.dataset.fileId; if (!id) return;
+  if (button.dataset.queueAction === 'play') return selectFile(id);
+  if (button.dataset.queueAction === 'remove') return queueAction('remove', id);
+  if (!canControlPlayback()) return permissionDeniedToast('设置影片播放模式');
+  const current = state.room?.queueFileModes?.[id]?.mode || 'inherit';
+  const mode = await showAppSelect({
+    title: '设置此影片的播放模式', description: '该设置只在这部影片播放结束时生效；“跟随列表”使用上方的全局播放模式。', label: '播放模式', initialValue: current,
+    options: [
+      { value: 'inherit', label: '跟随列表模式' }, { value: 'single', label: '单片循环' }, { value: 'autoplay', label: '顺序播放到结尾' },
+      { value: 'list', label: '列表循环' }, { value: 'reverse', label: '倒序播放' }, { value: 'category', label: '当前分类循环' }, { value: 'off', label: '播放结束后停止' }
+    ], confirmText: '保存模式'
+  });
+  if (mode === null) return;
+  const result = await emitAck('queue-action', { action: 'set-file-mode', fileId: id, mode });
+  if (!result.success) return toast(result.error || '影片播放模式保存失败', 'error');
+  state.room.queueFileModes = { ...(state.room.queueFileModes || {}) };
+  if (result.fileMode) state.room.queueFileModes[id] = result.fileMode; else delete state.room.queueFileModes[id];
+  renderQueue(); toast(result.message || '影片播放模式已更新', 'success');
+}
+function switchMediaTab(tab) { document.querySelectorAll('[data-media-tab]').forEach((button) => button.classList.toggle('active', button.dataset.mediaTab === tab)); elements.libraryTab.classList.toggle('is-hidden', tab !== 'library'); elements.queueTab.classList.toggle('is-hidden', tab !== 'queue'); }
+
+function applyRoom(room) {
+  if (!room) return;
+  const expectedRoomId = activeClientRoomId();
+  const incomingRoomId = String(room.id || '').trim().toUpperCase();
+  if (state.authenticated && expectedRoomId && incomingRoomId && incomingRoomId !== expectedRoomId) return;
+  const playback = room.playback;
+  state.room = { ...room, playback: state.room?.playback || playback };
+  state.queue = room.queue || state.queue;
+  applyRoomMarquee(room.marqueeNotice);
+  updateRoomHeader(); renderRoomStorage(room.storage); updateLights(room.lightsOn); renderQueue(); updateControlAccess(); renderTemporaryRoomNotice();
+  if (playback) adaptiveSynchronize(playback, true);
+  if (room.screenShare?.active) showScreenShare(room.screenShare);
+  else hideScreenShare({ preserveLocal: Boolean(state.localCapture && (state.resumeInFlight || !state.socketAuthenticated)) });
+  applyAudioSourceShareState(room.audioShare || { active: false });
+  applyWebShareState(room.webShare || { active: false });
+}
+
+function applyRoomMarquee(notice = {}) {
+  state.roomMarquee = notice && notice.enabled && notice.text ? { ...notice } : null;
+  if (!elements.roomMarquee || !elements.roomMarqueeText) return;
+  if (!state.roomMarquee) {
+    elements.roomMarquee.classList.add('is-hidden');
+    elements.roomMarqueeText.textContent = '';
+    return;
+  }
+  elements.roomMarqueeText.textContent = state.roomMarquee.text;
+  elements.roomMarquee.style.setProperty('--marquee-color', state.roomMarquee.color || '#f3c96a');
+  elements.roomMarquee.style.setProperty('--marquee-speed', `${Math.max(10, Math.min(200, Number(state.roomMarquee.speed) || 30))}s`);
+  elements.roomMarquee.classList.remove('is-hidden');
+}
+
+function renderRoomStorage(storage = {}) {
+  if (!elements.roomStorageSummary) return;
+  const used = Number(storage.totalBytes || 0);
+  const diskUsed = Number(storage.diskUsedBytes || 0);
+  const diskFree = Number(storage.diskFreeBytes || 0);
+  const diskTotal = Number(storage.diskTotalBytes || 0);
+  elements.roomStorageSummary.textContent = diskTotal
+    ? `房间已使用 ${formatSize(used)} · 磁盘已使用 ${formatSize(diskUsed)} · 剩余 ${formatSize(diskFree)} / ${formatSize(diskTotal)}`
+    : `房间已使用 ${formatSize(used)} · 原始文件 ${formatSize(storage.originalBytes || 0)} · 兼容缓存 ${formatSize(storage.compatibilityBytes || 0)}`;
+}
+
+function updateHeaderOnlineMetric(onlineCount, maxUsers) {
+  const online = Math.max(0, Number(onlineCount) || 0);
+  const max = Math.max(0, Number(maxUsers) || 0);
+  const metric = elements.headerOnline?.closest('.header-online-stat');
+  if (elements.headerOnline) elements.headerOnline.textContent = String(online);
+  if (elements.headerMax) elements.headerMax.textContent = String(max);
+  if (!metric) return;
+  const digitCount = String(online).length + String(max).length;
+  metric.dataset.density = digitCount >= 9 ? 'tight' : digitCount >= 6 ? 'compact' : 'normal';
+  metric.title = `在线 ${online} / ${max}`;
+}
+
+function updateRoomHeader() {
+  if (!state.room) return;
+  const onlineCount = countOnlineUsers();
+  elements.headerRoomName.textContent = state.room.name; updateHeaderOnlineMetric(onlineCount, state.room.maxUsers);
+  elements.headerStatus.textContent = state.users.some((user) => user.connectionState !== 'online') ? '网络波动' : '同步正常';
+  elements.headerStatus.classList.toggle('healthy', !state.users.some((user) => user.connectionState !== 'online'));
+  elements.roomCode.textContent = state.room.id; elements.roomScheme.textContent = `syncwatch://${state.room.id}`;
+  if (elements.roomShareUrl && !elements.roomShareUrl.dataset.customBase) elements.roomShareUrl.value = roomShareAddress();
+  if (elements.currentRoomBanner) {
+    elements.currentRoomBanner.classList.remove('is-hidden');
+    elements.currentRoomBanner.innerHTML = `<strong>当前所在房间</strong><span>${escapeHtml(state.room.name || '未命名房间')} · ${escapeHtml(state.room.id)}</span>`;
+  }
+  elements.userCountCard.textContent = onlineCount; elements.controlLockBtn.textContent = state.room.controlLocked ? '🔒 已锁定' : '🔓 已开放'; elements.volumeSyncToggle.checked = Boolean(state.room.volumeSync);
+}
+
+function updateControlAccess() {
+  const canControl = canControlPlayback(); const timedMedia = isActiveTimedMedia(); const localSharing = hasLocalScreenCapture(); const sharingAllowed = canShareScreen();
+  const playing = Boolean(state.room?.playback?.isPlaying);
+  if (elements.playPauseBtn) {
+    elements.playPauseBtn.textContent = playing ? '⏸' : '▶';
+    elements.playPauseBtn.title = playing ? '同步暂停' : '同步播放';
+    elements.playPauseBtn.setAttribute('aria-label', elements.playPauseBtn.title);
+    elements.playPauseBtn.setAttribute('aria-pressed', String(playing));
+  }
+  document.querySelectorAll('.control-button').forEach((button) => {
+    button.disabled = !timedMedia || state.screenShareActive;
+    button.classList.toggle('is-hidden', !canControl);
+    button.classList.toggle('permission-blocked', !canControl && timedMedia && !state.screenShareActive);
+    button.setAttribute('aria-disabled', String(!canControl));
+  });
+  // Volume is part of the timed-media control surface. Static previews
+  // (images, PDFs, text and downloads) must not leave an active slider behind.
+  if (elements.volumeSlider) {
+    const volumeDisabled = !timedMedia || state.screenShareActive || !canControl;
+    elements.volumeSlider.disabled = volumeDisabled;
+    elements.volumeSlider.setAttribute('aria-disabled', String(volumeDisabled));
+  }
+  if (elements.clearPlaybackBtn) {
+    // Clearing the stage is independent from timed playback. Static previews,
+    // shared web pages, and screen shares can all be removed when permitted.
+    const clearableStage = Boolean(state.currentFile || state.webShare.active || state.screenShareActive);
+    elements.clearPlaybackBtn.disabled = !clearableStage || !canControl;
+    elements.clearPlaybackBtn.classList.toggle('permission-blocked', clearableStage && !canControl);
+    elements.clearPlaybackBtn.setAttribute('aria-disabled', String(!clearableStage || !canControl));
+  }
+  elements.requestControlBtn.classList.toggle('is-hidden', canControl || state.capabilities.owner);
+  elements.ownerControls.classList.toggle('is-hidden', !(state.capabilities.owner || state.capabilities.superAdmin));
+  elements.screenShareBtn.disabled = state.screenShareRequestInFlight || (!sharingAllowed && !localSharing) || Boolean(state.screenShareActive && !localSharing);
+  elements.screenShareBtn.classList.toggle('is-hidden', !sharingAllowed && !localSharing);
+  if (elements.audioSourceBtn) {
+    const audioAllowed = Boolean(state.capabilities.owner || state.capabilities.serverHost || state.capabilities.superAdmin || state.permissions.shareAudio || state.permissions.control);
+    elements.audioSourceBtn.disabled = !audioAllowed && !state.audioSourceShareActive;
+    elements.audioSourceBtn.classList.toggle('is-hidden', !audioAllowed && !state.audioSourceShareActive);
+    elements.audioSourceBtn.title = audioAllowed ? '选择电脑程序音源并同步给房间成员' : '需要共享电脑音源权限';
+  }
+  elements.volumeSlider.disabled = !timedMedia;
+  if (elements.playbackRateSelect) {
+    elements.playbackRateSelect.disabled = !timedMedia || state.screenShareActive || !canControl;
+    elements.playbackRateSelect.title = canControl ? '将播放倍速同步给房间所有成员' : '需要播放控制权才能调整倍速';
+  }
+  applyPlaybackRateUi(state.room?.playback?.playbackRate || 1);
+  if (elements.playerSeekSlider) elements.playerSeekSlider.disabled = !timedMedia || state.screenShareActive;
+  elements.addCurrentQueueBtn.disabled = !canControl || !isTimedFile(state.currentFile) || state.currentFile.status !== 'approved';
+}
+
+function canControlPlayback() { return Boolean(state.capabilities.owner || state.permissions.control); }
+function togglePlayPause() {
+  const action = state.room?.playback?.isPlaying ? 'pause' : 'play';
+  return requestPlaybackCommand(action, elements.videoPlayer.currentTime);
+}
+function permissionDeniedToast(action = '执行此操作') {
+  const now = Date.now();
+  if (now - Number(permissionDeniedToast.lastAt || 0) < 1200) return;
+  permissionDeniedToast.lastAt = now;
+  toastWithAction(`您没有权限${action}，请向房主申请播放控制权。`, '申请播放控制权', requestControl, 10000);
+}
+function requestPlaybackCommand(action, currentTime) {
+  if (!canControlPlayback()) return permissionDeniedToast(action === 'seek' ? '拖动播放进度' : action === 'pause' ? '暂停播放' : '开始播放');
+  return sendPlayback(action, currentTime);
+}
+
+function handleVideoSwitchNotice(notice = {}) {
+  const previous = notice.previousFileName || '空白画面';
+  const next = notice.nextFileName || '空白画面';
+  const message = `${notice.actorName || notice.actor || '成员'} 于 ${formatDate(notice.operatedAt || new Date().toISOString())} 将《${previous}》切换为《${next}》`;
+  if (notice.canUndo && notice.operationId) {
+    toastWithAction(message, '撤销切换', async () => {
+      const result = await emitAck('rollback-operation', { operationId: notice.operationId }, 30000);
+      toast(result.message || result.error || '撤销切换失败', result.success ? 'success' : 'error', 7000);
+    }, 15000);
+  } else toast(message, '', 10000);
+}
+function handleMediaMutationNotice(notice = {}) {
+  const verb = notice.action === 'delete' ? '删除了' : '上传了';
+  const message = notice.message || `${notice.actorName || notice.actor || '成员'} ${verb}《${notice.fileName || '未命名文件'}》`;
+  if (notice.canUndo && notice.operationId) {
+    toastWithAction(message, '撤销操作', async () => {
+      const result = await emitAck('rollback-operation', { operationId: notice.operationId }, 30000);
+      toast(result.message || result.error || '撤销操作失败', result.success ? 'success' : 'error', 7000);
+    }, 15000);
+  } else toast(message, notice.action === 'delete' ? 'error' : 'success', 10000);
+}
+function isTimedFile(file) { return Boolean(file && ['video', 'audio'].includes(file.category)); }
+function isActiveTimedMedia() { return Boolean(isTimedFile(state.currentFile) && state.activeTimedFileId === state.currentFile.id); }
+function countOnlineUsers() { return state.users.filter((user) => user.connectionState !== 'reconnecting').length; }
+
+function synchronizeDisplayNamesFromUsers() {
+  let changed = false;
+  for (const user of state.users) {
+    const displayName = String(user.displayName || user.username || '').trim(); if (!user.username || !displayName) continue;
+    if (state.profile?.username === user.username && state.profile.displayName !== displayName) { state.profile.displayName = displayName; changed = true; }
+    for (const message of state.messages) {
+      if (message.from === user.username && message.fromName !== displayName) { message.fromName = displayName; changed = true; }
+      if (message.to === user.username && message.toName !== displayName) { message.toName = displayName; changed = true; }
+    }
+    for (const message of state.chatManageMessages) {
+      if (message.from === user.username && message.fromName !== displayName) { message.fromName = displayName; changed = true; }
+      if (message.to === user.username && message.toName !== displayName) { message.toName = displayName; changed = true; }
+    }
+  }
+  if (changed) {
+    renderChat();
+    if (!elements.chatManageModal?.classList.contains('is-hidden')) renderChatManager();
+  }
+}
+
+function refreshSelfAccess() {
+  if (!state.user) return;
+  const self = state.users.find((user) => user.username === state.user.username);
+  if (!self) return;
+  state.user = { ...state.user, ...self };
+  elements.accountName.textContent = state.user.displayName || state.user.username;
+  state.permissions = { ...state.permissions, ...(self.permissions || {}) };
+  state.capabilities = { ...state.capabilities, owner: Boolean(self.isOwner), admin: Boolean(self.isAdmin), superAdmin: Boolean(self.isSuperAdmin) };
+  elements.ownerControls.classList.toggle('is-hidden', !(state.capabilities.owner || state.capabilities.superAdmin));
+  document.querySelectorAll('.owner-chat').forEach((item) => item.classList.toggle('is-hidden', !(state.capabilities.owner || state.capabilities.superAdmin)));
+  updateAdministrativeAccess(); updateControlAccess();
+}
+
+function mediaSourceFor(file) {
+  const compatibility = file?.compatibility || {};
+  if (state.playbackQuality === 'original') return { url: file.originalUrl || file.url, variant: 'original' };
+  if (state.playbackQuality === 'smooth') {
+    if (compatibility.required && compatibility.ready) return { url: file.url, variant: 'smooth' };
+    return { url: file.originalUrl || file.url, variant: 'original-fallback' };
+  }
+  const connection = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+  const preferSmooth = Boolean(connection?.saveData || /(^|-)2g|3g/i.test(connection?.effectiveType || '') || Number(state.localLatency) > 180);
+  const codec = String(file.metadata?.videoCodec || '').toUpperCase();
+  const browserRisk = compatibility.required && !/H264|AVC/.test(codec);
+  if (compatibility.required && compatibility.ready && (preferSmooth || browserRisk)) return { url: file.url, variant: 'smooth' };
+  return { url: file.originalUrl || file.url, variant: 'original' };
+}
+
+function changePlaybackQuality() {
+  state.playbackQuality = elements.playbackQualitySelect.value;
+  localStorage.setItem('syncwatchPlaybackQuality', state.playbackQuality);
+  const file = state.currentFile;
+  if (!isTimedFile(file)) return;
+  if (state.playbackQuality === 'smooth' && file.compatibility?.required && !file.compatibility?.ready) {
+    toast('该影片的流畅版仍在生成，暂时使用原画；完成后会自动切换。');
+  } else if (state.playbackQuality === 'smooth' && !file.compatibility?.required) {
+    toast('该影片无需生成兼容版，流畅模式会继续使用当前原始文件。');
+  } else toast(`已切换为${state.playbackQuality === 'original' ? '原画' : state.playbackQuality === 'smooth' ? '流畅版' : '自动清晰度'}`, 'success');
+  state.activeTimedSource = '';
+  loadFile(file);
+}
+
+function changeSyncNoticePreference() {
+  state.syncDriftNotice = Boolean(elements.syncNoticeToggle.checked);
+  localStorage.setItem('syncwatchSyncDriftNotice', state.syncDriftNotice ? '1' : '0');
+  if (!state.syncDriftNotice && /^时间差/.test(elements.syncNotice.textContent)) elements.syncNotice.classList.add('is-hidden');
+}
+
+function loadFile(file) {
+  if (!file) return clearStage();
+  const changed = state.currentFile?.id !== file.id;
+  if (changed) {
+    state.compatibilityFallbackFileId = ''; state.compatibilityFallbackGeneration = -1;
+    if (state.activeTimedFileId || elements.videoPlayer.getAttribute('src')) teardownTimedMedia();
+    clearInactiveFileSources(file.category);
+  }
+  state.currentFile = file; elements.nowPlayingName.textContent = file.originalName; elements.emptyStage.classList.add('is-hidden');
+  if (!state.screenShareActive && !state.webShare.active) hidePlaybackViews();
+  if (isTimedFile(file)) {
+    const selectedSource = mediaSourceFor(file);
+     const source = new URL(mediaUrlWithSessionToken(selectedSource.url), location.href).href;
+    const sourceChanged = changed || state.activeTimedSource !== source || elements.videoPlayer.src !== source;
+    if (sourceChanged) {
+      if (!changed) teardownTimedMedia();
+      state.mediaGeneration += 1; state.expectedSeek = null; state.expectedPlaybackEvent = null; state.subtitleSignature = ''; state.mediaFailed = false;
+      state.activeTimedFileId = file.id; state.activeTimedSource = source; state.activeMediaVariant = selectedSource.variant;
+       elements.videoPlayer.preload = 'auto'; elements.videoPlayer.src = source; attachSubtitleTracks(file); elements.videoPlayer.load();
+    } else { state.activeTimedFileId = file.id; attachSubtitleTracks(file); }
+    if (state.screenShareActive) suspendMediaForScreenShare();
+    if (!state.screenShareActive && !state.webShare.active) elements.videoPlayer.classList.remove('is-hidden');
+  } else if (file.category === 'image') { elements.imageViewer.src = file.url; if (!state.screenShareActive && !state.webShare.active) elements.imageViewer.classList.remove('is-hidden'); }
+  else if (file.category === 'pdf') { if (changed || elements.documentViewer.getAttribute('src') !== file.url) elements.documentViewer.src = file.url; if (!state.screenShareActive && !state.webShare.active) elements.documentViewer.classList.remove('is-hidden'); }
+  else if (file.category === 'text') {
+    if (changed || elements.textViewer.dataset.fileId !== file.id) void loadTextPreview(file);
+    else if (!state.screenShareActive && !state.webShare.active) elements.textViewer.classList.remove('is-hidden');
+  }
+  else { elements.downloadTitle.textContent = file.originalName; elements.downloadLink.href = file.downloadUrl; if (!state.screenShareActive && !state.webShare.active) elements.downloadViewer.classList.remove('is-hidden'); }
+  if (!isTimedFile(file)) { clearAutoplayRecovery(); elements.syncStatus.textContent = '静态内容'; state.latestDrift = 0; state.syncPercent = 100; }
+  updatePlayerInfo(file); updateControlAccess(); renderFiles();
+}
+
+function mediaUrlWithSessionToken(value) {
+  const raw = String(value || '').trim();
+  if (!raw || !state.token) return raw;
+  try {
+    const url = new URL(raw, location.href);
+    if (!['media', 'compatible-media'].includes(url.pathname.split('/')[1])) return raw;
+    url.searchParams.set('syncwatch_token', state.token);
+    return url.href;
+  } catch (_) { return raw; }
+}
+
+function decodeTextPreview(buffer) {
+  const bytes = new Uint8Array(buffer);
+  let text = new TextDecoder('utf-8').decode(bytes);
+  const replacementCount = (text.match(/\uFFFD/g) || []).length;
+  if (replacementCount > Math.max(2, Math.floor(text.length / 200))) {
+    try { text = new TextDecoder('gb18030').decode(bytes); } catch (_) {}
+  }
+  return text.replace(/^\uFEFF/, '');
+}
+
+async function loadTextPreview(file) {
+  state.textPreviewController?.abort();
+  const controller = new AbortController();
+  const generation = ++state.textPreviewGeneration;
+  state.textPreviewController = controller;
+  elements.textViewer.dataset.fileId = file.id;
+  elements.textViewer.textContent = Number(file.size) === 0 ? '（空文本文件）' : '正在读取文本内容…';
+  if (!state.screenShareActive && !state.webShare.active) elements.textViewer.classList.remove('is-hidden');
+  if (Number(file.size) === 0) return;
+  try {
+    const source = mediaUrlWithSessionToken(file.originalUrl || file.url);
+    const response = await fetch(source, {
+      credentials: 'same-origin', signal: controller.signal,
+      headers: { Range: `bytes=0-${TEXT_PREVIEW_LIMIT_BYTES - 1}` }
+    });
+    if (![200, 206].includes(response.status)) throw new Error(`服务器返回 ${response.status}`);
+    const buffer = await response.arrayBuffer();
+    if (controller.signal.aborted || generation !== state.textPreviewGeneration || state.currentFile?.id !== file.id) return;
+    let text = decodeTextPreview(buffer);
+    if (Number(file.size) > buffer.byteLength) {
+      text += `\n\n—— 已显示前 ${formatSize(buffer.byteLength)}，完整文件共 ${formatSize(file.size)} ——`;
+    }
+    elements.textViewer.textContent = text || '（空文本文件）';
+  } catch (error) {
+    if (error?.name !== 'AbortError' && generation === state.textPreviewGeneration && state.currentFile?.id === file.id) {
+      elements.textViewer.textContent = `文本预览加载失败：${localizedError(error, '请稍后重试')}`;
+    }
+  } finally {
+    if (state.textPreviewController === controller) state.textPreviewController = null;
+  }
+}
+
+function teardownTimedMedia() {
+  const video = elements.videoPlayer;
+  clearMediaNetworkRecovery(false);
+  state.mediaGeneration += 1; state.activeTimedFileId = null; state.activeTimedSource = ''; state.activeMediaVariant = 'auto';
+  state.expectedSeek = null; state.syncSeekCooldownUntil = 0; state.expectedPlaybackEvent = null; state.mediaEventBlockUntil = performance.now() + 750;
+  state.mediaFailed = false; video.playbackRate = 1;
+  try { video.pause(); } catch (_) {}
+  video.querySelectorAll('track').forEach((track) => track.remove()); state.subtitleSignature = '';
+  video.removeAttribute('src'); try { video.load(); } catch (_) {}
+  clearAutoplayRecovery();
+}
+
+function clearInactiveFileSources(nextCategory = '') {
+  if (nextCategory !== 'image') elements.imageViewer.removeAttribute('src');
+  if (nextCategory !== 'pdf') elements.documentViewer.removeAttribute('src');
+  if (nextCategory !== 'text') {
+    state.textPreviewGeneration += 1;
+    state.textPreviewController?.abort(); state.textPreviewController = null;
+    elements.textViewer.textContent = ''; delete elements.textViewer.dataset.fileId;
+  }
+  if (!['document', 'download'].includes(nextCategory)) elements.downloadLink.removeAttribute('href');
+}
+
+function suspendMediaForScreenShare() {
+  if (!isActiveTimedMedia()) return;
+  state.shareMediaSuspended = true; elements.videoPlayer.playbackRate = 1;
+  setProgrammaticPlaying(false, state.room?.playback?.revision ?? state.playbackRevision);
+}
+
+function attachSubtitleTracks(videoFile) {
+  if (!videoFile || videoFile.category !== 'video') {
+    elements.videoPlayer.querySelectorAll('track').forEach((track) => track.remove()); state.subtitleSignature = '';
+    return;
+  }
+  const subtitles = [...state.files.values()].filter((file) => file.category === 'subtitle' && file.subtitleUrl && (file.subtitleVideoId === videoFile.id || stripExtension(file.originalName) === stripExtension(videoFile.originalName)));
+  const signature = subtitles.map((subtitle) => `${subtitle.id}:${subtitle.subtitleUrl}:${subtitle.originalName}`).join('|');
+  if (state.subtitleSignature === signature) return;
+  const showing = [...elements.videoPlayer.textTracks].find((track) => track.mode === 'showing')?.label || '';
+  elements.videoPlayer.querySelectorAll('track').forEach((track) => track.remove()); state.subtitleSignature = signature;
+  subtitles.forEach((subtitle, index) => {
+    const track = document.createElement('track'); track.kind = 'subtitles'; track.label = subtitle.originalName;
+    track.srclang = subtitle.metadata?.language || 'zh'; track.src = mediaUrlWithSessionToken(subtitle.subtitleUrl);
+    const selected = showing ? showing === subtitle.originalName : index === 0; track.default = selected;
+    track.addEventListener('load', () => { if (selected && track.track) track.track.mode = 'showing'; });
+    elements.videoPlayer.appendChild(track);
+  });
+}
+
+function hidePlaybackViews() { for (const item of [elements.videoPlayer, elements.imageViewer, elements.documentViewer, elements.textViewer, elements.sharedWebViewer, elements.downloadViewer]) item.classList.add('is-hidden'); updatePlayerProgressBar(); }
+function hideStageViews() { hidePlaybackViews(); elements.screenShareCanvas.classList.add('is-hidden'); }
+function clearStage() {
+  state.currentFile = null; teardownTimedMedia(); clearInactiveFileSources(''); state.shareMediaSuspended = false;
+  hidePlaybackViews();
+  if (!state.screenShareActive) elements.emptyStage.classList.remove('is-hidden');
+  elements.nowPlayingName.textContent = '未选择影片'; elements.playerInfo.classList.add('is-hidden');
+  updatePlayerProgressBar();
+  elements.syncStatus.textContent = '等待播放'; state.latestDrift = 0; state.syncPercent = 100; updateControlAccess();
+}
+
+function updateServerClock(serverTime, startedAt, finishedAt, roundTrip) {
+  if (!Number.isFinite(serverTime)) return;
+  const start = Number(startedAt); const end = Number(finishedAt); const rtt = Math.max(0, Number(roundTrip) || end - start || 0);
+  const midpoint = Number.isFinite(start) && Number.isFinite(end) ? (start + end) / 2 : Date.now();
+  const candidateOffset = serverTime - midpoint;
+  if (state.serverClockReady && Math.abs(candidateOffset - state.serverClockOffset) > 2000) state.clockSamples = [];
+  state.clockSamples.push({ offset: candidateOffset, rtt }); state.clockSamples = state.clockSamples.slice(-10);
+  const best = [...state.clockSamples].sort((left, right) => left.rtt - right.rtt).slice(0, 3).map((sample) => sample.offset).sort((left, right) => left - right);
+  state.serverClockOffset = best[Math.floor(best.length / 2)] || 0; state.serverClockReady = true;
+  state.serverClockAnchor = { serverTime: Date.now() + state.serverClockOffset, performanceAt: performance.now() };
+}
+function estimatedServerNow() {
+  if (state.serverClockAnchor) return state.serverClockAnchor.serverTime + performance.now() - state.serverClockAnchor.performanceAt;
+  return Date.now() + (state.serverClockReady ? state.serverClockOffset : 0);
+}
+
+function canonicalPlayback(playback) {
+  if (!playback || typeof playback !== 'object') return null;
+  const rawVolume = Number(playback.volume);
+  const rawPlaybackRate = Number(playback.playbackRate ?? playback.rate ?? playback.speed);
+  return {
+    fileId: playback.fileId || null, isPlaying: Boolean(playback.isPlaying), stalled: Boolean(playback.stalled), currentTime: Math.max(0, Number(playback.currentTime) || 0),
+    volume: Number.isFinite(rawVolume) ? Math.max(0, Math.min(1, rawVolume)) : 1, muted: Boolean(playback.muted),
+    playbackRate: Number.isFinite(rawPlaybackRate) ? Math.max(.5, Math.min(3, rawPlaybackRate)) : 1,
+    updatedAt: Number(playback.updatedAt || playback.serverTime) || estimatedServerNow(), changedBy: playback.changedBy || null,
+    revision: Math.max(0, Math.floor(Number(playback.revision) || 0))
+  };
+}
+
+function acceptPlaybackSnapshot(playback) {
+  const canonical = canonicalPlayback(playback); if (!canonical || canonical.revision < state.playbackRevision) return null;
+  state.playbackRevision = Math.max(state.playbackRevision, canonical.revision);
+  const transitAge = canonical.isPlaying && !canonical.stalled
+    ? state.serverClockReady ? Math.max(0, Math.min(30, (estimatedServerNow() - canonical.updatedAt) / 1000)) : Math.max(0, Number(state.localLatency) || 0) / 2000
+    : 0;
+  state.playbackAnchor = { fileId: canonical.fileId, revision: canonical.revision, currentTime: canonical.currentTime + transitAge * canonical.playbackRate, isPlaying: canonical.isPlaying, stalled: canonical.stalled, playbackRate: canonical.playbackRate, receivedAt: performance.now() };
+  if (state.room) state.room.playback = canonical;
+  return canonical;
+}
+
+function projectedTime(playback = state.room?.playback) {
+  const anchor = state.playbackAnchor;
+  if (anchor && playback && anchor.fileId === playback.fileId && anchor.revision === playback.revision) return Math.max(0, anchor.currentTime + (anchor.isPlaying && !anchor.stalled ? (performance.now() - anchor.receivedAt) / 1000 * (anchor.playbackRate || 1) : 0));
+  const current = Math.max(0, Number(playback?.currentTime) || 0);
+  return current + (playback?.isPlaying && !playback?.stalled ? Math.max(0, Math.min(30, (estimatedServerNow() - Number(playback.updatedAt || estimatedServerNow())) / 1000)) * Math.max(.5, Math.min(3, Number(playback?.playbackRate) || 1)) : 0);
+}
+
+function formatPlaybackRate(value) {
+  const rate = Math.max(.5, Math.min(3, Number(value) || 1));
+  return `${Number.isInteger(rate) ? rate.toFixed(1) : String(rate).replace(/0+$/, '').replace(/\.$/, '')}x`;
+}
+
+function applyPlaybackRateUi(value = state.room?.playback?.playbackRate || 1) {
+  const rate = Math.max(.5, Math.min(3, Number(value) || 1));
+  if (elements.playbackRateSelect) {
+    const exact = [...elements.playbackRateSelect.options].some((option) => Math.abs(Number(option.value) - rate) < .001);
+    if (exact) elements.playbackRateSelect.value = String(rate);
+  }
+  if (elements.playbackRateBadge) {
+    elements.playbackRateBadge.value = formatPlaybackRate(rate);
+    elements.playbackRateBadge.textContent = formatPlaybackRate(rate);
+    elements.playbackRateBadge.classList.toggle('is-fast', rate > 1);
+    elements.playbackRateBadge.classList.toggle('is-slow', rate < 1);
+  }
+  const previous = state.appliedPlaybackRate;
+  state.appliedPlaybackRate = rate;
+  if (isActiveTimedMedia() && previous !== null && Math.abs(previous - rate) > .001) showPlaybackRatePrompt(rate);
+}
+
+function playbackRatePromptSuppressed() {
+  try {
+    const raw = localStorage.getItem(PLAYBACK_RATE_PROMPT_KEY) || '';
+    if (raw === 'never') return true;
+    const until = Number(raw);
+    return Number.isFinite(until) && until > Date.now();
+  } catch (_) { return false; }
+}
+
+function showPlaybackRatePrompt(rate) {
+  if (playbackRatePromptSuppressed() || !elements.playbackRatePrompt) return;
+  if (state.lastShownPlaybackRate === rate) return;
+  state.lastShownPlaybackRate = rate;
+  elements.playbackRatePrompt.classList.remove('is-hidden');
+  clearTimeout(state.playbackRatePromptTimer);
+  state.playbackRatePromptTimer = setTimeout(() => elements.playbackRatePrompt.classList.add('is-hidden'), 5000);
+}
+
+function hidePlaybackRatePrompt() {
+  clearTimeout(state.playbackRatePromptTimer);
+  if (elements.playbackRatePrompt) elements.playbackRatePrompt.classList.add('is-hidden');
+}
+
+function handlePlaybackRatePromptAction(event) {
+  const button = event.target.closest('[data-rate-prompt-action]');
+  if (!button) return;
+  const action = button.dataset.ratePromptAction;
+  try {
+    if (action === 'never') localStorage.setItem(PLAYBACK_RATE_PROMPT_KEY, 'never');
+    else if (action === 'day') {
+      const endOfDay = new Date(); endOfDay.setHours(24, 0, 0, 0);
+      localStorage.setItem(PLAYBACK_RATE_PROMPT_KEY, String(endOfDay.getTime()));
+    } else localStorage.setItem(PLAYBACK_RATE_PROMPT_KEY, String(Date.now() + 10 * 60 * 1000));
+  } catch (_) {}
+  hidePlaybackRatePrompt();
+  toast(action === 'never' ? '已永久关闭倍速提示，可在账号安全中重新开启' : action === 'day' ? '今天不再提示倍速' : '本次不再提示倍速', 'success', 3200);
+}
+
+function setProgrammaticTime(target, revision) {
+  const video = elements.videoPlayer; const duration = Number(video.duration);
+  const clamped = Math.max(0, Number.isFinite(duration) ? Math.min(duration, target) : target);
+  state.expectedSeek = { target: clamped, revision, generation: state.mediaGeneration, expires: performance.now() + 30000 };
+  try { video.currentTime = clamped; } catch (_) { state.pendingPlayback = { playback: state.room?.playback, force: true }; }
+}
+
+function setProgrammaticVolume(volume, muted = state.room?.playback?.muted) {
+  const value = Math.max(0, Math.min(1, Number(volume) || 0));
+  state.expectedVolume = { value, muted: Boolean(muted), expires: performance.now() + 2000 };
+  elements.videoPlayer.volume = value; elements.videoPlayer.muted = Boolean(muted); elements.volumeSlider.value = value; syncVideoMuteButton();
+}
+
+function setProgrammaticPlaying(playing, revision) {
+  const video = elements.videoPlayer;
+  state.expectedPlaybackEvent = { playing, revision, generation: state.mediaGeneration, expires: performance.now() + 5000 };
+  if (!playing) { if (!video.paused) video.pause(); else state.expectedPlaybackEvent = null; return; }
+  if (!video.paused) { state.expectedPlaybackEvent = null; clearAutoplayRecovery(); return; }
+  const generation = state.mediaGeneration;
+  video.play().then(clearAutoplayRecovery).catch((error) => {
+    if (generation !== state.mediaGeneration || !state.room?.playback?.isPlaying || state.screenShareActive) return;
+    state.expectedPlaybackEvent = null;
+    if (error?.name === 'NotAllowedError' || error?.name === 'AbortError') showAutoplayRecovery();
+    else showSyncNotice(`无法开始播放：${localizedError(error, '浏览器暂时无法播放该影片')}`);
+  });
+}
+
+function adaptiveSynchronize(playback, force = false) {
+  const accepted = acceptPlaybackSnapshot(playback); if (!accepted) return;
+  applyPlaybackRateUi(accepted.playbackRate);
+  if (!accepted.fileId) { state.pendingPlayback = null; if (state.currentFile) clearStage(); return; }
+  const file = state.files.get(accepted.fileId);
+  if (!file) { state.pendingPlayback = { playback: accepted, force }; showSyncNotice('正在读取当前影片信息…'); return; }
+  if (state.currentFile?.id !== file.id) loadFile(file);
+  if (!isTimedFile(file)) { state.pendingPlayback = null; clearAutoplayRecovery(); updateControlAccess(); return; }
+  if (state.screenShareActive) { state.pendingPlayback = { playback: accepted, force }; suspendMediaForScreenShare(); updateControlAccess(); return; }
+  elements.videoPlayer.classList.remove('is-hidden'); elements.emptyStage.classList.add('is-hidden');
+  if (elements.videoPlayer.readyState < 1) { state.pendingPlayback = { playback: accepted, force }; showSyncNotice('影片加载中，准备好后自动同步…'); return; }
+  state.pendingPlayback = null; state.applyingPlayback = true;
+  const target = Math.max(0, Math.min(Number.isFinite(elements.videoPlayer.duration) ? elements.videoPlayer.duration : Infinity, projectedTime(accepted)));
+  const drift = target - (elements.videoPlayer.currentTime || 0); const difference = Math.abs(drift); state.latestDrift = drift;
+  const syncNow = performance.now();
+  const pendingSeek = state.expectedSeek;
+  const seekInFlight = Boolean(pendingSeek && pendingSeek.generation === state.mediaGeneration
+    && pendingSeek.expires >= syncNow && Math.abs(target - pendingSeek.target) < .8);
+  const seekSuppressed = seekInFlight || state.syncSeekCooldownUntil > syncNow;
+  const baseRate = Math.max(.5, Math.min(3, Number(accepted.playbackRate) || 1));
+  state.syncPercent = Math.max(0, Math.round(100 - difference * 22));
+  if (state.room?.volumeSync && (Math.abs(elements.videoPlayer.volume - accepted.volume) > .005 || elements.videoPlayer.muted !== accepted.muted)) setProgrammaticVolume(accepted.volume, accepted.muted);
+  if (accepted.stalled) {
+    elements.videoPlayer.playbackRate = baseRate;
+    if (difference > .3 && !seekSuppressed) {
+      setProgrammaticTime(target, accepted.revision);
+      state.syncSeekCooldownUntil = syncNow + 1800;
+    }
+    if (!state.capabilities.owner) setProgrammaticPlaying(false, accepted.revision);
+    showSyncNotice(state.capabilities.owner ? '本机正在缓冲，恢复后继续同步…' : '房主正在缓冲，已暂停等待…');
+    elements.syncStatus.textContent = '缓冲中'; state.applyingPlayback = false; return;
+  }
+  if (!accepted.isPlaying) {
+    clearAutoplayRecovery();
+    elements.videoPlayer.playbackRate = baseRate;
+    if (difference > .12) setProgrammaticTime(target, accepted.revision);
+    setProgrammaticPlaying(false, accepted.revision);
+    if (!state.autoplayBlocked) elements.syncNotice.classList.add('is-hidden');
+  } else {
+    if ((force && difference > .12) || difference > 1.25) {
+      if (!seekSuppressed) {
+        setProgrammaticTime(target, accepted.revision);
+        state.syncSeekCooldownUntil = syncNow + 1800;
+      }
+      elements.videoPlayer.playbackRate = baseRate;
+      showSyncNotice(`时间差 ${difference.toFixed(1)} 秒，正在定位…`, 'drift');
+    } else if (difference >= .12) {
+      elements.videoPlayer.playbackRate = Math.max(.5, Math.min(3, baseRate * Math.max(.94, Math.min(1.06, 1 + drift * .07))));
+      showSyncNotice(`时间差 ${difference.toFixed(1)} 秒，正在平滑追赶…`, 'drift');
+    } else {
+      elements.videoPlayer.playbackRate = baseRate; if (!state.autoplayBlocked) elements.syncNotice.classList.add('is-hidden');
+    }
+    setProgrammaticPlaying(true, accepted.revision);
+  }
+  elements.syncStatus.textContent = `${state.syncPercent}%`; state.applyingPlayback = false;
+}
+
+function applyPendingPlayback(force = false) {
+  const pending = state.pendingPlayback; if (!pending) return;
+  state.pendingPlayback = null; adaptiveSynchronize(pending.playback, force || pending.force);
+}
+
+function applyPlaybackCommand(command) { adaptiveSynchronize(command, command?.action !== 'volume'); }
+
+function consumeExpectedPlaybackEvent(playing) {
+  const expected = state.expectedPlaybackEvent;
+  if (!expected || expected.playing !== playing || expected.generation !== state.mediaGeneration || expected.expires < performance.now()) return false;
+  state.expectedPlaybackEvent = null; return true;
+}
+
+function handleLocalPlaybackEvent(playing) {
+  if (consumeExpectedPlaybackEvent(playing)) return;
+  if (!isActiveTimedMedia() || state.screenShareActive) return;
+  // Native media controls can emit play/pause without passing through our
+  // toolbar button. Check the room capability before any interaction debounce
+  // so a guest cannot use a recent seek gesture to bypass the gate.
+  if (!canControlPlayback()) {
+    permissionDeniedToast(playing ? '开始播放' : '暂停播放');
+    adaptiveSynchronize(state.room?.playback, true);
+    return;
+  }
+  if (performance.now() < state.seekInteractionUntil) return;
+  if (performance.now() < state.mediaEventBlockUntil) return;
+  if (!playing && (elements.videoPlayer.ended || elements.videoPlayer.error)) return;
+  sendPlayback(playing ? 'play' : 'pause', elements.videoPlayer.currentTime);
+}
+
+function handleLocalSeeked() {
+  const expected = state.expectedSeek;
+  if (expected && expected.generation === state.mediaGeneration && expected.expires >= performance.now() && Math.abs(elements.videoPlayer.currentTime - expected.target) < .8) { state.expectedSeek = null; state.syncSeekCooldownUntil = 0; return; }
+  state.expectedSeek = null; state.syncSeekCooldownUntil = 0;
+  state.seekInteractionUntil = performance.now() + 2200;
+  state.suppressPlaybackNoticeUntil = Date.now() + 3200;
+  if (!isActiveTimedMedia() || state.screenShareActive) return;
+  if (!canControlPlayback()) { permissionDeniedToast('拖动播放进度'); adaptiveSynchronize(state.room?.playback, true); return; }
+  if (performance.now() < state.mediaEventBlockUntil) return;
+  sendPlayback('seek', elements.videoPlayer.currentTime);
+}
+
+async function handlePlaybackEnded() {
+  elements.videoPlayer.playbackRate = Math.max(.5, Math.min(3, Number(state.room?.playback?.playbackRate) || 1));
+  const fileId = state.activeTimedFileId;
+  if (!fileId || !state.socketAuthenticated || state.currentFile?.id !== fileId || state.room?.playback?.fileId !== fileId || !isTimedFile(state.currentFile)) return;
+  try {
+    const result = await emitAck('playback-ended', { fileId, currentTime: elements.videoPlayer.duration || elements.videoPlayer.currentTime });
+    if (!result.success && canControlPlayback()) toast(result.error, 'error');
+  } catch (error) { if (canControlPlayback()) toast(localizedError(error, '播放同步失败，请稍后重试'), 'error'); }
+}
+
+function syncVideoMuteButton() {
+  const button = elements.volumeMuteBtn || elements.videoMuteBtn;
+  const video = elements.videoPlayer;
+  if (!button || !video) return;
+  const muted = Boolean(video.muted);
+  button.setAttribute('aria-pressed', String(muted));
+  button.title = muted ? '恢复当前播放器声音' : '静音当前播放器';
+  button.setAttribute('aria-label', button.title);
+  const icon = button.querySelector('[aria-hidden="true"]');
+  if (icon) icon.textContent = muted ? '🔇' : '🔊';
+}
+
+function toggleVideoMute() {
+  const video = elements.videoPlayer;
+  if (!video) return;
+  if (state.room?.volumeSync && !canControlPlayback()) {
+    setProgrammaticVolume(state.room?.playback?.volume ?? 1, state.room?.playback?.muted);
+    return permissionDeniedToast('调整静音状态');
+  }
+  video.muted = !video.muted;
+  syncVideoMuteButton();
+  if (video.muted || state.masterMuted) showMuteWarmHint();
+  if (state.room?.volumeSync && canControlPlayback()) scheduleVolumeCommand(video.volume, video.muted);
+}
+
+function showMuteWarmHint() {
+  if (Date.now() - Number(state.lastMuteHintAt || 0) < 5000) return;
+  state.lastMuteHintAt = Date.now();
+  const text = '当前播放处于静音状态，可能听不到声音哦；点击音量按钮即可恢复。';
+  if (elements.syncNotice) { elements.syncNotice.textContent = text; elements.syncNotice.classList.remove('is-hidden'); clearTimeout(state.muteHintTimer); state.muteHintTimer = setTimeout(() => { if (!state.localBuffering) elements.syncNotice.classList.add('is-hidden'); }, 6500); }
+  toast(text, 'info', 6500);
+}
+
+function handleMediaBuffering() {
+  if (!state.room?.playback?.isPlaying || !isActiveTimedMedia()) return;
+  state.localBuffering = true;
+  showSyncNotice('网络延迟不等于缓冲，当前正在补充播放数据…');
+  updatePlayerBufferState();
+}
+
+function handleMediaBufferRecovered() {
+  state.localBuffering = false;
+  updatePlayerBufferState();
+  if (state.room?.playback?.isPlaying) elements.syncNotice.classList.add('is-hidden');
+}
+
+function updatePlayerBufferState() {
+  const video = elements.videoPlayer;
+  if (!video || !isActiveTimedMedia() || !Number.isFinite(video.currentTime)) return;
+  let bufferedAhead = 0;
+  for (let index = 0; index < video.buffered.length; index += 1) {
+    if (video.currentTime >= video.buffered.start(index) - .1 && video.currentTime <= video.buffered.end(index) + .1) {
+      bufferedAhead = Math.max(0, video.buffered.end(index) - video.currentTime);
+      break;
+    }
+  }
+  state.bufferedAheadSeconds = bufferedAhead;
+  if (state.localBuffering && bufferedAhead >= 1.2 && !video.paused) handleMediaBufferRecovered();
+}
+
+function handleVolumeSliderInput() {
+  const value = Math.max(0, Math.min(1, Number(elements.volumeSlider.value) || 0));
+  state.expectedVolume = { value, expires: performance.now() + 1000 }; elements.videoPlayer.volume = value;
+}
+function handleVolumeSliderCommit() {
+  if (!state.room?.volumeSync) return;
+  if (!canControlPlayback()) { setProgrammaticVolume(state.room?.playback?.volume ?? 1, state.room?.playback?.muted); toast('当前音量由房主同步控制'); return; }
+  scheduleVolumeCommand(Number(elements.volumeSlider.value), elements.videoPlayer.muted);
+}
+function handleNativeVolumeChange() {
+  elements.volumeSlider.value = elements.videoPlayer.volume;
+  syncVideoMuteButton();
+  if (elements.videoPlayer.muted || state.masterMuted) showMuteWarmHint();
+  const expected = state.expectedVolume;
+  if (expected && expected.expires >= performance.now() && Math.abs(expected.value - elements.videoPlayer.volume) < .01 && expected.muted === elements.videoPlayer.muted) { state.expectedVolume = null; return; }
+  state.expectedVolume = null;
+  if (state.room?.volumeSync && canControlPlayback()) scheduleVolumeCommand(elements.videoPlayer.volume, elements.videoPlayer.muted);
+  else if (state.room?.volumeSync) setProgrammaticVolume(state.room?.playback?.volume ?? 1, state.room?.playback?.muted);
+}
+function scheduleVolumeCommand(volume, muted = elements.videoPlayer.muted) {
+  clearTimeout(state.volumeEmitTimer);
+  state.volumeEmitTimer = setTimeout(() => sendPlayback('volume', elements.videoPlayer.currentTime, volume, muted), 100);
+}
+
+async function changePlaybackRate() {
+  const rate = Math.max(.5, Math.min(3, Number(elements.playbackRateSelect?.value) || 1));
+  if (!canControlPlayback()) {
+    applyPlaybackRateUi(state.room?.playback?.playbackRate || 1);
+    return permissionDeniedToast('调整播放倍速');
+  }
+  const result = await sendPlayback('rate', elements.videoPlayer.currentTime, elements.videoPlayer.volume, elements.videoPlayer.muted, rate);
+  if (result?.success) toast(`已同步调整为 ${formatPlaybackRate(rate)} 倍速`, 'success', 4200);
+}
+
+async function sendPlayback(action, currentTime, volume = elements.videoPlayer.volume, muted = elements.videoPlayer.muted, playbackRate = state.room?.playback?.playbackRate || 1) {
+  if (!state.socketAuthenticated || !isActiveTimedMedia() || state.screenShareActive || !canControlPlayback()) return { success: false, skipped: true };
+  const attempts = action === 'seek' ? 2 : 1;
+  let lastError = null;
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    try {
+      const result = await emitAck('playback-command', { action, currentTime, volume, muted, playbackRate });
+      if (!result.success) { toast(result.error, 'error'); adaptiveSynchronize(state.room?.playback, true); }
+      return result;
+    } catch (error) {
+      lastError = error;
+      if (attempt + 1 < attempts && state.socket?.connected) {
+        await new Promise((resolve) => setTimeout(resolve, 180));
+        continue;
+      }
+    }
+  }
+  toast(localizedError(lastError, '恢复连接失败，请稍后重试'), 'error');
+  setReconnectState(true);
+  return { success: false, transportError: true };
+}
+
+function showPlaybackChange(change) {
+  if (!change || !state.currentFile) return;
+  if (['play', 'pause'].includes(change.action) && Date.now() < Number(state.suppressPlaybackNoticeUntil || 0)) return;
+  const actions = { play: '开始播放', pause: '暂停播放', seek: `将进度从 ${formatTime(change.before.currentTime)} 调到 ${formatTime(change.after.currentTime)}`, volume: change.after.muted ? '同步静音了播放器' : `把音量调到 ${Math.round(change.after.volume * 100)}%`, rate: `将同步倍速调整为 ${formatPlaybackRate(change.after.playbackRate)}`, speed: `将同步倍速调整为 ${formatPlaybackRate(change.after.playbackRate)}`, 'playback-rate': `将同步倍速调整为 ${formatPlaybackRate(change.after.playbackRate)}`, undo: `撤回操作，回到 ${formatTime(change.after.currentTime)}` };
+  const message = `${change.changedBy} ${actions[change.action] || '调整了播放'}`;
+  if (!canControlPlayback()) return toast(message);
+  toastWithAction(message, '撤回这次操作', async () => {
+    const result = await emitAck('undo-playback-change', { changeId: change.id }); if (!result.success) toast(result.error, 'error');
+  }, 12000);
+}
+
+function showSyncNotice(text, kind = 'status') {
+  if (kind === 'drift' && !state.syncDriftNotice) return;
+  elements.syncNotice.replaceChildren();
+  const message = document.createElement('span'); message.textContent = String(text || '');
+  const close = document.createElement('button'); close.type = 'button'; close.className = 'notice-close-button'; close.textContent = '×'; close.title = '关闭提示'; close.setAttribute('aria-label', '关闭提示');
+  close.addEventListener('click', () => elements.syncNotice.classList.add('is-hidden'));
+  elements.syncNotice.append(message, close); elements.syncNotice.classList.remove('is-hidden'); clearTimeout(showSyncNotice.timer);
+  showSyncNotice.timer = setTimeout(() => elements.syncNotice.classList.add('is-hidden'), 3200);
+}
+function showAutoplayRecovery() {
+  state.autoplayBlocked = true; clearTimeout(showSyncNotice.timer); elements.syncNotice.classList.add('is-hidden'); elements.resumePlaybackBtn.classList.remove('is-hidden');
+}
+function clearAutoplayRecovery() { state.autoplayBlocked = false; elements.resumePlaybackBtn.classList.add('is-hidden'); }
+function resumeBlockedPlayback() {
+  state.autoplayBlocked = false; elements.resumePlaybackBtn.classList.add('is-hidden');
+  adaptiveSynchronize(state.room?.playback, true);
+}
+async function requestControl() { const result = await emitAck('request-control'); toast(result.message || result.error, result.success ? 'success' : 'error'); }
+async function clearPlayback() {
+  if (!canControlPlayback()) return permissionDeniedToast('清空画面');
+  const result = await emitAck('clear-playback');
+  if (!result.success) toast(result.error || '清空画面失败', 'error');
+}
+async function jumpToCustomTime() {
+  const duration = Number(elements.videoPlayer.duration);
+  if (!Number.isFinite(duration) || duration <= 0 || !isActiveTimedMedia()) return toast('当前没有可跳转的影片', 'error');
+  const value = await showAppInput({ title: '跳转到指定时间', description: `请输入 0 到 ${formatTime(duration)} 之间的时间，可填秒数或 时:分:秒。确认后会自动播放。`, label: '目标时间', initialValue: formatTime(elements.videoPlayer.currentTime || 0), required: true, maxLength: 16, confirmText: '跳转并播放' });
+  if (value === null) return;
+  const raw = String(value).trim();
+  let seconds = 0;
+  if (/^\d+(?:\.\d+)?$/.test(raw)) seconds = Number(raw);
+  else {
+    const parts = raw.split(':').map(Number);
+    if (parts.length > 3 || parts.some((part) => !Number.isFinite(part) || part < 0)) return toast('时间格式不正确，请输入秒数或 时:分:秒', 'error');
+    seconds = parts.length === 3 ? parts[0] * 3600 + parts[1] * 60 + parts[2] : parts.length === 2 ? parts[0] * 60 + parts[1] : parts[0];
+  }
+  if (!Number.isFinite(seconds) || seconds < 0 || seconds > duration) return toast(`请输入 0 到 ${formatTime(duration)} 之间的时间`, 'error');
+  if (!canControlPlayback()) return permissionDeniedToast('跳转播放进度');
+  await sendPlayback('seek', seconds);
+  await sendPlayback('play', seconds);
+}
+async function ownerAction(action, extra = {}) { const result = await emitAck('owner-action', { action, ...extra }); if (!result.success) toast(result.error, 'error'); else if (result.room) applyRoom(result.room); return result; }
+
+function loadControlSuppressions() {
+  try { state.controlSuppressions = JSON.parse(localStorage.getItem('syncwatchControlSuppressions') || '{}') || {}; }
+  catch (_) { state.controlSuppressions = {}; }
+}
+
+function controlSuppressionKey(username) { return `${state.room?.id || ''}:${username || ''}`; }
+
+function showControlRequest(user = {}) {
+  const username = String(user.username || '');
+  const suppressedUntil = Number(state.controlSuppressions[controlSuppressionKey(username)] || 0);
+  if (suppressedUntil > Date.now()) return;
+  state.controlRequest = user;
+  elements.controlRequestTitle.textContent = `${user.displayName || username || '成员'} 申请服务器控制权`;
+  elements.controlRequestDetail.textContent = '申请会覆盖在共享画面上；可设置暂时不再提示此成员。';
+  elements.controlRequestSuppress.value = '0';
+  elements.controlRequestOverlay.classList.remove('is-hidden');
+  if (isPlayerFullscreen()) showFullscreenControls();
+}
+
+async function handlePlaybackRequest(request = {}) {
+  if (!request.id) return;
+  if (state.resolvedPlaybackRequests.has(request.id)) return;
+  addPersistentRequest({ ...request, kind: 'playback', own: false });
+  toast(`${request.displayName || request.username} 申请播放《${request.fileName || '影片'}》`, 'success', 0);
+}
+
+function handlePlaybackRequestResolved(result = {}) {
+  if (result.id) state.resolvedPlaybackRequests.add(result.id);
+  if (result.id) removePersistentRequest(result.id);
+  if (state.resolvedPlaybackRequests.size > 200) state.resolvedPlaybackRequests = new Set([...state.resolvedPlaybackRequests].slice(-100));
+  if (result.id && state.activePlaybackRequestId === result.id && activeAppDialog?.options?.contextKey === `playback-request:${result.id}`) {
+    settleAppDialog(null);
+  }
+  toast(result.message || (result.approved ? '播放申请已通过' : '播放申请未通过'), result.approved ? 'success' : '', 7000);
+}
+
+async function settleControlRequest(allow) {
+  const request = state.controlRequest; if (!request) return;
+  const duration = Number(elements.controlRequestSuppress.value || 0);
+  if (duration) {
+    state.controlSuppressions[controlSuppressionKey(request.username)] = duration < 0 ? Date.now() + 365 * 24 * 60 * 60 * 1000 : Date.now() + duration;
+    try { localStorage.setItem('syncwatchControlSuppressions', JSON.stringify(state.controlSuppressions)); } catch (_) {}
+  }
+  state.controlRequest = null; elements.controlRequestOverlay.classList.add('is-hidden');
+  const result = await emitAck('control-request-action', { requestId: request.id, approved: allow }, 15000);
+  toast(result.message || result.error || (allow ? `已允许 ${request.displayName || request.username} 控制播放` : `已拒绝 ${request.displayName || request.username} 的控制申请`), result.success && allow ? 'success' : result.success ? '' : 'error');
+}
+
+function handleControlRequestResolved(result = {}) {
+  if (result.requestId && state.controlRequest?.id === result.requestId) {
+    state.controlRequest = null;
+    elements.controlRequestOverlay.classList.add('is-hidden');
+  }
+  if (result.permissions && result.username === state.user?.username) {
+    state.permissions = { ...state.permissions, ...result.permissions };
+    updateAdministrativeAccess();
+    updateControlAccess();
+  }
+  toast(result.message || (result.approved ? '播放控制申请已通过' : '播放控制申请已被拒绝'), result.approved ? 'success' : 'error', 9000);
+}
+
+const permissionLabels = {
+  administrator: '房间管理员', control: '控制播放', upload: '上传影片', delete: '删除影片', manageMedia: '管理视频库',
+  shareScreen: '共享屏幕', shareAudio: '共享电脑音源', shareWeb: '共享网页', voiceChat: '实时语音',
+  manageChat: '管理聊天', manageRoom: '管理房间', sendNotice: '发送屏幕公告'
+};
+
+function handlePermissionsChanged(change = {}) {
+  state.permissions = { ...state.permissions, ...(change.permissions || {}) };
+  if (state.permissions.voiceChat === false && state.liveVoiceMode) void leaveLiveVoice(false);
+  const changed = Array.isArray(change.changed) ? change.changed.filter((key) => permissionLabels[key]) : [];
+  const details = changed.length ? changed.map((key) => `${permissionLabels[key]}：${state.permissions[key] ? '已开放' : '已收回'}`).join('；') : (change.message || '权限组已调整');
+  elements.permissionNoticeTitle.textContent = '服务器已更新您的权限';
+  elements.permissionNoticeText.textContent = `${change.grantedBy ? `${change.grantedBy} 操作。` : ''}${details}`;
+  elements.permissionNotice.classList.remove('is-hidden');
+  updateAdministrativeAccess(); updateControlAccess();
+  if (state.videoManagementVisible) renderVideoManagementList();
+}
+
+function showAccountNotification(notification = {}) {
+  if (notification.kind === 'account-registration') {
+    // Registration notices are informational; only actionable requests belong in the persistent center.
+    toast(notification.message || `新账号 ${notification.displayName || notification.username || ''} 已注册`, 'info', 7000);
+    return;
+  }
+  if (notification.kind === 'room-permissions') {
+    handlePermissionsChanged({
+      permissions: notification.permissions, changed: notification.changed,
+      grantedBy: notification.actorName, message: notification.message
+    });
+    return;
+  }
+  if (notification.kind === 'account-level') {
+    handleAccountLevelUpdated({ ...notification, username: notification.username || state.user?.username });
+    return;
+  }
+  if (notification.kind === 'location-authorization-request') {
+    addPersistentRequest({ ...notification, id: notification.id || `location-${Date.now()}`, kind: 'location-authorization', own: false });
+    toast(notification.message || '管理员邀请您重新授权位置', 'success', 0);
+    return;
+  }
+  toast(notification.message || '账号信息已更新', notification.approved === false ? 'error' : 'success', 8000);
+}
+
+async function promptRoomPasswordVerification(details = {}) {
+  if (state.roomPasswordPromptActive || !state.authenticated) return;
+  state.roomPasswordPromptActive = true;
+  state.mediaEventBlockUntil = performance.now() + 60000;
+  try { if (!elements.videoPlayer.paused) elements.videoPlayer.pause(); } catch (_) {}
+  try {
+    while (state.authenticated) {
+      const password = await showAppInput({
+        title: '房间密码已更新', description: details.message || '房主更新了房间密码。请输入新密码继续观看，取消将返回登录界面。',
+        label: '新房间密码', password: true, trim: false, maxLength: 72, confirmText: '验证并继续', cancelText: '返回登录'
+      });
+      if (password === null) { await logout(); return; }
+      const result = await emitAck('room-password-verify', { roomPassword: password }, 20000);
+      if (result.success) {
+        state.mediaEventBlockUntil = performance.now() + 500;
+        await Promise.all([refreshRoom(), loadFiles()]);
+        toast('房间密码验证成功，已恢复观看', 'success');
+        return;
+      }
+      toast(result.error || '房间密码错误，请重新输入', 'error');
+    }
+  } finally { state.roomPasswordPromptActive = false; }
+}
+
+function handleRoomDissolved(event = {}) {
+  sessionStorage.removeItem('syncwatchRoomId');
+  state.controlRequest = null; elements.controlRequestOverlay.classList.add('is-hidden');
+  closeScreenPeerConnections(); clearSession();
+  toast(event.message || '房间已解散，请重新选择房间', 'error', 7000);
+  setTimeout(() => { location.href = location.pathname; }, 1400);
+}
+async function refreshRoom() {
+  try {
+    const result = await emitAck('room-refresh');
+    if (!result.success) { state.socketAuthenticated = false; setReconnectState(true); if (state.token) queueSessionResume(true); return; }
+    state.users = result.users; state.queue = result.queue; refreshSelfAccess(); applyRoom(result.room); renderUsers(); setReconnectState(false);
+  } catch (_) { setReconnectState(Boolean(state.authenticated)); }
+}
+
+function levelEmoji(level) {
+  return ['🎞️', '🍿', '🎬', '🌙', '🧳', '🌟', '🎥', '🏆', '👑', '✨'][Math.max(0, Math.min(9, Number(level) - 1))] || '🎞️';
+}
+
+function playbackQualityLabel(value) {
+  return value === 'smooth' ? '流畅版' : value === 'auto' ? '自动' : '原画';
+}
+
+function renderUsers() {
+  const selectedPrivate = elements.privateRecipient.value; const selectedFullscreenPrivate = elements.fullscreenPrivateRecipient?.value || ''; const selectedPermission = elements.permissionUser.value;
+  const onlineCount = countOnlineUsers(); elements.userCount.textContent = onlineCount; elements.userCountCard.textContent = onlineCount;
+  const selfUsername = state.user?.username || '';
+  const memberRank = (user) => user.isOwner ? 0 : user.isSuperAdmin ? 1 : user.username === selfUsername ? 2 : user.isAdmin ? 3 : 4;
+  const sortedUsers = [...state.users].sort((left, right) => memberRank(left) - memberRank(right));
+  const activeUsernames = new Set(sortedUsers.map((user) => user.username));
+  for (const username of state.memberDetailOverrides.keys()) if (!activeUsernames.has(username)) state.memberDetailOverrides.delete(username);
+  elements.userList.innerHTML = sortedUsers.map((user, index) => {
+    const unstable = user.connectionState !== 'online';
+    const isSelf = user.username === selfUsername;
+    const role = user.isOwner ? '房主' : user.isSuperAdmin ? '超级管理员' : user.isAdmin ? '管理员' : user.permissions.groupId === 'controller' ? '协管员' : '成员';
+    const groupName = user.permissionGroup?.name || role;
+    const permissionNames = [
+      user.permissions.control && '播放控制', user.permissions.upload && '上传', user.permissions.delete && '删除',
+      user.permissions.manageMedia && '视频库管理', user.permissions.shareScreen && '屏幕共享', user.permissions.shareAudio && '电脑音源', user.permissions.voiceChat && '实时语音', user.permissions.manageChat && '聊天管理', user.permissions.manageRoom && '房间管理'
+    ].filter(Boolean);
+    const canManage = Boolean(state.capabilities.owner || state.capabilities.superAdmin || state.permissions.manageRoom);
+    const targetProtected = Boolean(user.isSuperAdmin);
+    const detailsExpanded = memberDetailsExpanded(user.username);
+    const actions = user.username !== state.user?.username
+      ? `<div class="user-actions${detailsExpanded ? '' : ' is-hidden'}">${canManage ? `<button data-user-action="${user.permissions.control ? 'revoke' : 'grant'}">${user.permissions.control ? '收回控制' : '授权控制'}</button>` : ''}<button data-user-action="private">私聊</button><button data-user-action="voice">语音呼叫</button>${canManage && !targetProtected ? '<button data-user-action="kick">移出</button><button data-user-action="ban">封禁</button>' : ''}</div>`
+      : `<div class="user-actions${detailsExpanded ? '' : ' is-hidden'}"></div>`;
+    const locationText = formatMemberAddress(user.location);
+    const avatar = user.avatar ? `<img src="${escapeHtml(user.avatar)}" alt="">` : escapeHtml(String(user.displayName || user.username || '?').slice(0, 1).toUpperCase());
+    const level = Number(user.level) > 0 ? ` · ${levelEmoji(user.level)} Lv.${Number(user.level)} ${escapeHtml(user.levelName || '')}` : '';
+    const detailId = `memberDetails-${index}`;
+    return `<article class="user-card ${user.isOwner ? 'owner' : ''} ${user.isSuperAdmin ? 'super-admin' : ''} ${unstable ? 'unstable' : ''} ${isSelf ? 'self' : ''} ${isSelf && state.selfMemberHighlight ? 'self-highlight' : ''} ${detailsExpanded ? 'member-detail-expanded' : 'member-detail-collapsed'}" data-socket-id="${user.socketId}" data-username="${escapeHtml(user.username)}"><button class="member-avatar" data-user-action="profile" type="button" title="查看成员资料">${avatar}<span class="user-dot">${unstable ? '⚠' : user.voiceMode ? '🎙' : '🟢'}</span></button><div class="user-info" data-user-action="profile"><strong class="member-name-line"><span>${escapeHtml(user.displayName || user.username)}${isSelf ? '<span class="self-member-label">我</span>' : ''}</span><button class="member-detail-toggle" data-user-action="toggle-details" type="button" aria-expanded="${detailsExpanded}" aria-controls="${detailId}" title="${detailsExpanded ? '收起该成员明细' : '展开该成员明细'}">${detailsExpanded ? '收起' : '展开'}</button></strong><div id="${detailId}" class="user-detail-content${detailsExpanded ? '' : ' is-hidden'}" ${detailsExpanded ? '' : 'hidden'}><small>${escapeHtml(user.username)}${level}</small><small class="user-role">${role}${user.voiceMode === 'room' ? ' · 全麦中' : user.voiceMode === 'private' ? ' · 私聊语音中' : ''}</small><small class="user-group">分组：${escapeHtml(groupName)}</small><small class="user-permissions" title="${escapeHtml(permissionNames.join('、'))}">分组权限：${escapeHtml(permissionNames.join('、') || '跟随观看')}</small><small>${escapeHtml(localizedDeviceLabel(user.browser, 'browser'))} · ${escapeHtml(localizedDeviceLabel(user.platform, 'platform'))}</small><small class="user-quality">清晰度：${playbackQualityLabel(user.playbackQuality)}</small>${unstable ? '<small>网络波动 · 正在重新连接…</small>' : `<progress class="sync-bar" max="100" value="${Number(user.syncPercent) || 0}"></progress><small>播放同步 ${user.syncPercent}% · 延迟 ${user.latency ?? '--'} 毫秒</small>`}<details class="user-location-details"><summary>位置与设备详情</summary><small>${escapeHtml(locationText)}</small><small>设备：${escapeHtml(user.deviceName || '未知设备')}</small></details></div></div>${actions}</article>`;
+  }).join('') || '<p class="muted">暂无在线成员</p>';
+  const otherUsers = state.users.filter((user) => user.username !== state.user?.username);
+  const recipientOptions = '<option value="">选择私聊成员</option>' + otherUsers.map((user) => `<option value="${escapeHtml(user.username)}">${escapeHtml(user.displayName || user.username)}</option>`).join('');
+  elements.privateRecipient.innerHTML = recipientOptions;
+  if (elements.fullscreenPrivateRecipient) elements.fullscreenPrivateRecipient.innerHTML = recipientOptions;
+  elements.permissionUser.innerHTML = '<option value="">选择成员</option>' + otherUsers.map((user) => `<option value="${escapeHtml(user.username)}">${escapeHtml(user.displayName || user.username)}</option>`).join('');
+  renderChatManagerAccounts();
+  renderChatViewUsers();
+  if ([...elements.privateRecipient.options].some((option) => option.value === selectedPrivate)) elements.privateRecipient.value = selectedPrivate;
+  if (elements.fullscreenPrivateRecipient && [...elements.fullscreenPrivateRecipient.options].some((option) => option.value === selectedFullscreenPrivate)) elements.fullscreenPrivateRecipient.value = selectedFullscreenPrivate;
+  if ([...elements.permissionUser.options].some((option) => option.value === selectedPermission)) elements.permissionUser.value = selectedPermission;
+  applyMemberDetailsCollapsed();
+  renderThemeSyncTargets();
+}
+
+function renderTemporaryRoomNotice() {
+  if (!elements.temporaryRoomNotice) return;
+  const canConvert = Boolean(state.authenticated && state.room?.temporary
+    && (state.capabilities.owner || state.capabilities.superAdmin || state.permissions.manageRoom));
+  let ignored = false; try { ignored = sessionStorage.getItem(`syncwatchIgnoreTemporary:${state.room?.id || ''}`) === '1'; } catch (_) {}
+  elements.temporaryRoomNotice.classList.toggle('is-hidden', !state.authenticated || !state.room?.temporary || ignored);
+  if (elements.convertTemporaryRoomPrimaryBtn) elements.convertTemporaryRoomPrimaryBtn.classList.toggle('is-hidden', !canConvert);
+}
+
+function formatMemberAddress(location = {}) {
+  const address = [location.country, location.province, location.city, location.district, location.street]
+    .map((part) => String(part || '').trim()).filter(Boolean).filter((part, index, values) => index === 0 || part !== values[index - 1]);
+  if (address.length) return address.join(' · ');
+  const status = String(location.status || '').trim();
+  if (/authorized|已授权/i.test(status)) return '已授权，正在解析详细地址';
+  if (/requested|等待/i.test(status)) return '等待位置授权';
+  if (/denied|未授权|拒绝/i.test(status)) return '未授权位置';
+  if (/unavailable|无法|失败/i.test(status)) return '当前客户端无法定位';
+  return '未授权位置';
+}
+
+async function openMemberProfile(username) {
+  stopMemberProfileRefresh();
+  state.memberProfileUsername = String(username || '');
+  const directoryProfile = state.friendDirectory.find((user) => user.username === username);
+  const friendProfile = state.profile?.friends?.find((user) => user.username === username);
+  const fallback = state.users.find((user) => user.username === username) || directoryProfile || friendProfile || { username };
+  state.memberProfileSnapshot = fallback;
+  elements.memberProfileContent.innerHTML = renderMemberProfileContent(fallback, true);
+  decorateLevelRuleHelp(elements.memberProfileContent);
+  elements.memberProfileModal.classList.remove('is-hidden');
+  bringMemberProfileToFront();
+  queueMicrotask(() => elements.closeMemberProfileBtn?.focus());
+  if (!state.users.some((user) => user.username === username) && (directoryProfile || friendProfile)) {
+    elements.memberProfileContent.innerHTML = `${renderMemberProfileContent(fallback)}<p class="muted">当前展示该账号可公开查看的资料；进入同一房间后可查看实时等级、分组和同步状态。</p>`;
+    decorateLevelRuleHelp(elements.memberProfileContent); bringMemberProfileToFront(); return;
+  }
+  const result = await emitAck('member-profile', { username }, 10000);
+  if (!result.success) {
+    elements.memberProfileContent.innerHTML = `${renderMemberProfileContent(fallback)}<p class="form-status">${escapeHtml(result.error || '成员资料读取失败')}</p>`;
+    decorateLevelRuleHelp(elements.memberProfileContent);
+    bringMemberProfileToFront();
+    return;
+  }
+  state.memberProfileSnapshot = result.profile || fallback;
+  state.memberProfileHighlightUntil = 0;
+  state.memberProfileOpenedAt = Date.now();
+  state.memberProfileLastFetchAt = Date.now();
+  state.memberProfileBaseOnlineSeconds = Math.max(0, Number(state.memberProfileSnapshot.onlineSeconds ?? state.memberProfileSnapshot.stats?.onlineSeconds) || 0);
+  elements.memberProfileContent.innerHTML = renderMemberProfileContent(state.memberProfileSnapshot);
+  decorateLevelRuleHelp(elements.memberProfileContent);
+  bringMemberProfileToFront();
+  startMemberProfileRefresh();
+}
+
+function bringMemberProfileToFront() {
+  if (!elements.memberProfileModal || elements.memberProfileModal.classList.contains('is-hidden')) return;
+  if (activeAppDialog && !elements.appDialog.classList.contains('is-hidden')) return;
+  bringModalToFront(elements.memberProfileModal, 500);
+}
+
+function stopMemberProfileRefresh() {
+  clearInterval(state.memberProfileRefreshTimer);
+  state.memberProfileRefreshTimer = null;
+  state.memberProfileUsername = '';
+  state.memberProfileSnapshot = null;
+  state.memberProfileOpenedAt = 0;
+  state.memberProfileBaseOnlineSeconds = 0;
+}
+
+function startMemberProfileRefresh() {
+  stopMemberProfileRefreshTimerOnly();
+  if (!state.memberProfileUsername || elements.memberProfileModal?.classList.contains('is-hidden')) return;
+  state.memberProfileRefreshTimer = setInterval(async () => {
+    if (!state.memberProfileUsername || elements.memberProfileModal?.classList.contains('is-hidden')) return;
+    let profile = state.memberProfileSnapshot;
+    if (!profile) return;
+    if (Date.now() - Number(state.memberProfileLastFetchAt || 0) >= 5000) {
+      state.memberProfileLastFetchAt = Date.now();
+      try {
+        const result = await emitAck('member-profile', { username: state.memberProfileUsername }, 8000);
+        if (result.success && result.profile) {
+          if (Number(result.profile.level) > Number(profile.level)) {
+            state.memberProfileHighlightUntil = Date.now() + 5000;
+            toast(`${result.profile.displayName || result.profile.username} 已升级为 Lv.${result.profile.level} ${result.profile.levelName}`, 'success', 5000);
+          }
+          state.memberProfileSnapshot = result.profile; profile = result.profile;
+          state.memberProfileOpenedAt = Date.now();
+          state.memberProfileBaseOnlineSeconds = Math.max(0, Number(profile.onlineSeconds ?? profile.stats?.onlineSeconds) || 0);
+        }
+      } catch (_) {}
+    }
+    const startedAt = Number(profile.onlineStartedAt);
+    const baseSeconds = Math.max(0, Number(state.memberProfileBaseOnlineSeconds) || Number(profile.onlineSeconds ?? profile.stats?.onlineSeconds) || 0);
+    const onlineSeconds = profile.online && Number.isFinite(startedAt)
+      ? baseSeconds + Math.max(0, Math.floor((Date.now() - Number(state.memberProfileOpenedAt || Date.now())) / 1000))
+      : baseSeconds;
+    const liveProfile = { ...profile, onlineSeconds, stats: { ...(profile.stats || {}), onlineSeconds } };
+    elements.memberProfileContent.innerHTML = renderMemberProfileContent(liveProfile);
+    decorateLevelRuleHelp(elements.memberProfileContent);
+  }, 1000);
+}
+
+function stopMemberProfileRefreshTimerOnly() {
+  clearInterval(state.memberProfileRefreshTimer);
+  state.memberProfileRefreshTimer = null;
+}
+
+function renderMemberProfileContent(profile = {}, loading = false) {
+  const name = profile.displayName || profile.username || '成员';
+  const avatar = profile.avatar ? `<img src="${escapeHtml(profile.avatar)}" alt="">` : escapeHtml(String(name).slice(0, 1).toUpperCase());
+  const stats = profile.stats || {};
+  const tier = profile.tier?.name || profile.tierName || '';
+  const progress = Math.max(0, Math.min(100, Number(profile.progressPercent) || 0));
+  const onlineSeconds = Math.max(0, Number(profile.onlineSeconds ?? stats.onlineSeconds) || 0);
+  const permissions = Object.entries(profile.permissions || {})
+    .filter(([key, value]) => value && !['groupId', 'administrator', 'superAdmin'].includes(key))
+    .map(([key]) => permissionLabels[key] || `其他权限（${key}）`).join('、') || '跟随观看';
+  const groupName = profile.permissionGroup?.name || (profile.permissions?.groupId === 'owner' ? '房主' : profile.permissions?.groupId === 'administrator' ? '管理员' : profile.permissions?.groupId === 'controller' ? '协管员' : '普通成员');
+  const timeText = formatOnlineDuration(onlineSeconds);
+  const highlight = Date.now() < Number(state.memberProfileHighlightUntil || 0) ? ' level-up-highlight' : '';
+  const privateRemarkAction = profile.canSetPrivateRemark ? `<div class="member-profile-admin-actions member-profile-private-remark"><span>我的私人备注：${escapeHtml(profile.privateRemark || '暂无')}</span><button data-member-profile-action="private-remark" data-username="${escapeHtml(profile.username || '')}" type="button">${profile.privateRemark ? '修改备注' : '设置备注'}</button></div>` : '';
+  const adminRemarkAction = profile.canEditAccount ? `<div class="member-profile-admin-actions"><span>管理员备注：${escapeHtml(profile.adminRemark || '暂无')}</span><button data-member-profile-action="admin-remark" data-username="${escapeHtml(profile.username || '')}" type="button">设置管理员备注</button></div>` : '';
+  return `<div class="member-profile-hero"><span class="member-profile-avatar">${avatar}</span><div><p class="eyebrow">成员资料</p><h2>${escapeHtml(name)}</h2><p>${escapeHtml(profile.username || '')} · ${levelEmoji(profile.level)} Lv.${Math.max(1, Number(profile.level) || 1)} ${escapeHtml(profile.levelName || '初映小星')}</p></div></div><p class="member-signature">${escapeHtml(profile.signature || '这个成员还没有填写个性签名')}</p>${privateRemarkAction}${adminRemarkAction}<div class="level-progress-card${highlight}"><div><strong>${Math.max(0, Number(profile.experience) || 0)} 经验</strong><small>${profile.nextLevelExperience === null ? '已达最高等级' : `还差 ${Math.max(0, Number(profile.experienceToNext) || 0)} 经验升级`}</small></div><progress max="100" value="${progress}"></progress><small>${progress}% · 当前等级已获得 ${Math.max(0, Number(profile.currentLevelExperience) || 0)} 经验</small></div><div class="member-profile-stats"><div><strong>${Math.max(0, Number(profile.experience) || 0)}</strong><small>经验值</small></div><div><strong>${Math.max(0, Number(profile.registrationDays) || 0)}</strong><small>注册天数</small></div><div><strong>${escapeHtml(timeText)}</strong><small>累计在线 · ${onlineSeconds} 秒</small></div></div><dl class="member-profile-details"><div><dt>账户等级</dt><dd>${tier ? escapeHtml(tier) : '普通成员'}</dd></div><div><dt>房间身份</dt><dd>${profile.isOwner ? '房主' : profile.isSuperAdmin ? '超级管理员' : profile.permissions?.administrator ? '管理员' : '成员'}</dd></div><div><dt>所在权限组</dt><dd>${escapeHtml(groupName)}</dd></div><div><dt>分组权限</dt><dd>${escapeHtml(permissions)}</dd></div><div><dt>所在地</dt><dd>${escapeHtml(formatMemberAddress(profile.location))}</dd></div><div><dt>加入时间</dt><dd>${escapeHtml(profile.createdAt ? new Date(profile.createdAt).toLocaleDateString('zh-CN') : '未提供')}</dd></div></dl>${loading ? '<p class="muted">正在同步完整资料…</p>' : ''}`;
+}
+
+function formatOnlineDuration(seconds) {
+  const total = Math.max(0, Math.floor(Number(seconds) || 0));
+  const hours = Math.floor(total / 3600); const minutes = Math.floor(total % 3600 / 60); const remaining = total % 60;
+  return `${hours} 小时 ${minutes} 分钟 ${remaining} 秒`;
+}
+
+async function handleMemberProfileAction(event) {
+  const button = event.target.closest('[data-member-profile-action]');
+  if (!button) return;
+  if (button.dataset.memberProfileAction === 'level-help') {
+    const levels = Array.isArray(state.adminSettings?.watchLevels) ? state.adminSettings.watchLevels : [];
+    const perMinute = Math.max(0, Number(state.publicConfig.experiencePerMinute) || 0);
+    const current = state.memberProfileSnapshot || state.profile || {};
+    const currentLevel = Math.max(1, Number(current.level) || 1);
+    const currentExperience = Math.max(0, Number(current.experience) || 0);
+    const levelText = levels.length
+      ? levels.map((level) => `Lv.${Number(level.level) || 1} ${level.name || ''}：达到 ${Math.max(0, Number(level.minExperience) || 0)} 经验`).join('\n')
+      : '等级门槛由服务器管理员在“观影等级与经验”中维护。';
+    await showAppConfirm(`当前等级：Lv.${currentLevel}\n当前经验：${currentExperience}\n每观看 1 分钟获得：${perMinute} 经验\n\n升级规则：\n${levelText}\n\n仅在视频实际播放并持续观看时累计经验，暂停、拖动和后台未播放状态不会重复计算。`, {
+      title: '观影等级与经验规则', confirmText: '知道了', cancelText: ''
+    });
+    return;
+  }
+  if (button.dataset.memberProfileAction === 'private-remark') {
+    const remark = await showAppInput({ title: '设置私人备注', description: '备注只保存在您的账号中，其他成员和管理员都看不到。', label: '我对该成员的备注', initialValue: state.memberProfileSnapshot?.privateRemark || '', required: false, maxLength: 80, confirmText: '保存备注' });
+    if (remark === null) return;
+    const result = await emitAck('account-action', { action: 'set-user-remark', username: button.dataset.username, remark });
+    if (!result.success) return toast(result.error || '私人备注保存失败', 'error');
+    state.memberProfileSnapshot = { ...state.memberProfileSnapshot, privateRemark: result.remark || '' };
+    elements.memberProfileContent.innerHTML = renderMemberProfileContent(state.memberProfileSnapshot); decorateLevelRuleHelp(elements.memberProfileContent);
+    updateLocationMemberRemarks(button.dataset.username, { privateRemark: result.remark || '' });
+    bringMemberProfileToFront();
+    return toast(result.message || '私人备注已保存', 'success');
+  }
+  if (button.dataset.memberProfileAction !== 'admin-remark') return;
+  const remark = await showAppInput({ title: '设置成员备注', label: '管理员备注', initialValue: state.memberProfileSnapshot?.adminRemark || '', required: false, maxLength: 80, confirmText: '保存备注' });
+  if (remark === null) return;
+  const result = await adminAction('set-account-remark', { username: button.dataset.username, remark });
+  if (!result.success) return toast(result.error, 'error');
+  state.memberProfileSnapshot = { ...state.memberProfileSnapshot, adminRemark: result.remark || '' };
+  elements.memberProfileContent.innerHTML = renderMemberProfileContent(state.memberProfileSnapshot); decorateLevelRuleHelp(elements.memberProfileContent);
+  updateLocationMemberRemarks(button.dataset.username, { adminRemark: result.remark || '' });
+  bringMemberProfileToFront();
+  toast(result.message, 'success');
+}
+
+function updateLocationMemberRemarks(username, remarks = {}) {
+  const normalized = String(username || '');
+  let changed = false;
+  state.locationAuthorizationMembers = state.locationAuthorizationMembers.map((member) => {
+    if (String(member.username || '') !== normalized) return member;
+    changed = true; return { ...member, ...remarks };
+  });
+  if (changed && !elements.locationAuthorizationsModal?.classList.contains('is-hidden')) renderLocationAuthorizations();
+}
+
+function decorateLevelRuleHelp(root) {
+  const target = root?.querySelector('.level-progress-card > div > small');
+  if (!target || target.querySelector('.level-rule-help')) return;
+  const help = document.createElement('button'); help.type = 'button'; help.className = 'level-rule-help'; help.dataset.memberProfileAction = 'level-help'; help.textContent = '?';
+  help.title = `观影经验按有效播放时长计算，当前每观看一分钟获得 ${Math.max(0, Number(state.publicConfig.experiencePerMinute) || 0)} 经验；服务器管理员可在“观影等级与经验”中调整。`;
+  target.append(' ', help);
+}
+
+function canViewMemberLocations() {
+  return Boolean(state.capabilities.owner || state.capabilities.superAdmin || state.capabilities.serverHost || state.permissions.manageRoom);
+}
+
+async function openLocationAuthorizations() {
+  if (!canViewMemberLocations()) return toast('只有房主或房间管理员可以查看位置授权清单', 'error');
+  elements.locationAuthorizationsModal.classList.remove('is-hidden');
+  await loadLocationAuthorizations();
+}
+
+async function loadLocationAuthorizations() {
+  if (!canViewMemberLocations()) return;
+  elements.locationAuthorizationsList.innerHTML = '<p class="muted">正在读取授权状态…</p>';
+  const result = await emitAck('member-location-list', {}, 10000);
+  if (!result.success) return elements.locationAuthorizationsList.innerHTML = `<p class="form-status">${escapeHtml(result.error || '位置授权清单读取失败')}</p>`;
+  state.locationAuthorizationMembers = Array.isArray(result.members) ? result.members : [];
+  renderLocationAuthorizations();
+}
+
+function renderLocationAuthorizations() {
+  if (!elements.locationAuthorizationsList) return;
+  const query = String(state.locationAuthorizationQuery || '').trim().toLocaleLowerCase();
+  const members = state.locationAuthorizationMembers.filter((member) => {
+    if (!query) return true;
+    const location = member.location || {};
+    return [member.username, member.displayName, member.privateRemark, member.adminRemark, location.status, location.country, location.province, location.city, location.district, location.street]
+      .some((value) => String(value || '').toLocaleLowerCase().includes(query));
+  });
+  elements.locationAuthorizationsList.innerHTML = members.length ? members.map((member) => `<button class="location-member-row" data-location-profile="${escapeHtml(member.username)}" type="button"><span class="member-mini-avatar">${member.avatar ? `<img src="${escapeHtml(member.avatar)}" alt="">` : escapeHtml(String(member.displayName || member.username || '?').slice(0, 1))}</span><span><strong>${escapeHtml(member.displayName || member.username)}</strong>${member.privateRemark ? `<em>我的备注：${escapeHtml(member.privateRemark)}</em>` : member.adminRemark ? `<em>管理员备注：${escapeHtml(member.adminRemark)}</em>` : ''}<small>${escapeHtml(formatMemberAddress(member.location))}${Number(member.location?.accuracy) > 0 ? ` · 精度约 ${Math.round(Number(member.location.accuracy))} 米` : ''}</small></span></button>`).join('') : '<p class="muted">没有符合条件的在线成员</p>';
+  elements.locationAuthorizationsList.querySelectorAll('[data-location-profile]').forEach((button) => button.addEventListener('click', () => openMemberProfile(button.dataset.locationProfile)));
+}
+
+function chatManagerAccounts() {
+  const accounts = new Map();
+  const remember = (username, displayName) => {
+    const name = String(username || '').trim(); if (!name) return;
+    const label = String(displayName || '').trim();
+    if (!accounts.has(name)) accounts.set(name, label || name);
+    else if (accounts.get(name) === name && label) accounts.set(name, label);
+  };
+  for (const account of state.chatManageAccounts) remember(account.username, account.displayName);
+  for (const user of state.users) remember(user.username, user.displayName);
+  for (const message of state.messages) { remember(message.from, message.fromName); remember(message.to, message.toName); }
+  for (const message of state.chatManageMessages) { remember(message.from, message.fromName); remember(message.to, message.toName); }
+  return [...accounts.entries()].map(([username, displayName]) => ({ username, displayName })).sort((left, right) => (left.displayName || left.username).localeCompare(right.displayName || right.username, 'zh-CN'));
+}
+
+function renderChatManagerAccounts() {
+  if (!elements.chatManageUser || !elements.chatManageUsers) return;
+  const accounts = chatManagerAccounts();
+  elements.chatManageUser.innerHTML = '<option value="">全部账户</option>' + accounts.map((account) => `<option value="${escapeHtml(account.username)}">${escapeHtml(account.displayName || account.username)}（${escapeHtml(account.username)}）</option>`).join('');
+  const available = new Set(accounts.map((account) => account.username));
+  state.chatManageSelectedUsers = new Set([...state.chatManageSelectedUsers].filter((username) => available.has(username)));
+  elements.chatManageUsers.innerHTML = accounts.length ? accounts.map((account) => `<label><input type="checkbox" value="${escapeHtml(account.username)}" ${state.chatManageSelectedUsers.has(account.username) ? 'checked' : ''}><span>${escapeHtml(account.displayName || account.username)}<small>${escapeHtml(account.username)}</small></span></label>`).join('') : '<p class="muted">暂无可筛选账户</p>';
+  const selected = [...state.chatManageSelectedUsers];
+  elements.chatManageUser.value = selected.length === 1 ? selected[0] : '';
+  elements.chatManageUsersSummary.textContent = selected.length ? `已选 ${selected.length} 人` : '全部账户';
+  updateChatManagerClearButton();
+}
+
+function chatManagerFilters() {
+  return {
+    usernames: [...state.chatManageSelectedUsers].sort(),
+    type: elements.chatManageType?.value || '',
+    fromDate: elements.chatManageDateFrom?.value || '',
+    toDate: elements.chatManageDateTo?.value || '',
+    query: String(elements.chatManageQuery?.value || '').trim()
+  };
+}
+
+function chatMessageType(message = {}) {
+  if (message.type === 'danmaku' || message.channel === 'danmaku') return 'danmaku';
+  if (['announcement', 'voice', 'image'].includes(message.type)) return message.type;
+  return message.to ? 'private' : 'public';
+}
+
+function chatManagerMessageMatches(message, filters = chatManagerFilters()) {
+  if (filters.usernames.length && !filters.usernames.some((username) => message.from === username || message.to === username)) return false;
+  if (filters.type && chatMessageType(message) !== filters.type) return false;
+  const timestamp = Date.parse(message.timestamp);
+  if (filters.fromDate && Number.isFinite(timestamp) && timestamp < new Date(`${filters.fromDate}T00:00:00`).getTime()) return false;
+  if (filters.toDate && Number.isFinite(timestamp) && timestamp > new Date(`${filters.toDate}T23:59:59.999`).getTime()) return false;
+  if (filters.query) {
+    const haystack = [message.text, message.from, message.fromName, message.to, message.toName].join(' ').toLocaleLowerCase();
+    if (!haystack.includes(filters.query.toLocaleLowerCase())) return false;
+  }
+  return true;
+}
+
+function handleChatManagerUserFilter() {
+  state.chatManageSelectedUsers = new Set([...elements.chatManageUsers.querySelectorAll('input:checked')].map((input) => input.value));
+  const selected = [...state.chatManageSelectedUsers];
+  elements.chatManageUsersSummary.textContent = selected.length ? `已选 ${selected.length} 人` : '全部账户';
+  elements.chatManageUser.value = selected.length === 1 ? selected[0] : '';
+  updateChatManagerClearButton();
+  void loadChatManagerMessages(false);
+}
+
+function updateChatManagerClearButton() {
+  if (!elements.chatClearUserBtn) return;
+  const count = state.chatManageSelectedUsers.size;
+  elements.chatClearUserBtn.disabled = !count;
+  elements.chatClearUserBtn.textContent = count ? `清空所选 ${count} 人` : '清空筛选记录';
+}
+
+function clearChatManagerFilters() {
+  state.chatManageSelectedUsers.clear();
+  elements.chatManageType.value = '';
+  elements.chatManageDateFrom.value = ''; elements.chatManageDateTo.value = ''; elements.chatManageQuery.value = '';
+  renderChatManagerAccounts(); void loadChatManagerMessages(false);
+}
+
+function toggleChatManagerFullscreen() {
+  const expanded = !elements.chatManageModal.classList.contains('chat-management-fullscreen');
+  elements.chatManageModal.classList.toggle('chat-management-fullscreen', expanded);
+  elements.chatManageFullscreenBtn.setAttribute('aria-pressed', String(expanded));
+  elements.chatManageFullscreenBtn.textContent = expanded ? '退出全屏' : '全屏查看';
+}
+
+function closeChatManager() {
+  elements.chatManageModal.classList.add('is-hidden');
+  elements.chatManageModal.classList.remove('chat-management-fullscreen');
+  elements.chatManageFullscreenBtn?.setAttribute('aria-pressed', 'false');
+  if (elements.chatManageFullscreenBtn) elements.chatManageFullscreenBtn.textContent = '全屏查看';
+  if (state.returnToManagementAfterChild) { state.returnToManagementAfterChild = false; openManagementHub('chat'); }
+}
+
+async function handleUserAction(event) {
+  const button = event.target.closest('[data-user-action]'); if (!button) return;
+  const card = button.closest('[data-username]'); const username = card.dataset.username; const socketId = card.dataset.socketId;
+  if (button.dataset.userAction === 'toggle-details') {
+    event.preventDefault(); event.stopPropagation();
+    state.memberDetailOverrides.set(username, !memberDetailsExpanded(username));
+    applyMemberDetailsCollapsed(); renderUsers();
+    return;
+  }
+  if (button.dataset.userAction === 'profile') {
+    if (event.target.closest('details')) return;
+    return openMemberProfile(username);
+  }
+  if (button.dataset.userAction === 'private') {
+    setChatMode('private'); elements.privateRecipient.value = username;
+    if (state.mobileChatCollapsed) { state.mobileChatCollapsed = false; localStorage.setItem('syncwatchMobileChatCollapsed', '0'); applyMobileChatCollapsed(); }
+    setMobileModuleActive('chat'); elements.filePanel?.classList.remove('mobile-open'); elements.userPanel?.classList.remove('mobile-open');
+    elements.chatPanel?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); elements.chatInput.focus(); return;
+  }
+  if (button.dataset.userAction === 'voice') { setChatMode('private'); elements.privateRecipient.value = username; return callPrivateVoice(); }
+  if (button.dataset.userAction === 'grant' || button.dataset.userAction === 'revoke') return ownerAction(button.dataset.userAction === 'grant' ? 'grant-control' : 'revoke-control', { username });
+  if (button.dataset.userAction === 'kick') { const result = await emitAck('admin-action', { action: 'kick-user', adminPassword: elements.adminPassword.value, targetSocketId: socketId }); toast(result.message || result.error, result.success ? 'success' : 'error'); }
+  if (button.dataset.userAction === 'ban') { if (!await showAppConfirm(`确定封禁 ${username} 的当前 IP 地址吗？`, { title: '封禁成员', confirmText: '确认封禁', danger: true })) return; const result = await emitAck('admin-action', { action: 'ban-user', adminPassword: elements.adminPassword.value, targetSocketId: socketId }); toast(result.message || result.error, result.success ? 'success' : 'error'); }
+}
+
+function setChatMode(mode) {
+  state.chatMode = mode; document.querySelectorAll('[data-chat-mode]').forEach((button) => button.classList.toggle('active', button.dataset.chatMode === mode));
+  elements.privateRecipient.classList.toggle('is-hidden', mode !== 'private');
+  if (elements.fullscreenChatMode) elements.fullscreenChatMode.value = mode;
+  elements.fullscreenPrivateRecipient?.classList.toggle('is-hidden', mode !== 'private');
+  elements.chatInput.placeholder = mode === 'private' ? '发送私聊消息…' : mode === 'danmaku' ? '发送全屏可见弹幕…' : mode === 'announcement' ? '发布房主公告…' : '说点什么…';
+  if (elements.fullscreenChatInput) elements.fullscreenChatInput.placeholder = elements.chatInput.placeholder;
+}
+
+function applyMobileChatCollapsed() {
+  const collapsed = Boolean(state.mobileChatCollapsed);
+  elements.chatPanel?.classList.toggle('mobile-chat-collapsed', collapsed);
+  elements.theater?.classList.toggle('mobile-chat-collapsed', collapsed);
+  elements.theater?.classList.toggle('chat-expanded', !collapsed);
+  if (!elements.chatToggleBtn) return;
+  elements.chatToggleBtn.textContent = collapsed ? '展开聊天' : '收起聊天';
+  elements.chatToggleBtn.setAttribute('aria-expanded', String(!collapsed));
+  elements.chatToggleBtn.setAttribute('aria-label', collapsed ? '展开聊天区域' : '收起聊天区域');
+}
+
+function toggleMobileChat() {
+  state.mobileChatCollapsed = !state.mobileChatCollapsed;
+  try { localStorage.setItem('syncwatchMobileChatCollapsed', state.mobileChatCollapsed ? '1' : '0'); } catch (_) {}
+  applyMobileChatCollapsed();
+  if (!state.mobileChatCollapsed) requestAnimationFrame(() => { elements.chatHistory.scrollTop = elements.chatHistory.scrollHeight; });
+}
+
+async function sendChat(event) {
+  event.preventDefault();
+  if (await sendChatPayload(elements.chatInput.value, state.chatMode, elements.privateRecipient.value)) elements.chatInput.value = '';
+}
+
+async function sendFullscreenChat(event) {
+  event.preventDefault();
+  if (await sendChatPayload(elements.fullscreenChatInput.value, state.chatMode, elements.fullscreenPrivateRecipient?.value || '')) elements.fullscreenChatInput.value = '';
+  showFullscreenControls();
+}
+
+async function sendChatPayload(rawText, mode, recipient) {
+  const text = String(rawText || '').trim(); if (!text) return false;
+  const to = mode === 'private' ? recipient : '';
+  if (mode === 'private' && !to) { toast('请选择私聊成员', 'error'); return false; }
+  const eventName = mode === 'danmaku' ? 'danmaku' : 'chat-message';
+  const payload = eventName === 'danmaku' ? { text } : { text, to, type: mode === 'announcement' ? 'announcement' : 'text' };
+  const result = await emitAck(eventName, payload); if (!result.success) { toast(result.error, 'error'); return false; }
+  return true;
+}
+
+function initializeEmojiBars() {
+  renderEmojiBar(elements.chatEmojiBar, elements.chatEmojiCategory?.value || 'all');
+  renderEmojiBar(elements.fullscreenEmojiBar, elements.fullscreenEmojiCategory?.value || 'all');
+  renderEmojiBar(elements.friendChatEmojiBar, elements.friendChatEmojiCategory?.value || 'all');
+}
+
+const EMOJI_CATALOG = {
+  faces: '😀 😃 😄 😁 😆 😅 😂 🤣 😊 😇 🙂 🙃 😉 😌 😍 🥰 😘 😗 😙 😚 😋 😛 😝 😜 🤪 🤨 🧐 🤓 😎 🤩 🥳 😏 😒 😞 😔 😟 😕 🙁 ☹️ 😣 😖 😫 😩 🥺 😢 😭 😤 😠 😡 🤬 🤯 😳 🥵 🥶 😱 😨 😰 😥 😓 🤗 🤔 🫣 🤭 🤫 🤥 😶 😐 😑 😬 🙄 😯 😦 😧 😮 😲 🥱 😴 🤤 😪 😵 🤐 🥴 🤢 🤮 🤧 😷 🤒 🤕'.split(' '),
+  people: '👋 🤚 🖐️ ✋ 🖖 👌 🤏 ✌️ 🤞 🤟 🤘 🤙 👈 👉 👆 🖕 👇 ☝️ 👍 👎 ✊ 👊 🤝 🙏 💪 🫶 👏 🙌 👐 🤲 💅 🤳 💃 🕺 🧘 🏃 🚶 🧍 🧎 👨 👩 🧑 👦 👧 🧒 👴 👵'.split(' '),
+  animals: '🐶 🐱 🐭 🐹 🐰 🦊 🐻 🐼 🐨 🐯 🦁 🐮 🐷 🐸 🐵 🙈 🙉 🙊 🐒 🐔 🐧 🐦 🐤 🦆 🦅 🦉 🦇 🐺 🐗 🐴 🦄 🐝 🐛 🦋 🐌 🐞 🐜 🕷️ 🦂 🐢 🐍 🦎 🦖 🦕 🐙 🦑 🦀 🐠 🐟 🐡 🐬 🐳 🐋 🦈 🐊 🐅 🐆 🦓 🦍 🐘 🦏 🦒 🦘 🦬 🐄 🐎 🐖 🐑 🦙 🐐 🦌 🐕 🐈'.split(' '),
+  food: '🍏 🍎 🍐 🍊 🍋 🍌 🍉 🍇 🍓 🫐 🍈 🍒 🍑 🥭 🍍 🥥 🥝 🍅 🥑 🍞 🥐 🥖 🥨 🧀 🥚 🍳 🧈 🥞 🧇 🥓 🥩 🍗 🍔 🍟 🍕 🌭 🥪 🌮 🌯 🥗 🍿 🍣 🍤 🍜 🍝 🍛 🍚 🍙 🍘 🍧 🍨 🍦 🧁 🍰 🎂 🍪 🍩 🍫 🍬 🍭 ☕ 🧋 🥤 🍺 🍻 🍷 🍸 🍹'.split(' '),
+  activity: '⚽ 🏀 🏈 ⚾ 🥎 🎾 🏐 🏉 🥏 🎱 🪀 🪁 🏓 🏸 🥅 🏒 🏑 🥍 🏏 ⛳ 🏹 🎣 🤿 🥊 🥋 🎽 🛹 🛷 ⛸️ 🥌 🎿 ⛷️ 🏂 🪂 🏋️ 🤼 🤸 ⛹️ 🤺 🤾 🏌️ 🏇 🧗 🏄 🚣 🧘 🧚 🧜 🧞 🧟 🧛 👻 🎃 🎄 🎁 🎈 🎉 🎊 🎭 🎨 🎬 🎤 🎧 🎼'.split(' '),
+  objects: '⌚ 📱 💻 🖥️ 🖨️ ⌨️ 🖱️ 💾 💿 📷 📸 📹 🎥 📺 ☎️ 📞 📟 📠 🔋 🔌 💡 🔦 🕯️ 📖 📚 🔑 🔒 🔓 🔨 🛠️ ⚙️ 🔧 🧰 🧲 🧪 🔬 🔭 🚪 🛏️ 🛋️ 🚽 🚿 🧴 🧹 🧺 🧻 🧼 🧽 🛒 🎁 ✉️ 📩 📦 📌 📍 ✂️ 📝 ✏️ 📎 📅 📈 💰 💳'.split(' '),
+  symbols: '❤️ 🧡 💛 💚 💙 💜 🖤 🤍 🤎 💔 ❣️ 💕 💞 💓 💗 💖 💘 💝 💟 ☮️ ✝️ ☪️ 🕉️ ☯️ ✡️ 🔯 🆔 ☢️ ☣️ ⚠️ 🚸 🔱 ⚜️ 🔰 ✅ ❌ ❗ ❓ ‼️ ⁉️ 💯 🔥 ⭐ 🌟 ✨ 💫 💥 🎵 🎶 💤 💬 💭 🗯️ 👁️‍🗨️ 🕳️ 💣 💦 💨 🕸️ 🛑 ⭕ 🔴 🟠 🟡 🟢 🔵 🟣 ⚫ ⚪'.split(' ')
+};
+
+function renderEmojiBar(bar, category = 'all') {
+  if (!bar) return;
+  const emojis = category === 'all' ? Object.values(EMOJI_CATALOG).flat() : (EMOJI_CATALOG[category] || EMOJI_CATALOG.faces);
+  bar.innerHTML = [...new Set(emojis)].map((emoji) => `<button type="button" data-chat-emoji="${emoji}" title="${emoji}">${emoji}</button>`).join('');
+}
+
+function hideEmojiBar(bar, collapseButton) {
+  bar?.classList.add('is-hidden');
+  collapseButton?.classList.add('is-hidden');
+}
+
+function toggleEmojiBar(bar, collapseButton, categorySelect) {
+  if (!bar) return;
+  const opening = bar.classList.contains('is-hidden');
+  if (opening) renderEmojiBar(bar, categorySelect?.value || 'all');
+  bar.classList.toggle('is-hidden', !opening);
+  collapseButton?.classList.toggle('is-hidden', !opening);
+}
+
+function changeEmojiCategory(bar, collapseButton, categorySelect) {
+  renderEmojiBar(bar, categorySelect?.value || 'all');
+  bar?.classList.remove('is-hidden');
+  collapseButton?.classList.remove('is-hidden');
+  const label = categorySelect?.options?.[categorySelect.selectedIndex]?.textContent || '表情';
+  if (bar) bar.setAttribute('aria-label', `${label}分类表情`);
+}
+
+function updateFriendChatEmojiButton() {
+  const expanded = Boolean(elements.friendChatEmojiBar && !elements.friendChatEmojiBar.classList.contains('is-hidden'));
+  elements.friendChatEmojiBtn?.classList.toggle('active', expanded);
+  elements.friendChatEmojiBtn?.setAttribute('aria-expanded', String(expanded));
+}
+
+function toggleFriendChatEmojiBar() {
+  toggleEmojiBar(elements.friendChatEmojiBar, elements.friendChatEmojiCollapseBtn, elements.friendChatEmojiCategory);
+  updateFriendChatEmojiButton();
+}
+
+function changeFriendChatEmojiCategory() {
+  changeEmojiCategory(elements.friendChatEmojiBar, elements.friendChatEmojiCollapseBtn, elements.friendChatEmojiCategory);
+  updateFriendChatEmojiButton();
+}
+
+function hideFriendChatEmojiBar() {
+  hideEmojiBar(elements.friendChatEmojiBar, elements.friendChatEmojiCollapseBtn);
+  updateFriendChatEmojiButton();
+}
+
+function handleEmojiSelection(event) {
+  const button = event.target.closest('[data-chat-emoji]'); if (!button) return;
+  const fullscreen = button.closest('#fullscreenEmojiBar');
+  const friend = button.closest('#friendChatEmojiBar');
+  const input = friend ? elements.friendChatInput : fullscreen ? elements.fullscreenChatInput : elements.chatInput;
+  const start = input.selectionStart ?? input.value.length; const end = input.selectionEnd ?? start;
+  input.value = `${input.value.slice(0, start)}${button.dataset.chatEmoji}${input.value.slice(end)}`;
+  input.focus(); input.setSelectionRange(start + button.dataset.chatEmoji.length, start + button.dataset.chatEmoji.length);
+}
+
+function handleChatPaste(event, fullscreen = false) {
+  const file = [...(event.clipboardData?.items || [])].find((item) => item.kind === 'file' && String(item.type || '').startsWith('image/'))?.getAsFile();
+  if (!file) return;
+  event.preventDefault(); void uploadChatImage(file, fullscreen);
+}
+
+async function uploadChatImage(file, fullscreen = false) {
+  if (!file || !String(file.type || '').startsWith('image/')) return toast('请选择图片文件', 'error');
+  const mode = state.chatMode === 'announcement' ? 'public' : state.chatMode;
+  const recipient = fullscreen ? elements.fullscreenPrivateRecipient?.value || '' : elements.privateRecipient.value;
+  if (mode === 'private' && !recipient) return toast('请选择私聊成员', 'error');
+  const form = new FormData(); form.append('image', file, file.name || `clipboard-${Date.now()}.png`); form.append('channel', mode); form.append('to', mode === 'private' ? recipient : '');
+  const textInput = fullscreen ? elements.fullscreenChatInput : elements.chatInput;
+  form.append('text', String(textInput.value || '').trim());
+  const button = fullscreen ? elements.fullscreenImageBtn : elements.chatImageBtn; button.disabled = true;
+  try {
+    const response = await fetchWithTimeout('/api/chat-image', { method: 'POST', headers: authHeaders(), body: form }, 60000);
+    const result = await response.json(); if (!response.ok || !result.success) throw new Error(result.error || '图片发送失败');
+    if (mode !== 'danmaku') addChatMessage(result.message);
+    textInput.value = ''; toast('图片已发送', 'success');
+  } catch (error) { toast(`图片发送失败：${localizedError(error)}`, 'error'); }
+  finally {
+    button.disabled = false;
+    if (fullscreen) elements.fullscreenImageInput.value = ''; else elements.chatImageInput.value = '';
+  }
+}
+
+async function loadChatHistory(older) {
+  if (state.chatLoading) return;
+  if (older && !state.chatHasMore) return toast('已经是最早的聊天记录');
+  if (!older) { state.chatBeforeId = ''; state.chatBefore = ''; }
+  state.chatLoading = true; elements.loadHistoryBtn.disabled = true; elements.loadHistoryBtn.textContent = '读取中…';
+  const previousFirstTimestamp = state.messages[0]?.timestamp || '';
+  const beforeId = older ? state.chatBeforeId : '';
+  const before = older ? state.chatBefore || previousFirstTimestamp : '';
+  const previousHeight = elements.chatHistory.scrollHeight; const previousTop = elements.chatHistory.scrollTop;
+  try {
+    const result = await emitAck('chat-history', { beforeId, before, limit: 100 }); if (!result.success) return toast(result.error, 'error');
+    const responseMessages = Array.isArray(result.messages) ? result.messages : [];
+    const responseOldest = responseMessages[0];
+    const nextBeforeId = String(result.nextBeforeId || result.nextCursor || '');
+    const nextBefore = String(result.nextBefore || responseOldest?.timestamp || '');
+    const existingIds = new Set(state.messages.map((message) => message.id));
+    const incoming = responseMessages.filter((message) => !existingIds.has(message.id)).sort(compareMessages);
+    const merged = new Map(state.messages.map((message) => [message.id, message]));
+    for (const message of incoming) merged.set(message.id, message);
+    state.messages = [...merged.values()].sort(compareMessages);
+    state.chatBeforeId = nextBeforeId; state.chatBefore = nextBefore;
+    state.chatHasMore = Boolean(result.hasMore) && Boolean(nextBeforeId || nextBefore)
+      && (!older || nextBeforeId !== beforeId || nextBefore !== before);
+    if (chatViewFilterActive()) renderChat();
+    else if (older && incoming.length && incoming.every((message) => !previousFirstTimestamp || Date.parse(message.timestamp) <= Date.parse(previousFirstTimestamp))) prependChatMessages(incoming);
+    else renderChat();
+    if (!elements.chatManageModal?.classList.contains('is-hidden')) renderChatManager();
+    if (older) elements.chatHistory.scrollTop = previousTop + Math.max(0, elements.chatHistory.scrollHeight - previousHeight);
+    else elements.chatHistory.scrollTop = elements.chatHistory.scrollHeight;
+    if (older && !state.chatHasMore) toast('已经是最早的聊天记录');
+  } catch (error) { toast(localizedError(error, '聊天记录操作失败，请稍后重试'), 'error'); }
+  finally { state.chatLoading = false; elements.loadHistoryBtn.disabled = !state.chatHasMore; elements.loadHistoryBtn.textContent = state.chatHasMore ? '更早记录' : '已到最早'; }
+}
+
+function addChatMessage(message) {
+  if (state.messages.some((item) => item.id === message.id)) return;
+  const nearBottom = elements.chatHistory.scrollHeight - elements.chatHistory.scrollTop - elements.chatHistory.clientHeight < 80;
+  const appendOnly = !state.messages.length || compareMessages(state.messages[state.messages.length - 1], message) <= 0;
+  state.messages.push(message); state.messages.sort(compareMessages);
+  if (appendOnly && !chatViewFilterActive()) appendChatMessages([message]); else renderChat();
+  renderFullscreenChat();
+  if (nearBottom) elements.chatHistory.scrollTop = elements.chatHistory.scrollHeight;
+}
+function renderChat() {
+  elements.chatHistory.replaceChildren();
+  const messages = filteredChatMessages(state.messages);
+  if (!messages.length) { const empty = document.createElement('p'); empty.className = 'muted chat-empty'; empty.textContent = state.messages.length ? '没有符合当前筛选条件的聊天记录' : '还没有聊天记录'; elements.chatHistory.appendChild(empty); renderFullscreenChat(); return; }
+  appendChatMessages(messages); renderFullscreenChat();
+}
+
+function chatViewFilterActive() {
+  const filter = state.chatViewFilter || {};
+  return Boolean(filter.channel || filter.username || filter.query);
+}
+
+function chatViewMessageMatches(message = {}) {
+  const filter = state.chatViewFilter || {};
+  const type = message.type === 'system' ? 'system' : chatMessageType(message);
+  if (filter.channel && filter.channel !== type) return false;
+  if (filter.username) {
+    const involved = message.from === filter.username || message.to === filter.username;
+    if ((filter.userMode || 'include') === 'exclude' ? involved : !involved) return false;
+  }
+  if (filter.query) {
+    const haystack = [message.text, message.from, message.fromName, message.to, message.toName, message.imageName].join(' ').toLocaleLowerCase();
+    if (!haystack.includes(String(filter.query).toLocaleLowerCase())) return false;
+  }
+  return true;
+}
+
+function filteredChatMessages(messages = state.messages) {
+  return chatViewFilterActive() ? messages.filter(chatViewMessageMatches) : messages;
+}
+
+function renderChatViewUsers() {
+  if (!elements.chatViewUser) return;
+  const current = state.chatViewFilter.username || '';
+  const accounts = new Map();
+  const remember = (username, displayName) => { if (username && !accounts.has(username)) accounts.set(username, displayName || username); };
+  state.users.forEach((user) => remember(user.username, user.displayName));
+  state.messages.forEach((message) => { remember(message.from, message.fromName); remember(message.to, message.toName); });
+  elements.chatViewUser.innerHTML = '<option value="">全部成员</option>' + [...accounts].map(([username, displayName]) => `<option value="${escapeHtml(username)}">${escapeHtml(displayName)}（${escapeHtml(username)}）</option>`).join('');
+  if ([...elements.chatViewUser.options].some((option) => option.value === current)) elements.chatViewUser.value = current;
+}
+
+function toggleChatViewFilters() {
+  const opening = elements.chatViewFilters?.classList.contains('is-hidden');
+  elements.chatViewFilters?.classList.toggle('is-hidden', !opening);
+  elements.chatViewFilterBtn?.setAttribute('aria-expanded', String(opening));
+  if (opening) renderChatViewUsers();
+}
+
+function updateChatViewFilter() {
+  state.chatViewFilter = {
+    channel: elements.chatViewChannel?.value || '', username: elements.chatViewUser?.value || '',
+    userMode: elements.chatViewUserMode?.value || 'include', query: String(elements.chatViewQuery?.value || '').trim()
+  };
+  elements.chatViewUserMode.disabled = !state.chatViewFilter.username;
+  elements.chatViewFilterBtn?.classList.toggle('active', chatViewFilterActive());
+  elements.chatViewFilterBtn.textContent = chatViewFilterActive() ? '筛选中' : '筛选';
+  renderChat();
+}
+
+function resetChatViewFilter() {
+  state.chatViewFilter = { channel: '', username: '', userMode: 'include', query: '' };
+  if (elements.chatViewChannel) elements.chatViewChannel.value = '';
+  if (elements.chatViewUser) elements.chatViewUser.value = '';
+  if (elements.chatViewUserMode) { elements.chatViewUserMode.value = 'include'; elements.chatViewUserMode.disabled = true; }
+  if (elements.chatViewQuery) elements.chatViewQuery.value = '';
+  updateChatViewFilter();
+}
+
+function compareMessages(left, right) {
+  const leftTime = Date.parse(left?.timestamp || ''); const rightTime = Date.parse(right?.timestamp || '');
+  if (Number.isFinite(leftTime) && Number.isFinite(rightTime) && leftTime !== rightTime) return leftTime - rightTime;
+  if (Number.isFinite(leftTime) !== Number.isFinite(rightTime)) return Number.isFinite(leftTime) ? -1 : 1;
+  return String(left?.id || '').localeCompare(String(right?.id || ''));
+}
+function createChatMessageNode(message) {
+  const systemMessage = message.type === 'system';
+  const item = document.createElement('div'); item.className = `chat-message${message.to ? ' private' : ''}${message.type === 'announcement' ? ' announcement' : ''}${systemMessage ? ' system' : ''}`; item.dataset.messageId = message.id || '';
+  const avatar = document.createElement('span'); avatar.className = 'avatar'; avatar.textContent = message.type === 'announcement' ? '📢' : systemMessage ? '动态' : '👤';
+  const bubble = document.createElement('div'); bubble.className = 'chat-bubble'; const meta = document.createElement('small');
+  meta.textContent = systemMessage ? `房间动态 · ${formatDate(message.timestamp)}` : `${message.fromName || message.from || ''}${message.to ? ` → ${message.toName || message.to}（私聊）` : ''} · ${formatDate(message.timestamp)}`; bubble.appendChild(meta);
+  if (message.type === 'voice') { const audio = document.createElement('audio'); audio.controls = true; audio.preload = 'none'; audio.src = message.voiceUrl || ''; if (state.masterMuted) muteMediaElement(audio); bubble.appendChild(audio); }
+  else if (message.type === 'image' && message.imageUrl) {
+    if (message.text) { const text = document.createElement('p'); text.textContent = message.text; bubble.appendChild(text); }
+    const image = document.createElement('img'); image.className = 'chat-image'; image.loading = 'lazy'; image.src = message.imageUrl; image.alt = message.imageName || '聊天图片'; image.addEventListener('click', () => window.open(message.imageUrl, '_blank', 'noopener')); bubble.appendChild(image);
+  } else { const text = document.createElement('p'); text.textContent = message.text || ''; bubble.appendChild(text); }
+  item.append(avatar, bubble); return item;
+}
+function appendChatMessages(messages) {
+  elements.chatHistory.querySelector('.chat-empty')?.remove(); const fragment = document.createDocumentFragment();
+  for (const message of filteredChatMessages(messages)) fragment.appendChild(createChatMessageNode(message)); elements.chatHistory.appendChild(fragment);
+}
+function prependChatMessages(messages) {
+  elements.chatHistory.querySelector('.chat-empty')?.remove(); const fragment = document.createDocumentFragment();
+  for (const message of filteredChatMessages(messages)) fragment.appendChild(createChatMessageNode(message)); elements.chatHistory.insertBefore(fragment, elements.chatHistory.firstChild);
+}
+
+function renderFullscreenChat() {
+  if (!elements.fullscreenChatHistory) return;
+  elements.fullscreenChatHistory.replaceChildren();
+  const messages = filteredChatMessages(state.messages).slice(-60);
+  if (!messages.length) { const empty = document.createElement('p'); empty.className = 'muted'; empty.textContent = '还没有聊天记录'; elements.fullscreenChatHistory.appendChild(empty); return; }
+  const fragment = document.createDocumentFragment();
+  for (const message of messages) fragment.appendChild(createChatMessageNode(message));
+  elements.fullscreenChatHistory.appendChild(fragment); elements.fullscreenChatHistory.scrollTop = elements.fullscreenChatHistory.scrollHeight;
+}
+
+function openChatContextMenu(event) {
+  const item = event.target.closest('.chat-message[data-message-id]');
+  if (!item?.dataset.messageId) return;
+  event.preventDefault(); state.chatContextMessageId = item.dataset.messageId;
+  const message = state.messages.find((entry) => entry.id === state.chatContextMessageId);
+  const allowed = message && (message.from === state.user?.username || state.capabilities.owner);
+  elements.chatContextDeleteBtn.disabled = !allowed;
+  elements.chatContextMenu.style.left = `${Math.min(event.clientX, window.innerWidth - 180)}px`;
+  elements.chatContextMenu.style.top = `${Math.min(event.clientY, window.innerHeight - 70)}px`;
+  elements.chatContextMenu.classList.remove('is-hidden');
+}
+
+function hideChatContextMenu() { elements.chatContextMenu?.classList.add('is-hidden'); state.chatContextMessageId = ''; }
+
+async function deleteContextChatMessage() {
+  const messageId = state.chatContextMessageId; hideChatContextMenu(); if (!messageId) return;
+  const result = await emitAck('chat-delete', { messageId });
+  toast(result.message || result.error, result.success ? 'success' : 'error');
+}
+
+function handleChatRecordsChanged(change = {}) {
+  const ids = new Set(Array.isArray(change.ids) ? change.ids : []);
+  if (change.action === 'delete' && ids.size) {
+    const cursorDeleted = ids.has(state.chatBeforeId);
+    state.messages = state.messages.filter((message) => !ids.has(message.id));
+    if (cursorDeleted) {
+      const oldest = state.messages[0];
+      state.chatBeforeId = oldest?.id || ''; state.chatBefore = oldest?.timestamp || '';
+      if (!oldest && state.chatHasMore) void reloadChatHistory(); else renderChat();
+    } else renderChat();
+  } else void reloadChatHistory();
+  if (!elements.chatManageModal?.classList.contains('is-hidden')) {
+    if (change.action === 'delete' && ids.size) updateChatManagerAfterDeletion(ids);
+    else void loadChatManagerMessages(false);
+    void loadChatManagerAccounts();
+  }
+}
+
+function updateChatManagerAfterDeletion(messageIds) {
+  const ids = messageIds instanceof Set ? messageIds : new Set(messageIds || []);
+  const cursorDeleted = ids.has(state.chatManageBeforeId);
+  state.chatManageMessages = state.chatManageMessages.filter((message) => !ids.has(message.id));
+  if (cursorDeleted) void loadChatManagerMessages(false); else renderChatManager();
+}
+
+async function reloadChatHistory() {
+  state.messages = []; state.chatHasMore = true; state.chatBeforeId = ''; state.chatBefore = ''; renderChat();
+  await loadChatHistory(false);
+}
+
+async function openChatManager() {
+  if (!(state.capabilities.owner || state.capabilities.superAdmin || state.capabilities.serverHost || state.permissions.manageChat)) return toast('当前账号没有聊天记录管理权限', 'error');
+  renderChatManager(); elements.chatManageModal.classList.remove('is-hidden');
+  await Promise.all([loadChatManagerAccounts(), loadChatManagerMessages(false)]);
+}
+
+async function loadChatManagerAccounts() {
+  if (!(state.capabilities.owner || state.capabilities.superAdmin || state.capabilities.serverHost || state.permissions.manageChat) || state.chatManageAccountsLoading) return;
+  state.chatManageAccountsLoading = true;
+  try {
+    const result = await emitAck('chat-admin', { action: 'list-accounts' });
+    if (!result.success) return toast(result.error, 'error');
+    state.chatManageAccounts = Array.isArray(result.accounts) ? result.accounts : [];
+  } catch (error) { toast(localizedError(error, '读取聊天记录失败，请稍后重试'), 'error'); }
+  finally {
+    state.chatManageAccountsLoading = false;
+    if (!elements.chatManageModal?.classList.contains('is-hidden')) renderChatManager();
+  }
+}
+
+function renderChatManager() {
+  if (!elements.chatManageList) return;
+  renderChatManagerAccounts();
+  const filters = chatManagerFilters();
+  const messages = state.chatManageMessages.filter((message) => chatManagerMessageMatches(message, filters)).slice().reverse();
+  const rows = messages.map((message) => `<div class="history-row" data-message-id="${escapeHtml(message.id)}"><div><strong>${escapeHtml(message.fromName || message.from)}${message.to ? ` → ${escapeHtml(message.toName || message.to)}` : ''}</strong><p>${escapeHtml(message.type === 'voice' ? '语音消息' : message.text || '')}</p><small>${formatDate(message.timestamp)}</small></div><button data-chat-manage="delete" type="button">删除</button></div>`).join('');
+  const more = state.chatManageHasMore ? `<button class="secondary-button full" data-chat-manage="load-more" type="button" ${state.chatManageLoading ? 'disabled' : ''}>${state.chatManageLoading ? '正在加载…' : '加载更早聊天记录'}</button>` : '';
+  const filtered = filters.usernames.length || filters.type || filters.fromDate || filters.toDate || filters.query;
+  const empty = state.chatManageLoading ? '<p class="muted">正在读取聊天记录…</p>' : `<p class="muted">${filtered ? '没有符合当前筛选条件的聊天记录' : '当前没有聊天记录'}</p>`;
+  elements.chatManageList.innerHTML = rows || empty;
+  if (more) elements.chatManageList.insertAdjacentHTML('beforeend', more);
+}
+
+function resetChatManagerMessages() {
+  state.chatManageGeneration += 1;
+  state.chatManageMessages = []; state.chatManageHasMore = true; state.chatManageLoading = false;
+  state.chatManageBeforeId = ''; state.chatManageBefore = '';
+}
+
+async function loadChatManagerMessages(older = false) {
+  if (!(state.capabilities.owner || state.capabilities.superAdmin || state.capabilities.serverHost || state.permissions.manageChat) || !elements.chatManageList) return;
+  const loadingOlder = older === true;
+  if (loadingOlder && state.chatManageLoading) return;
+  if (loadingOlder && !state.chatManageHasMore) return toast('已经是最早的聊天记录');
+  if (!loadingOlder) resetChatManagerMessages();
+  const generation = state.chatManageGeneration;
+  const filters = chatManagerFilters(); const filterSignature = JSON.stringify(filters);
+  const beforeId = loadingOlder ? state.chatManageBeforeId : '';
+  const before = loadingOlder ? state.chatManageBefore : '';
+  state.chatManageLoading = true; renderChatManager();
+  try {
+    const result = await emitAck('chat-admin', { action: 'list-messages', ...filters, username: filters.usernames.length === 1 ? filters.usernames[0] : '', channel: filters.type, beforeId, before, limit: 200 });
+    if (generation !== state.chatManageGeneration || filterSignature !== JSON.stringify(chatManagerFilters())) return;
+    if (!result.success) return toast(result.error, 'error');
+    const incoming = (Array.isArray(result.messages) ? result.messages : []).filter((message) => message?.id).sort(compareMessages);
+    const merged = new Map((loadingOlder ? state.chatManageMessages : []).map((message) => [message.id, message]));
+    for (const message of incoming) merged.set(message.id, message);
+    state.chatManageMessages = [...merged.values()].sort(compareMessages);
+    const oldest = incoming[0];
+    const nextBeforeId = String(result.nextBeforeId || result.nextCursor || '');
+    const nextBefore = String(result.nextBefore || oldest?.timestamp || '');
+    state.chatManageHasMore = Boolean(result.hasMore) && Boolean(nextBeforeId || nextBefore)
+      && (!loadingOlder || nextBeforeId !== beforeId || nextBefore !== before);
+    state.chatManageBeforeId = nextBeforeId; state.chatManageBefore = nextBefore;
+    if (loadingOlder && !state.chatManageHasMore) toast('已经是最早的聊天记录');
+  } catch (error) { if (generation === state.chatManageGeneration) toast(localizedError(error, '读取聊天管理记录失败，请稍后重试'), 'error'); }
+  finally {
+    if (generation === state.chatManageGeneration) { state.chatManageLoading = false; renderChatManager(); }
+  }
+}
+
+async function handleChatManagerAction(event) {
+  const button = event.target.closest('[data-chat-manage]'); if (!button) return;
+  if (button.dataset.chatManage === 'load-more') return loadChatManagerMessages(true);
+  const messageId = button.closest('[data-message-id]')?.dataset.messageId; if (!messageId) return;
+  const result = await emitAck('chat-admin', { action: 'delete-message', messageId });
+  toast(result.message || result.error, result.success ? 'success' : 'error');
+  if (result.success) { updateChatManagerAfterDeletion([messageId]); void loadChatManagerAccounts(); }
+}
+
+async function clearUserChat() {
+  const usernames = [...state.chatManageSelectedUsers]; if (!usernames.length) return toast('请选择要清理的账号', 'error');
+  if (!await showAppConfirm(`确定清空所选 ${usernames.length} 个账号在当前房间发送或接收的全部聊天记录吗？可在操作历史中回溯。`, { title: '清空筛选账号记录', confirmText: '确认清空', danger: true })) return;
+  let failed = 0;
+  for (const username of usernames) { const result = await emitAck('chat-admin', { action: 'clear-user', username }); if (!result.success) failed += 1; }
+  toast(failed ? `${failed} 个账号的记录清理失败` : '所选账号的聊天记录已清空', failed ? 'error' : 'success');
+  if (!failed) { state.chatManageSelectedUsers.clear(); await Promise.all([loadChatManagerAccounts(), loadChatManagerMessages(false)]); }
+}
+
+async function clearAllChat() {
+  if (!await showAppConfirm('确定清空当前房间全部聊天记录吗？可在操作历史中回溯。', { title: '清空全部聊天记录', confirmText: '确认清空', danger: true })) return;
+  const result = await emitAck('chat-admin', { action: 'clear-room' }); toast(result.message || result.error, result.success ? 'success' : 'error');
+  if (result.success) { state.chatManageSelectedUsers.clear(); await Promise.all([loadChatManagerAccounts(), loadChatManagerMessages(false)]); }
+}
+
+async function openOperationHistory() { elements.operationHistoryModal.classList.remove('is-hidden'); await loadOperationHistory(false); }
+
+function closeOperationHistory() {
+  elements.operationHistoryModal.classList.add('is-hidden');
+  if (state.returnToManagementAfterChild) { state.returnToManagementAfterChild = false; openManagementHub('chat'); }
+}
+
+const operationScopeLabels = { room: '房间', server: '服务器', account: '账户' };
+const operationActionLabels = {
+  'admin-password-recovery': '通过邮箱重置服务器管理员密码', 'account-password-recovery': '通过邮箱重置登录密码',
+  'file-upload': '上传文件', 'file-rename': '重命名文件', 'file-delete': '删除文件', 'account-register': '注册账号',
+  'room-create': '创建房间', 'select-file': '选择播放影片', 'profile-update': '更新个人资料', 'display-name': '修改账户名字',
+  'account-password': '修改登录密码', lights: '切换观影灯光', 'operation-rollback': '回溯操作', 'room-password': '修改房间密码',
+  'admin-password': '修改服务器管理员密码', 'mail-settings': '修改邮箱验证设置', 'upload-limits': '修改上传限制',
+  'room-settings': '修改房间设置', 'room-permissions': '修改成员权限', 'account-password-reset': '重置账户密码',
+  'display-name-force': '强制修改账户名字', 'account-delete': '删除账户', 'upload-approve': '审核通过上传',
+  'upload-reject': '拒绝上传', unban: '解除设备封禁', 'kick-user': '移出成员', 'ban-user': '封禁设备',
+  'chat-delete': '删除聊天记录'
+};
+const operationDetailLabels = {
+  play: '开始播放', pause: '暂停播放', seek: '调整播放进度', volume: '调整音量', undo: '撤回播放操作',
+  add: '添加影片', remove: '移除影片', move: '调整顺序', clear: '清空队列',
+  'toggle-lock': '切换播放控制锁', 'volume-sync': '调整音量同步', 'grant-control': '授予播放控制权',
+  'revoke-control': '收回播放控制权', 'delete-message': '删除指定聊天记录', 'clear-user': '清空指定账户聊天记录',
+  'clear-room': '清空房间全部聊天记录'
+};
+function localizedOperationScope(value) {
+  const scope = String(value || 'room').trim().toLowerCase();
+  if (operationScopeLabels[scope]) return operationScopeLabels[scope];
+  if (/^[\u3400-\u9fff]+$/.test(scope)) return scope;
+  console.debug('未识别的操作范围（仅日志）：', value);
+  return '其他范围';
+}
+function localizedOperationAction(value) {
+  const action = String(value || '').trim().toLowerCase();
+  if (operationActionLabels[action]) return operationActionLabels[action];
+  for (const [prefix, label] of [['playback-', '播放操作'], ['owner-', '房主管理'], ['queue-', '播放队列'], ['chat-', '聊天记录管理']]) {
+    if (!action.startsWith(prefix)) continue;
+    const detail = operationDetailLabels[action.slice(prefix.length)];
+    if (detail) return `${label}：${detail}`;
+  }
+  if (action) console.debug('未识别的操作类型（仅日志）：', value);
+  return '其他操作';
+}
+function localizedOperationSummary(operation) {
+  const summary = String(operation?.summary || '').trim();
+  if (!summary) return localizedOperationAction(operation?.action);
+  const match = summary.match(/^(播放操作|房主操作|调整播放队列|聊天记录管理)：([^，]+)(.*)$/);
+  if (!match) return summary;
+  const detail = operationDetailLabels[String(match[2] || '').trim().toLowerCase()];
+  if (detail) return `${match[1]}：${detail}${match[3] || ''}`;
+  console.debug('未识别的操作摘要明细（仅日志）：', summary);
+  return `${match[1]}：其他操作${match[3] || ''}`;
+}
+
+function renderOperationHistory() {
+  const query = String(state.operationHistoryQuery || '').trim().toLowerCase();
+  const scope = String(state.operationHistoryScope || '').trim();
+  const visible = state.operationHistory.filter((operation) => {
+    if (scope && String(operation.scope || 'room') !== scope) return false;
+    if (!query) return true;
+    return [operation.summary, operation.action, operation.actor, operation.actorName, operation.roomId, localizedOperationSummary(operation)].some((value) => String(value || '').toLowerCase().includes(query));
+  });
+  const rows = visible.map((operation) => `<div class="history-row ${operation.undone ? 'undone' : ''}" data-operation-id="${escapeHtml(operation.id)}"><label class="history-select"><input data-operation-select type="checkbox" value="${escapeHtml(operation.id)}" ${state.selectedOperations.has(operation.id) ? 'checked' : ''}><span class="visually-hidden">选择记录</span></label><div><strong>${escapeHtml(localizedOperationSummary(operation))}</strong><p>${escapeHtml(operation.actorName || operation.actor)} · ${escapeHtml(localizedOperationScope(operation.scope))}</p><small>${formatDate(operation.createdAt)} · ${operation.reversible ? '当前可回溯' : '不可回溯'}${operation.undone ? ` · 已由 ${escapeHtml(operation.undoneBy || '')} 回溯` : ''}</small></div>${operation.reversible ? '<button data-operation-action="rollback" type="button">回溯</button>' : '<span class="history-state">不可回溯</span>'}</div>`).join('');
+  const more = state.operationHistoryHasMore ? `<button class="secondary-button full" data-operation-action="load-more" type="button" ${state.operationHistoryLoading ? 'disabled' : ''}>${state.operationHistoryLoading ? '正在加载…' : '加载更早记录'}</button>` : '';
+  elements.operationHistoryList.innerHTML = rows || (!state.operationHistoryLoading ? '<p class="muted">暂无操作记录</p>' : '<p class="muted">正在读取操作历史…</p>');
+  if (more) elements.operationHistoryList.insertAdjacentHTML('beforeend', more);
+  const visibleIds = visible.map((operation) => operation.id);
+  if (elements.operationHistorySelectAll) {
+    const selectedVisible = visibleIds.filter((id) => state.selectedOperations.has(id)).length;
+    elements.operationHistorySelectAll.checked = Boolean(visibleIds.length && selectedVisible === visibleIds.length);
+    elements.operationHistorySelectAll.indeterminate = Boolean(selectedVisible && selectedVisible < visibleIds.length);
+  }
+  if (elements.deleteSelectedOperationsBtn) elements.deleteSelectedOperationsBtn.disabled = !state.selectedOperations.size;
+}
+
+function visibleOperationIds() {
+  return [...elements.operationHistoryList.querySelectorAll('[data-operation-select]')].map((input) => input.value);
+}
+
+function handleOperationHistorySelection(event) {
+  const input = event.target.closest('[data-operation-select]'); if (!input) return;
+  if (input.checked) state.selectedOperations.add(input.value); else state.selectedOperations.delete(input.value);
+  renderOperationHistory();
+}
+
+function toggleAllOperationSelections() {
+  for (const id of visibleOperationIds()) {
+    if (elements.operationHistorySelectAll.checked) state.selectedOperations.add(id); else state.selectedOperations.delete(id);
+  }
+  renderOperationHistory();
+}
+
+async function deleteSelectedOperations() {
+  const operationIds = [...state.selectedOperations]; if (!operationIds.length) return;
+  if (!await showAppConfirm(`确定删除所选 ${operationIds.length} 条操作历史吗？这只删除审计记录，不会撤销对应业务数据。`, { title: '删除操作历史', confirmText: '确认删除', danger: true })) return;
+  const result = await emitAck('operation-history-delete', { operationIds }, 30000);
+  toast(result.message || result.error, result.success ? 'success' : 'error');
+  if (result.success) { state.selectedOperations.clear(); await loadOperationHistory(false); }
+}
+
+async function loadOperationHistory(older = false) {
+  if (state.operationHistoryLoading) return;
+  const loadingOlder = older === true;
+  if (loadingOlder && !state.operationHistoryHasMore) return toast('已经是最早的操作记录');
+  if (!loadingOlder) {
+    state.operationHistory = []; state.operationHistoryBefore = ''; state.operationHistoryHasMore = false;
+    elements.operationHistoryList.innerHTML = '<p class="muted">正在读取操作历史…</p>';
+  }
+  state.operationHistoryLoading = true; renderOperationHistory();
+  const limit = 200; const before = loadingOlder ? state.operationHistoryBefore : '';
+  const result = await emitAck('operation-history', { limit, before, cursor: before });
+  if (!result.success) {
+    state.operationHistoryLoading = false;
+    if (!loadingOlder) elements.operationHistoryList.innerHTML = `<p class="muted">${escapeHtml(result.error)}</p>`;
+    else { renderOperationHistory(); toast(result.error, 'error'); }
+    return;
+  }
+  const incoming = Array.isArray(result.operations) ? result.operations : [];
+  const merged = new Map(state.operationHistory.map((operation) => [operation.id, operation]));
+  for (const operation of incoming) if (operation?.id) merged.set(operation.id, operation);
+  state.operationHistory = [...merged.values()].sort((left, right) => Date.parse(right.createdAt || 0) - Date.parse(left.createdAt || 0));
+  const oldest = incoming.reduce((current, operation) => !current || Date.parse(operation.createdAt || 0) < Date.parse(current.createdAt || 0) ? operation : current, null);
+  const nextBefore = String(result.nextBefore || result.nextBeforeId || result.nextCursor || result.before || result.cursor || oldest?.id || oldest?.createdAt || '');
+  const inferredHasMore = incoming.length >= limit;
+  state.operationHistoryHasMore = Boolean(result.hasMore ?? inferredHasMore) && Boolean(nextBefore) && (!loadingOlder || nextBefore !== before);
+  state.operationHistoryBefore = nextBefore;
+  state.operationHistoryLoading = false; renderOperationHistory();
+}
+
+async function handleOperationHistoryAction(event) {
+  const button = event.target.closest('[data-operation-action]'); if (!button) return;
+  if (button.dataset.operationAction === 'load-more') return loadOperationHistory(true);
+  if (button.dataset.operationAction !== 'rollback') return;
+  const operationId = button.closest('[data-operation-id]')?.dataset.operationId; if (!operationId) return;
+  if (!await showAppConfirm('确定把这项操作安全回溯到修改前吗？若后续数据已变化，服务器会自动拒绝覆盖。', { title: '回溯操作', confirmText: '确认回溯' })) return;
+  button.disabled = true;
+  const result = await emitAck('rollback-operation', { operationId, adminPassword: elements.adminPassword.value }, 30000);
+  toast(result.message || result.error, result.success ? 'success' : 'error');
+  await loadOperationHistory(false);
+}
+
+function isPlayerFullscreen() { return document.fullscreenElement === elements.playerContainer || state.pseudoFullscreen; }
+
+function syncFullscreenAccessibility() {
+  const active = isPlayerFullscreen(); const visible = active && elements.playerContainer.classList.contains('controls-visible');
+  elements.fullscreenOverlay?.setAttribute('aria-hidden', String(!visible));
+  if (elements.fullscreenOverlay && 'inert' in elements.fullscreenOverlay) elements.fullscreenOverlay.inert = !visible;
+  elements.fullscreenShowBtn?.classList.toggle('is-hidden', !active || visible);
+  elements.fullscreenShowBtn?.setAttribute('aria-hidden', String(!active || visible));
+  elements.fullscreenBtn.textContent = active ? '退出全屏' : '全屏'; elements.fullscreenBtn.setAttribute('aria-pressed', String(active));
+}
+
+function handleFullscreenChange() {
+  const nativeActive = document.fullscreenElement === elements.playerContainer;
+  if (nativeActive) state.pseudoFullscreen = false;
+  const active = nativeActive || state.pseudoFullscreen;
+  if (window.SyncWatchAndroid?.setImmersiveMode) {
+    try { window.SyncWatchAndroid.setImmersiveMode(Boolean(active)); } catch (_) {}
+  }
+  relocateChatContextMenu(active);
+  relocateToastRegion(active);
+  elements.playerContainer.classList.toggle('fullscreen-active', active); document.body.classList.toggle('fullscreen-open', active);
+  if (active) { renderFullscreenChat(); setChatMode(state.chatMode); showFullscreenControls(); }
+  else {
+    hideChatContextMenu();
+    clearTimeout(state.fullscreenHideTimer); elements.playerContainer.classList.remove('controls-visible');
+    if (elements.fullscreenOverlay?.contains(document.activeElement)) document.activeElement.blur?.();
+    syncFullscreenAccessibility();
+  }
+}
+
+function relocateToastRegion(fullscreenActive) {
+  const region = elements.toastRegion;
+  if (!region || !elements.playerContainer) return;
+  if (fullscreenActive) {
+    if (!state.toastRegionHomeParent) {
+      state.toastRegionHomeParent = region.parentNode;
+      state.toastRegionHomeNextSibling = region.nextSibling;
+    }
+    if (elements.clearAllToastsBtn?.parentNode !== elements.playerContainer) elements.playerContainer.appendChild(elements.clearAllToastsBtn);
+    if (region.parentNode !== elements.playerContainer) elements.playerContainer.appendChild(region);
+    return;
+  }
+  const parent = state.toastRegionHomeParent;
+  if (!parent || region.parentNode === parent) return;
+  const sibling = state.toastRegionHomeNextSibling;
+  parent.insertBefore(region, sibling?.parentNode === parent ? sibling : null);
+  if (elements.clearAllToastsBtn) parent.insertBefore(elements.clearAllToastsBtn, region);
+}
+
+function relocateChatContextMenu(fullscreenActive) {
+  const menu = elements.chatContextMenu;
+  if (!menu || !elements.playerContainer) return;
+  if (fullscreenActive) {
+    if (!state.chatContextMenuHomeParent) {
+      state.chatContextMenuHomeParent = menu.parentNode;
+      state.chatContextMenuHomeNextSibling = menu.nextSibling;
+    }
+    if (menu.parentNode !== elements.playerContainer) elements.playerContainer.appendChild(menu);
+    return;
+  }
+  const parent = state.chatContextMenuHomeParent;
+  if (!parent || menu.parentNode === parent) return;
+  const sibling = state.chatContextMenuHomeNextSibling;
+  parent.insertBefore(menu, sibling?.parentNode === parent ? sibling : null);
+}
+
+function handleFullscreenStageClick(event) {
+  if (!isPlayerFullscreen() || event.target.closest('#fullscreenOverlay, #fullscreenShowBtn, button, input, select, audio')) return;
+  if (elements.playerContainer.classList.contains('controls-visible')) hideFullscreenControls(true); else showFullscreenControls();
+}
+
+function showFullscreenControls() {
+  if (!isPlayerFullscreen()) return;
+  elements.playerContainer.classList.add('controls-visible'); clearTimeout(state.fullscreenHideTimer);
+  syncFullscreenAccessibility();
+  state.fullscreenHideTimer = setTimeout(() => {
+    if (!elements.fullscreenOverlay?.contains(document.activeElement)) hideFullscreenControls();
+  }, 3000);
+}
+function hideFullscreenControls(force = false) {
+  if (force && elements.fullscreenOverlay?.contains(document.activeElement)) document.activeElement.blur?.();
+  elements.playerContainer.classList.remove('controls-visible'); clearTimeout(state.fullscreenHideTimer); syncFullscreenAccessibility();
+}
+
+async function synchronizeMissedChat() {
+  if (!state.messages.length) return loadChatHistory(false);
+  const knownIds = new Set(state.messages.map((message) => message.id)); const found = new Map(); let before = ''; let beforeId = ''; let failure = '';
+  for (let page = 0; page < 10; page += 1) {
+    const result = await emitAck('chat-history', { beforeId, before, limit: 300 });
+    if (!result.success) { failure = result.error || '服务器未返回聊天记录'; break; }
+    const messages = Array.isArray(result.messages) ? result.messages : []; const overlaps = messages.some((message) => knownIds.has(message.id));
+    for (const message of messages) if (!knownIds.has(message.id)) found.set(message.id, message);
+    if (overlaps || !result.hasMore || !messages.length) break;
+    const nextBeforeId = String(result.nextBeforeId || result.nextCursor || '');
+    const nextBefore = String(result.nextBefore || messages[0]?.timestamp || '');
+    if ((!nextBeforeId && !nextBefore) || (nextBeforeId === beforeId && nextBefore === before)) break;
+    beforeId = nextBeforeId; before = nextBefore;
+  }
+  if (failure) toast(`补取断线聊天失败：${failure}`, 'error');
+  const incoming = [...found.values()].sort(compareMessages); if (!incoming.length) return;
+  const nearBottom = elements.chatHistory.scrollHeight - elements.chatHistory.scrollTop - elements.chatHistory.clientHeight < 80;
+  const lastKnown = state.messages[state.messages.length - 1]; const appendOnly = incoming.every((message) => compareMessages(lastKnown, message) <= 0);
+  const merged = new Map(state.messages.map((message) => [message.id, message])); for (const message of incoming) merged.set(message.id, message);
+  state.messages = [...merged.values()].sort(compareMessages); if (appendOnly) appendChatMessages(incoming); else renderChat();
+  if (nearBottom) elements.chatHistory.scrollTop = elements.chatHistory.scrollHeight;
+}
+
+const LIVE_VOICE_ICE_SERVERS = [
+  { urls: ['stun:stun.cloudflare.com:3478', 'stun:stun.l.google.com:19302'] }
+];
+
+async function ensureLiveVoiceStream() {
+  if (state.liveVoiceStream?.getAudioTracks().some((track) => track.readyState === 'live')) return state.liveVoiceStream;
+  if (!navigator.mediaDevices?.getUserMedia || !window.RTCPeerConnection) throw new Error('当前浏览器不支持实时语音');
+  const stream = await navigator.mediaDevices.getUserMedia({
+    audio: {
+      channelCount: { ideal: 2 }, sampleRate: { ideal: 48000 }, sampleSize: { ideal: 24 },
+      echoCancellation: true, noiseSuppression: true, autoGainControl: true
+    }, video: false
+  });
+  for (const track of stream.getAudioTracks()) {
+    track.enabled = !state.liveVoiceMuted;
+    try { await track.applyConstraints({ channelCount: 2, sampleRate: 48000 }); } catch (_) {}
+  }
+  state.liveVoiceStream = stream;
+  return stream;
+}
+
+function updateLiveVoiceUi(message = '') {
+  const active = Boolean(state.liveVoiceMode);
+  const statusText = message || (state.liveVoiceMode === 'room' ? `全麦语音 · ${state.liveVoicePeers.size + 1} 人` : state.liveVoiceMode === 'private' ? '私聊语音已接通' : '未加入语音');
+  if (elements.liveVoiceStatus) elements.liveVoiceStatus.textContent = statusText;
+  if (elements.voiceFloatingStatus) elements.voiceFloatingStatus.textContent = statusText;
+  elements.voiceRoomBtn?.classList.toggle('is-hidden', active);
+  elements.voicePrivateBtn?.classList.toggle('is-hidden', active);
+  elements.voiceMuteBtn?.classList.toggle('is-hidden', !active);
+  elements.voiceLeaveBtn?.classList.toggle('is-hidden', !active);
+  if (elements.voiceMuteBtn) elements.voiceMuteBtn.textContent = state.liveVoiceMuted ? '取消静音' : '麦克风静音';
+  if (elements.voiceFloatingMuteBtn) elements.voiceFloatingMuteBtn.textContent = state.liveVoiceMuted ? '取消静音' : '麦克风静音';
+  elements.liveVoiceFloating?.classList.toggle('is-hidden', !active);
+  elements.liveVoiceFloating?.classList.toggle('is-muted', state.liveVoiceMuted);
+  applyLiveVoiceCollapsed(); applyLiveVoiceFloatingCollapsed();
+}
+
+function applyLiveVoiceCollapsed() {
+  elements.liveVoiceBar?.classList.toggle('is-collapsed', state.liveVoiceCollapsed);
+  if (elements.voiceDockToggleBtn) {
+    elements.voiceDockToggleBtn.textContent = state.liveVoiceCollapsed ? '⌄' : '⌃';
+    elements.voiceDockToggleBtn.title = state.liveVoiceCollapsed ? '展开实时语音' : '折叠实时语音';
+    elements.voiceDockToggleBtn.setAttribute('aria-expanded', String(!state.liveVoiceCollapsed));
+  }
+}
+
+function toggleLiveVoiceCollapsed() {
+  state.liveVoiceCollapsed = !state.liveVoiceCollapsed;
+  localStorage.setItem('syncwatchLiveVoiceCollapsed', state.liveVoiceCollapsed ? '1' : '0');
+  applyLiveVoiceCollapsed();
+}
+
+function applyLiveVoiceFloatingCollapsed() {
+  elements.liveVoiceFloating?.classList.toggle('is-collapsed', state.liveVoiceFloatingCollapsed);
+  if (elements.voiceFloatingCollapseBtn) {
+    elements.voiceFloatingCollapseBtn.textContent = state.liveVoiceFloatingCollapsed ? '⌄' : '⌃';
+    elements.voiceFloatingCollapseBtn.title = state.liveVoiceFloatingCollapsed ? '展开语音控制' : '折叠语音控制';
+    elements.voiceFloatingCollapseBtn.setAttribute('aria-expanded', String(!state.liveVoiceFloatingCollapsed));
+  }
+}
+
+function toggleLiveVoiceFloatingCollapsed() {
+  state.liveVoiceFloatingCollapsed = !state.liveVoiceFloatingCollapsed;
+  localStorage.setItem('syncwatchVoiceFloatingCollapsed', state.liveVoiceFloatingCollapsed ? '1' : '0');
+  applyLiveVoiceFloatingCollapsed();
+}
+
+function beginPushToTalk(event) {
+  if (!state.liveVoiceMode || !state.liveVoiceStream) return;
+  state.liveVoicePushRestoreMuted = state.liveVoiceMuted;
+  for (const track of state.liveVoiceStream.getAudioTracks()) track.enabled = true;
+  elements.voicePushToTalkBtn?.classList.add('is-talking');
+  elements.voicePushToTalkBtn?.setPointerCapture?.(event.pointerId);
+  if (elements.voiceFloatingStatus) elements.voiceFloatingStatus.textContent = '正在临时开麦…';
+  event.preventDefault();
+}
+
+function endPushToTalk() {
+  if (state.liveVoicePushRestoreMuted === null) return;
+  for (const track of state.liveVoiceStream?.getAudioTracks?.() || []) track.enabled = !state.liveVoicePushRestoreMuted;
+  state.liveVoicePushRestoreMuted = null;
+  elements.voicePushToTalkBtn?.classList.remove('is-talking');
+  updateLiveVoiceUi();
+}
+
+function shouldInitiateVoice(peerSocketId) {
+  return Boolean(state.socket?.id && peerSocketId && String(state.socket.id).localeCompare(String(peerSocketId)) < 0);
+}
+
+async function joinRoomVoice() {
+  if (!state.permissions.voiceChat) return permissionDeniedToast('使用实时语音');
+  elements.voiceRoomBtn.disabled = true;
+  try {
+    await ensureLiveVoiceStream();
+    const result = await emitAck('voice-room-join', {}, 20000);
+    if (!result.success) throw new Error(result.error || '无法加入全麦语音');
+    state.liveVoiceMode = 'room';
+    for (const peer of result.peers || []) await connectLiveVoicePeer(peer, shouldInitiateVoice(peer.socketId));
+    updateLiveVoiceUi(result.message);
+  } catch (error) {
+    await leaveLiveVoice(false);
+    toast(`实时语音启动失败：${localizedError(error, '请检查麦克风权限和网络')}`, 'error', 7000);
+  } finally { elements.voiceRoomBtn.disabled = false; }
+}
+
+async function callPrivateVoice() {
+  if (!state.permissions.voiceChat) return permissionDeniedToast('使用实时语音');
+  const username = elements.privateRecipient?.value || elements.fullscreenPrivateRecipient?.value || '';
+  if (!username) return toast('请先在私聊对象中选择要呼叫的成员', 'error');
+  elements.voicePrivateBtn.disabled = true;
+  try {
+    await ensureLiveVoiceStream();
+    const result = await emitAck('voice-call', { username }, 15000);
+    if (!result.success) throw new Error(result.error);
+    state.pendingVoiceCallId = result.callId || '';
+    updateLiveVoiceUi('等待对方接听私聊语音…');
+    toast(result.message, 'success');
+  } catch (error) { toast(localizedError(error, '私聊语音邀请失败'), 'error'); }
+  finally { elements.voicePrivateBtn.disabled = false; }
+}
+
+async function callFriendVoice(username) {
+  if (!state.permissions.voiceChat) return permissionDeniedToast('使用实时语音');
+  if (!username) return toast('好友账号无效', 'error');
+  try {
+    await ensureLiveVoiceStream();
+    const result = await emitAck('voice-call', { username }, 15000);
+    if (!result.success) throw new Error(result.error || '好友语音邀请失败');
+    state.pendingVoiceCallId = result.callId || ''; updateLiveVoiceUi('等待好友接听语音…'); toast(result.message, 'success');
+  } catch (error) { toast(localizedError(error, '好友语音邀请失败'), 'error'); }
+}
+
+async function handleIncomingVoiceCall(call = {}) {
+  if (!call.id || activeAppDialog) {
+    if (call.id) {
+      state.socket.emit('voice-call-response', { callId: call.id, accepted: false }, () => {});
+      toast(`${call.callerName || '成员'} 发来私聊语音邀请，当前正在处理其他弹窗，已自动婉拒`, 'error', 6500);
+    }
+    return;
+  }
+  const accepted = await showAppConfirm(`${call.callerName || call.callerUsername || '成员'} 邀请您进行一对一实时语音。`, { title: '私聊语音邀请', confirmText: '接听', cancelText: '拒绝' });
+  if (accepted) {
+    try { await ensureLiveVoiceStream(); }
+    catch (error) {
+      toast(`无法使用麦克风：${localizedError(error, '请检查权限')}`, 'error');
+      state.socket.emit('voice-call-response', { callId: call.id, accepted: false }, () => {});
+      return;
+    }
+  }
+  const result = await emitAck('voice-call-response', { callId: call.id, accepted });
+  if (!result.success) toast(result.error, 'error');
+}
+
+async function handleVoiceCallResolved(result = {}) {
+  state.pendingVoiceCallId = '';
+  if (!result.accepted) { updateLiveVoiceUi(); return toast(result.message || '对方未接听私聊语音', 'error'); }
+  try {
+    await ensureLiveVoiceStream();
+    state.liveVoiceMode = 'private';
+    if (result.peer) await connectLiveVoicePeer(result.peer, Boolean(result.initiator));
+    updateLiveVoiceUi(result.message || '私聊语音已接通');
+    toast(result.message || '私聊语音已接通', 'success');
+  } catch (error) { toast(`私聊语音连接失败：${localizedError(error)}`, 'error'); await leaveLiveVoice(true); }
+}
+
+async function connectLiveVoicePeer(peer = {}, initiator = false) {
+  const socketId = String(peer.socketId || '');
+  if (!socketId || socketId === state.socket?.id) return null;
+  if (state.liveVoicePeers.has(socketId)) return state.liveVoicePeers.get(socketId).connection;
+  const stream = await ensureLiveVoiceStream();
+  const connection = new RTCPeerConnection({ iceServers: LIVE_VOICE_ICE_SERVERS, iceCandidatePoolSize: 8, bundlePolicy: 'max-bundle', rtcpMuxPolicy: 'require' });
+  const entry = { connection, peer, audio: null, candidates: [], initiator: Boolean(initiator), reconnectAttempts: 0, reconnectTimer: null };
+  state.liveVoicePeers.set(socketId, entry);
+  for (const track of stream.getAudioTracks()) connection.addTrack(track, stream);
+  for (const sender of connection.getSenders()) {
+    if (sender.track?.kind !== 'audio') continue;
+    try {
+      const parameters = sender.getParameters();
+      parameters.encodings = parameters.encodings?.length ? parameters.encodings : [{}];
+      parameters.encodings[0].maxBitrate = 128000;
+      await sender.setParameters(parameters);
+    } catch (_) {}
+  }
+  try {
+    const transceiver = connection.getTransceivers().find((item) => item.sender?.track?.kind === 'audio');
+    const codecs = RTCRtpSender.getCapabilities?.('audio')?.codecs || [];
+    const opus = codecs.filter((codec) => /opus/i.test(codec.mimeType || '')).map((codec) => ({ ...codec, sdpFmtpLine: `${codec.sdpFmtpLine || ''}${codec.sdpFmtpLine ? ';' : ''}stereo=1;sprop-stereo=1;maxaveragebitrate=128000;usedtx=0;useinbandfec=1` }));
+    if (transceiver && opus.length) transceiver.setCodecPreferences([...opus, ...codecs.filter((codec) => !/opus/i.test(codec.mimeType || ''))]);
+  } catch (_) {}
+  connection.onicecandidate = ({ candidate }) => { if (candidate) state.socket?.emit('voice-signal', { targetSocketId: socketId, candidate }); };
+  connection.ontrack = ({ streams, receiver }) => {
+    const remoteStream = streams?.[0]; if (!remoteStream) return;
+    try { if ('jitterBufferTarget' in receiver) receiver.jitterBufferTarget = 0.12; } catch (_) {}
+    let audio = entry.audio;
+    if (!audio) {
+      audio = document.createElement('audio'); audio.autoplay = true; audio.playsInline = true;
+      audio.dataset.voicePeer = socketId; elements.voiceAudioDock?.appendChild(audio); entry.audio = audio;
+    }
+    audio.srcObject = remoteStream;
+    if (state.masterMuted) muteMediaElement(audio);
+    audio.play().catch(() => toast('浏览器阻止了语音自动播放，请点击页面后重试加入语音', 'error'));
+  };
+  connection.onconnectionstatechange = () => {
+    clearTimeout(entry.reconnectTimer); entry.reconnectTimer = null;
+    if (connection.connectionState === 'connected') { entry.reconnectAttempts = 0; updateLiveVoiceUi(); return; }
+    if (connection.connectionState === 'closed') return removeLiveVoicePeer(socketId);
+    if (connection.connectionState === 'failed') return void restartLiveVoicePeer(socketId);
+    if (connection.connectionState === 'disconnected') {
+      entry.reconnectTimer = setTimeout(() => { if (connection.connectionState === 'disconnected') void restartLiveVoicePeer(socketId); }, 3500);
+      return;
+    }
+    updateLiveVoiceUi();
+  };
+  const queued = state.liveVoiceSignalQueues.get(socketId) || [];
+  state.liveVoiceSignalQueues.delete(socketId);
+  for (const signal of queued) await applyLiveVoiceSignal(socketId, signal);
+  if (initiator) {
+    const offer = await connection.createOffer({ offerToReceiveAudio: true });
+    await connection.setLocalDescription(offer);
+    state.socket.emit('voice-signal', { targetSocketId: socketId, description: connection.localDescription });
+  }
+  updateLiveVoiceUi();
+  return connection;
+}
+
+async function handleLiveVoiceSignal(signal = {}) {
+  const socketId = String(signal.fromSocketId || '');
+  if (!socketId || !state.liveVoiceMode) return;
+  if (!state.liveVoicePeers.has(socketId)) {
+    const peer = state.users.find((user) => user.socketId === socketId) || { socketId, username: 'voice-peer' };
+    try { await connectLiveVoicePeer(peer, false); }
+    catch (_) {
+      const queue = state.liveVoiceSignalQueues.get(socketId) || []; queue.push(signal); state.liveVoiceSignalQueues.set(socketId, queue.slice(-20)); return;
+    }
+  }
+  await applyLiveVoiceSignal(socketId, signal);
+}
+
+async function applyLiveVoiceSignal(socketId, signal) {
+  const entry = state.liveVoicePeers.get(socketId); if (!entry) return;
+  const connection = entry.connection;
+  try {
+    if (signal.description) {
+      await connection.setRemoteDescription(signal.description);
+      while (entry.candidates.length) await connection.addIceCandidate(entry.candidates.shift());
+      if (signal.description.type === 'offer') {
+        const answer = await connection.createAnswer(); await connection.setLocalDescription(answer);
+        state.socket.emit('voice-signal', { targetSocketId: socketId, description: connection.localDescription });
+      }
+    } else if (signal.candidate) {
+      if (connection.remoteDescription) await connection.addIceCandidate(signal.candidate);
+      else entry.candidates.push(signal.candidate);
+    }
+  } catch (error) { console.warn('实时语音信令处理失败:', error.message); }
+}
+
+function removeLiveVoicePeer(socketId) {
+  const entry = state.liveVoicePeers.get(String(socketId)); if (!entry) return;
+  state.liveVoicePeers.delete(String(socketId));
+  clearTimeout(entry.reconnectTimer);
+  try { entry.connection.close(); } catch (_) {}
+  if (entry.audio) { try { entry.audio.srcObject = null; } catch (_) {} entry.audio.remove(); }
+  updateLiveVoiceUi();
+}
+
+async function restartLiveVoicePeer(socketId) {
+  const entry = state.liveVoicePeers.get(String(socketId));
+  if (!entry || entry.connection.connectionState === 'closed') return;
+  if (!entry.initiator) {
+    if (entry.reconnectAttempts++ >= 2) removeLiveVoicePeer(socketId);
+    return;
+  }
+  if (entry.reconnectAttempts++ >= 2) {
+    toast(`${entry.peer?.displayName || entry.peer?.username || '语音成员'} 的语音连接已断开，请重新加入语音`, 'error', 7000);
+    removeLiveVoicePeer(socketId);
+    return;
+  }
+  try {
+    entry.connection.restartIce?.();
+    await entry.connection.setLocalDescription(await entry.connection.createOffer({ iceRestart: true, offerToReceiveAudio: true }));
+    state.socket.emit('voice-signal', { targetSocketId: socketId, description: entry.connection.localDescription });
+    updateLiveVoiceUi('网络波动，正在恢复语音连接…');
+  } catch (_) {
+    entry.reconnectTimer = setTimeout(() => void restartLiveVoicePeer(socketId), 1500);
+  }
+}
+
+function closeLiveVoicePeers() {
+  for (const socketId of [...state.liveVoicePeers.keys()]) removeLiveVoicePeer(socketId);
+  state.liveVoiceSignalQueues.clear();
+}
+
+async function leaveLiveVoice(notifyServer = true) {
+  if (notifyServer && state.socket?.connected && state.liveVoiceMode) await emitAck('voice-leave', {}).catch(() => {});
+  closeLiveVoicePeers();
+  state.liveVoiceStream?.getTracks().forEach((track) => track.stop());
+  state.liveVoiceStream = null; state.liveVoiceMode = ''; state.liveVoiceMuted = false; state.liveVoicePushRestoreMuted = null; state.pendingVoiceCallId = '';
+  updateLiveVoiceUi();
+}
+
+function toggleLiveVoiceMute() {
+  state.liveVoiceMuted = !state.liveVoiceMuted;
+  for (const track of state.liveVoiceStream?.getAudioTracks?.() || []) track.enabled = !state.liveVoiceMuted;
+  updateLiveVoiceUi(state.liveVoiceMuted ? '麦克风已静音' : '麦克风已开启');
+}
+
+async function toggleVoiceRecording() {
+  if (state.mediaRecorder?.state === 'recording') { clearTimeout(state.voiceStopTimer); state.mediaRecorder.stop(); elements.voiceBtn.textContent = '…'; return; }
+  if (state.mediaRecorder || state.voiceCapturePending || state.voiceProcessing) return toast('上一段录音正在处理中，请稍候。');
+  if (!navigator.mediaDevices?.getUserMedia || !window.MediaRecorder) { elements.voiceFileInput.click(); return toast('当前浏览器不能直接录音，请选择语音文件发送。'); }
+  state.voiceCapturePending = true; elements.voiceBtn.textContent = '…';
+  let stream = null; let recorder = null; let failed = false; const chunks = [];
+  const release = () => {
+    clearTimeout(state.voiceStopTimer); state.voiceStopTimer = null; stream?.getTracks().forEach((track) => track.stop());
+    state.voiceCapturePending = false; if (state.mediaRecorder === recorder) state.mediaRecorder = null;
+    if (!state.voiceProcessing) { elements.voiceBtn.disabled = false; elements.voiceBtn.textContent = '🎤'; }
+  };
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({ audio: { channelCount: 2, sampleRate: 48000, sampleSize: 16, echoCancellation: true, noiseSuppression: true, autoGainControl: true } }); state.voiceChunks = chunks;
+    const preferred = ['audio/webm;codecs=opus', 'audio/ogg;codecs=opus', 'audio/mp4'];
+    const mimeType = preferred.find((type) => window.MediaRecorder.isTypeSupported?.(type)) || '';
+    recorder = new window.MediaRecorder(stream, mimeType ? { mimeType, audioBitsPerSecond: 128000 } : { audioBitsPerSecond: 128000 }); state.mediaRecorder = recorder;
+    recorder.ondataavailable = (event) => event.data.size && chunks.push(event.data);
+    recorder.onerror = (event) => { failed = true; const message = localizedError(event.error, '录音设备发生错误'); if (recorder.state === 'recording') { try { recorder.stop(); } catch (_) { release(); } } else release(); toast(`录音失败：${message}`, 'error'); };
+    recorder.onstop = () => { const actualType = recorder.mimeType || mimeType || chunks[0]?.type || 'audio/webm'; release(); if (!failed) processVoiceUpload(new Blob(chunks, { type: actualType })); };
+    recorder.start(); state.voiceCapturePending = false; elements.voiceBtn.textContent = '⏹';
+    state.voiceStopTimer = setTimeout(() => { if (recorder?.state === 'recording') { toast('录音已达到 5 分钟上限，正在发送。'); recorder.stop(); } }, 5 * 60 * 1000);
+    toast('正在录音，再次点击停止并发送');
+  } catch (error) { failed = true; release(); toast(`无法录音：${localizedError(error, '请检查麦克风权限')}。可选择已有语音文件。`, 'error'); elements.voiceFileInput.click(); }
+}
+
+async function processVoiceUpload(blob) {
+  if (state.voiceProcessing || state.voiceCapturePending || state.mediaRecorder) { toast('录音仍在处理中，请稍候。'); return; }
+  state.voiceProcessing = true; elements.voiceBtn.disabled = true; elements.voiceBtn.textContent = '…';
+  try { await uploadVoice(blob); }
+  finally { state.voiceProcessing = false; elements.voiceBtn.disabled = false; elements.voiceBtn.textContent = '🎤'; }
+}
+
+async function uploadVoice(blob) {
+  const to = state.chatMode === 'private' ? elements.privateRecipient.value : ''; if (state.chatMode === 'private' && !to) return toast('请选择私聊成员', 'error');
+  if (!blob?.size) return toast('没有录到有效语音', 'error');
+  const extension = voiceExtension(blob.name, blob.type); const filename = `voice-${Date.now()}.${extension}`;
+  const form = new FormData(); form.append('voice', blob, filename); form.append('to', to);
+  try {
+    const response = await fetchWithTimeout('/api/voice', { method: 'POST', headers: authHeaders(), body: form }, 60000);
+    let result; try { result = await response.json(); } catch (_) { result = { success: false, error: `语音上传失败（${response.status}）` }; }
+    toast(response.ok && result.success ? '语音已发送' : result.error, response.ok && result.success ? 'success' : 'error');
+  } catch (error) { toast(`语音上传失败：${localizedError(error, '请检查网络后重试')}`, 'error'); }
+  finally { elements.voiceFileInput.value = ''; }
+}
+
+function voiceExtension(name, mimeType) {
+  const named = String(name || '').match(/\.([a-z0-9]+)$/i)?.[1]?.toLowerCase();
+  if (['webm', 'ogg', 'mp4', 'm4a', 'mp3', 'aac', 'wav'].includes(named)) return named;
+  const type = String(mimeType || '').toLowerCase();
+  if (type.includes('ogg')) return 'ogg'; if (type.includes('mp4')) return 'm4a'; if (type.includes('mpeg')) return 'mp3';
+  if (type.includes('aac')) return 'aac'; if (type.includes('wav')) return 'wav'; return 'webm';
+}
+
+function showDanmaku(data) {
+  const text = `${data.displayName || data.fromName || data.username || data.from}: ${data.text || (data.type === 'image' ? '发送了一张图片' : '')}`;
+  const item = document.createElement('span'); item.className = 'danmaku-item'; item.textContent = text; item.style.color = data.color; item.style.top = `${8 + Math.random() * 70}%`; item.style.animationDuration = `${7 + Math.random() * 3}s`; elements.danmakuContainer.appendChild(item); setTimeout(() => item.remove(), 11000);
+  if (state.pipDanmakuLayer?.isConnected) {
+    const pipItem = state.pipDanmakuLayer.ownerDocument.createElement('span'); pipItem.textContent = text; pipItem.style.color = data.color || '#fff'; pipItem.style.top = `${8 + Math.random() * 72}%`; pipItem.style.animationDuration = `${7 + Math.random() * 3}s`; state.pipDanmakuLayer.appendChild(pipItem); setTimeout(() => pipItem.remove(), 11000);
+  }
+}
+function showReaction(data) { const item = document.createElement('span'); item.className = 'reaction-pop'; item.textContent = `${data.displayName || data.username || '成员'}：${data.emoji}`; item.style.right = `${5 + Math.random() * 30}%`; elements.reactionLayer.appendChild(item); setTimeout(() => item.remove(), 3000); }
+
+function hasLocalScreenCapture() { return Boolean(state.localCapture || state.nativeCapture?.acked); }
+function canShareScreen() { return Boolean(state.capabilities.owner || state.permissions.shareScreen || state.permissions.control); }
+
+function screenSocketTransport() { return state.socket?.io?.engine?.transport?.name || ''; }
+
+function resetOutgoingScreenFrames() {
+  state.screenFrameSendGeneration += 1;
+  state.screenFrameReliableInFlight = false;
+  state.screenFrameReliablePending = null;
+  state.screenFrameReliableLastAt = 0;
+}
+
+function canSendScreenFrame() {
+  return Boolean(state.screenShareActive && state.socketAuthenticated && state.socket?.connected && hasLocalScreenCapture());
+}
+
+function flushReliableScreenFrame() {
+  if (state.screenFrameReliableInFlight || !state.screenFrameReliablePending) return;
+  if (!canSendScreenFrame()) { state.screenFrameReliablePending = null; return; }
+  const socket = state.socket;
+  const generation = state.screenFrameSendGeneration;
+  const packet = state.screenFrameReliablePending;
+  state.screenFrameReliablePending = null;
+  state.screenFrameReliableInFlight = true;
+  state.screenFrameReliableLastAt = performance.now();
+  if (typeof socket.timeout !== 'function') {
+    try { (socket.volatile || socket).emit('screen-share-frame', packet); }
+    finally {
+      if (generation === state.screenFrameSendGeneration && socket === state.socket) {
+        state.screenFrameReliableInFlight = false;
+        if (state.screenFrameReliablePending && canSendScreenFrame()) setTimeout(flushReliableScreenFrame, 0);
+      }
+    }
+    return;
+  }
+  socket.timeout(SCREEN_FRAME_SEND_ACK_TIMEOUT_MS).emit('screen-share-frame', packet, (error, result) => {
+    if (generation !== state.screenFrameSendGeneration || socket !== state.socket) return;
+    state.screenFrameReliableInFlight = false;
+    if (error || !result?.success) state.screenFrameReliableLastAt = 0;
+    if (state.screenFrameReliablePending && canSendScreenFrame()) setTimeout(flushReliableScreenFrame, 0);
+    else if (!canSendScreenFrame()) state.screenFrameReliablePending = null;
+  });
+}
+
+function sendCapturedScreenFrame(packet) {
+  if (!packet || !canSendScreenFrame()) return;
+  const now = performance.now();
+  const websocket = screenSocketTransport() === 'websocket';
+  const reliable = !websocket || state.screenFrameReliableLastAt <= 0
+    || now - state.screenFrameReliableLastAt >= SCREEN_FRAME_RELIABLE_INTERVAL_MS;
+  if (reliable) {
+    state.screenFrameReliablePending = packet;
+    flushReliableScreenFrame();
+  } else state.socket.volatile.emit('screen-share-frame', packet);
+}
+
+function screenCaptureDelay() {
+  const fps = Math.max(5, Math.min(60, Number(state.desktopShareSettings?.fps) || 30));
+  const target = Math.round(1000 / fps);
+  return screenSocketTransport() === 'websocket' ? target : Math.max(target, 120);
+}
+
+function receiveScreenFrame(packet, acknowledgement) {
+  try { acknowledgement?.({ success: true, sequence: Math.max(0, Number(packet?.sequence) || 0) }); } catch (_) {}
+  drawScreenFrame(packet);
+}
+
+function createScreenPeer(remoteSocketId, role) {
+  const peer = new RTCPeerConnection({ iceServers: [{ urls: 'stun:stun.l.google.com:19302' }, { urls: 'stun:stun1.l.google.com:19302' }] });
+  peer.syncWatchRemoteSocketId = remoteSocketId;
+  peer.syncWatchRole = role;
+  peer.onicecandidate = (event) => {
+    if (!event.candidate || !state.socketAuthenticated) return;
+    state.socket.emit('screen-share-signal', { targetSocketId: remoteSocketId, candidate: event.candidate.toJSON?.() || event.candidate });
+  };
+  peer.onconnectionstatechange = () => {
+    if (!['failed', 'closed'].includes(peer.connectionState)) return;
+    if (role === 'viewer' && state.remoteScreenPeer === peer) detachRemoteScreenPeer();
+    if (role === 'sharer' && state.screenPeers.get(remoteSocketId) === peer) state.screenPeers.delete(remoteSocketId);
+    try { peer.close(); } catch (_) {}
+  };
+  if (role === 'viewer') {
+    peer.ontrack = (event) => {
+      const stream = event.streams?.[0] || state.remoteScreenStream || new MediaStream();
+      if (!event.streams?.[0]) stream.addTrack(event.track);
+      state.remoteScreenStream = stream;
+      elements.screenShareVideo.srcObject = stream;
+      elements.screenShareCanvas.classList.add('is-hidden');
+      elements.screenShareVideo.classList.remove('is-hidden');
+      elements.screenShareVideo.play().catch(() => showSyncNotice('点击画面可继续播放共享声音'));
+    };
+  }
+  return peer;
+}
+
+async function applyQueuedScreenCandidates(remoteSocketId, peer) {
+  const queued = state.screenSignalQueues.get(remoteSocketId) || [];
+  state.screenSignalQueues.delete(remoteSocketId);
+  for (const candidate of queued) {
+    try { await peer.addIceCandidate(candidate); } catch (_) {}
+  }
+}
+
+function detachRemoteScreenPeer() {
+  const peer = state.remoteScreenPeer;
+  state.remoteScreenPeer = null;
+  if (peer) { try { peer.close(); } catch (_) {} }
+  if (state.remoteScreenStream) state.remoteScreenStream.getTracks().forEach((track) => track.stop());
+  state.remoteScreenStream = null;
+  elements.screenShareVideo.pause(); elements.screenShareVideo.srcObject = null; elements.screenShareVideo.classList.add('is-hidden');
+  if (state.screenShareActive && !hasLocalScreenCapture()) elements.screenShareCanvas.classList.remove('is-hidden');
+}
+
+function closeScreenPeers() {
+  for (const peer of state.screenPeers.values()) { try { peer.close(); } catch (_) {} }
+  state.screenPeers.clear(); state.screenSignalQueues.clear(); detachRemoteScreenPeer();
+}
+
+async function requestScreenPeerConnection() {
+  if (!state.screenShareActive || hasLocalScreenCapture() || !state.socketAuthenticated || typeof RTCPeerConnection !== 'function') return;
+  const result = await emitAck('screen-share-viewer-ready');
+  if (!result.success && !/当前没有/.test(result.error || '')) console.warn('共享画面实时连接请求失败:', result.error);
+}
+
+async function createSharerPeer(viewerSocketId) {
+  if (!viewerSocketId || !state.localCapture || typeof RTCPeerConnection !== 'function') return;
+  const previous = state.screenPeers.get(viewerSocketId);
+  if (previous) { try { previous.close(); } catch (_) {} }
+  const peer = createScreenPeer(viewerSocketId, 'sharer');
+  state.screenPeers.set(viewerSocketId, peer);
+  for (const track of state.localCapture.getTracks()) {
+    const sender = peer.addTrack(track, state.localCapture);
+    if (track.kind === 'video') {
+      const parameters = sender.getParameters();
+      parameters.encodings = parameters.encodings?.length ? parameters.encodings : [{}];
+      const bitrate = ({ balanced: 6_000_000, high: 14_000_000, ultra: 28_000_000 })[state.desktopShareSettings?.quality] || 14_000_000;
+      parameters.encodings[0].maxBitrate = bitrate;
+      parameters.encodings[0].maxFramerate = Math.max(5, Math.min(60, Number(state.desktopShareSettings?.fps) || 30));
+      parameters.degradationPreference = state.desktopShareSettings?.quality === 'ultra' ? 'maintain-resolution' : 'balanced';
+      sender.setParameters(parameters).catch(() => {});
+    }
+  }
+  try {
+    await peer.setLocalDescription(await peer.createOffer({ offerToReceiveAudio: false, offerToReceiveVideo: false }));
+    const result = await emitAck('screen-share-signal', { targetSocketId: viewerSocketId, description: peer.localDescription });
+    if (!result.success) throw new Error(result.error || '实时共享信令失败');
+  } catch (error) {
+    state.screenPeers.delete(viewerSocketId); try { peer.close(); } catch (_) {}
+    console.warn('建立共享画面实时连接失败:', error.message);
+  }
+}
+
+async function handleScreenShareSignal(payload = {}) {
+  const remoteSocketId = String(payload.fromSocketId || '');
+  if (!remoteSocketId || typeof RTCPeerConnection !== 'function') return;
+  try {
+    if (payload.description?.type === 'offer') {
+      detachRemoteScreenPeer();
+      const peer = createScreenPeer(remoteSocketId, 'viewer');
+      state.remoteScreenPeer = peer;
+      await peer.setRemoteDescription(payload.description);
+      await applyQueuedScreenCandidates(remoteSocketId, peer);
+      await peer.setLocalDescription(await peer.createAnswer());
+      await emitAck('screen-share-signal', { targetSocketId: remoteSocketId, description: peer.localDescription });
+      return;
+    }
+    const peer = payload.description?.type === 'answer' ? state.screenPeers.get(remoteSocketId) : (state.screenPeers.get(remoteSocketId) || state.remoteScreenPeer);
+    if (payload.description && peer) {
+      await peer.setRemoteDescription(payload.description);
+      await applyQueuedScreenCandidates(remoteSocketId, peer);
+    }
+    if (payload.candidate) {
+      if (peer?.remoteDescription) await peer.addIceCandidate(payload.candidate);
+      else state.screenSignalQueues.set(remoteSocketId, [...(state.screenSignalQueues.get(remoteSocketId) || []), payload.candidate].slice(-64));
+    }
+  } catch (error) { console.warn('处理共享画面实时信令失败:', error.message); }
+}
+
+function startBrowserAudioRelay(stream) {
+  stopBrowserAudioRelay();
+  if (!stream?.getAudioTracks?.().length || !window.AudioContext) return;
+  try {
+    const context = new AudioContext({ latencyHint: 'playback', sampleRate: 48000 });
+    const source = context.createMediaStreamSource(new MediaStream(stream.getAudioTracks()));
+    const processor = context.createScriptProcessor(4096, Math.min(2, source.channelCount || 2), Math.min(2, source.channelCount || 2));
+    const sink = context.createGain(); sink.gain.value = 0;
+    processor.onaudioprocess = (event) => {
+      if (!canSendScreenFrame() && !state.audioSourceShareActive) return;
+      if (state.audioSourceShareActive) {
+        const expectedPeers = state.users.filter((member) => member.socketId !== state.socket?.id && member.connectionState === 'online').length;
+        const connectedPeers = [...state.audioSourcePeers.values()].filter((peer) => peer.connectionState === 'connected').length;
+        if (expectedPeers > 0 && connectedPeers >= expectedPeers) return;
+      }
+      const channels = Math.min(2, event.inputBuffer.numberOfChannels);
+      const frames = event.inputBuffer.length;
+      const interleaved = new Float32Array(frames * channels);
+      for (let channel = 0; channel < channels; channel += 1) {
+        const input = event.inputBuffer.getChannelData(channel);
+        for (let index = 0; index < frames; index += 1) interleaved[index * channels + channel] = input[index];
+      }
+      state.socket.volatile.emit('screen-share-audio', { data: interleaved.buffer, sampleRate: event.inputBuffer.sampleRate, channels, sequence: ++state.screenAudioSequence });
+    };
+    source.connect(processor); processor.connect(sink); sink.connect(context.destination);
+    state.screenAudioContext = context; state.screenAudioSource = source; state.screenAudioProcessor = processor; state.screenAudioSink = sink;
+  } catch (error) { console.warn('共享声音采集不可用:', error.message); }
+}
+
+function openAudioSourceShare() {
+  if (!(state.capabilities.owner || state.capabilities.serverHost || state.capabilities.superAdmin || state.permissions.shareAudio || state.permissions.control)) return permissionDeniedToast('共享电脑音源');
+  elements.audioSourceModal.classList.remove('is-hidden');
+  elements.audioSourceVolume.value = String(state.audioSourceVolume);
+  updateAudioSourceVolume({ sync: false });
+  applyAudioSourceShareState(state.audioSourceShare || { active: false });
+  void refreshNativeAudioSources();
+}
+
+async function refreshNativeAudioSources() {
+  const bridge = window.SyncWatchDesktop || window.SyncWatchClient;
+  if (!bridge?.listAudioSources) {
+    if (elements.audioSourceStatus) elements.audioSourceStatus.textContent = '网页端请点击开始后，在系统选择器中选中正在播放音乐的程序并开启系统音频';
+    return;
+  }
+  if (elements.refreshAudioSourcesBtn) elements.refreshAudioSourcesBtn.disabled = true;
+  let result;
+  try { result = await bridge.listAudioSources(); }
+  catch (error) { result = { success: false, error: localizedError(error, '扫描电脑程序失败') }; }
+  const select = elements.audioSourcePlatform;
+  if (elements.refreshAudioSourcesBtn) elements.refreshAudioSourcesBtn.disabled = false;
+  if (!result?.success || !select) {
+    if (elements.audioSourceStatus) elements.audioSourceStatus.textContent = result?.error || '扫描电脑程序失败，请稍后重试';
+    return;
+  }
+  const previousValue = select.value;
+  const existing = [...select.options].filter((option) => option.dataset.nativeSource !== '1');
+  select.replaceChildren(...existing);
+  const sources = (result.sources || []).filter((source) => source?.id && source?.name);
+  state.nativeAudioSources = sources;
+  const windowSources = sources.filter((source) => ['window', 'process'].includes(source.kind) && !/SyncWatch|Electron/i.test(source.name));
+  const screenSources = sources.filter((source) => source.kind === 'screen');
+  if (windowSources.length) {
+    const group = document.createElement('optgroup'); group.label = '当前运行的电脑程序（桌面客户端可直接选择）';
+    windowSources.forEach((source) => {
+      const option = document.createElement('option'); option.value = `native:${source.id}`; option.textContent = source.name;
+      option.dataset.nativeSource = '1'; option.dataset.sourceName = source.name; option.dataset.sourceKind = source.kind;
+      option.dataset.captureSourceId = source.captureSourceId || ''; group.appendChild(option);
+    });
+    select.appendChild(group);
+  }
+  if (screenSources.length) {
+    const group = document.createElement('optgroup'); group.label = '显示器 / 全部系统声音（程序捕获失败时使用）';
+    screenSources.forEach((source, index) => {
+      const option = document.createElement('option'); option.value = `native:${source.id}`; option.textContent = source.name || `显示器 ${index + 1}`;
+      option.dataset.nativeSource = '1'; option.dataset.sourceName = option.textContent; option.dataset.sourceKind = 'screen'; group.appendChild(option);
+    });
+    select.appendChild(group);
+  }
+  if ([...select.options].some((option) => option.value === previousValue)) select.value = previousValue;
+  if (elements.audioSourceStatus) elements.audioSourceStatus.textContent = windowSources.length
+    ? `已扫描 ${windowSources.length} 个可共享程序，可选择汽水音乐等正在播放的窗口`
+    : screenSources.length ? '暂未扫描到程序窗口，可以选择显示器共享全部系统声音' : '暂未扫描到可共享程序，请先打开音乐软件后刷新';
+  syncEnhancedSelects();
+}
+
+function audioPlatformForSource(name = '', fallback = 'system') {
+  const value = String(name).toLocaleLowerCase();
+  if (/汽水|qishui|soda/.test(value)) return 'qishui';
+  if (/网易|cloudmusic|netease/.test(value)) return 'netease';
+  if (/qq\s*音乐|qqmusic/.test(value)) return 'qqmusic';
+  if (/酷狗|kugou/.test(value)) return 'kugou';
+  return ['system', 'netease', 'qqmusic', 'kugou', 'qishui'].includes(fallback) ? fallback : 'system';
+}
+
+async function captureNativeDesktopAudio(sourceId, fallbackScreenId = '') {
+  if (!sourceId || !navigator.mediaDevices?.getUserMedia) throw new Error('当前客户端不支持直接捕获电脑程序音源');
+  const desktopConstraints = (videoSourceId, includeAudioSourceId = false) => ({
+    audio: { mandatory: { chromeMediaSource: 'desktop', ...(includeAudioSourceId ? { chromeMediaSourceId: videoSourceId } : {}) } },
+    video: { mandatory: {
+      chromeMediaSource: 'desktop', chromeMediaSourceId: videoSourceId,
+      minWidth: 160, maxWidth: 640, minHeight: 90, maxHeight: 360, maxFrameRate: 1
+    } }
+  });
+  // Chromium captures Windows system audio as a loopback track. The selected window
+  // supplies the desktop source; a display source is the compatibility fallback for
+  // applications whose accelerated window cannot expose a loopback track directly.
+  const attempts = [desktopConstraints(sourceId), desktopConstraints(sourceId, true)];
+  if (fallbackScreenId && fallbackScreenId !== sourceId) attempts.push(desktopConstraints(fallbackScreenId));
+  let lastError;
+  for (const constraints of attempts) {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia(constraints);
+      if (stream.getAudioTracks().length) return stream;
+      stream.getTracks().forEach((track) => track.stop());
+      lastError = new Error('该程序窗口没有可用的系统回环音频');
+    } catch (error) { lastError = error; }
+  }
+  throw lastError || new Error('无法捕获该程序的系统音频');
+}
+
+function updateAudioSourceVolume(options = {}) {
+  state.audioSourceVolume = Math.max(0, Math.min(1, Number(elements.audioSourceVolume?.value) || 0));
+  if (elements.audioSourceVolumeText) elements.audioSourceVolumeText.textContent = `${Math.round(state.audioSourceVolume * 100)}%`;
+  if (options?.sync !== false && state.audioSourceShareActive && state.socketAuthenticated) {
+    state.socket.emit('audio-share-update', { volume: state.audioSourceVolume });
+  }
+}
+
+async function startAudioSourceShare() {
+  if (!(state.capabilities.owner || state.capabilities.serverHost || state.capabilities.superAdmin || state.permissions.shareAudio || state.permissions.control)) return permissionDeniedToast('共享电脑音源');
+  if (state.localCapture || state.nativeCapture || state.screenShareActive) return toast('请先停止屏幕共享，再单独共享电脑音源', 'error');
+  let stream;
+  try {
+    const selectedPlatform = elements.audioSourcePlatform?.value || 'system';
+    const selectedOption = elements.audioSourcePlatform?.selectedOptions?.[0];
+    const selectedNativeId = selectedPlatform.startsWith('native:') ? selectedPlatform.slice(7) : '';
+    const sourceName = selectedNativeId ? String(selectedOption?.dataset.sourceName || selectedOption?.textContent || '').trim() : '';
+    const fallbackScreenId = state.nativeAudioSources.find((source) => source.kind === 'screen')?.id || '';
+    const nativeSourceId = selectedNativeId
+      ? String(selectedOption?.dataset.captureSourceId || (selectedOption?.dataset.sourceKind === 'process' ? fallbackScreenId : selectedNativeId))
+      : '';
+    if (selectedNativeId && !nativeSourceId) throw new Error('已找到该程序，但当前设备没有可用的系统音频回环源');
+    if (nativeSourceId) stream = await captureNativeDesktopAudio(nativeSourceId, fallbackScreenId);
+    else {
+      if (!navigator.mediaDevices?.getDisplayMedia) throw new Error('当前客户端不支持选择电脑程序音源');
+      stream = await navigator.mediaDevices.getDisplayMedia({
+        video: { frameRate: { ideal: 1, max: 1 }, width: { ideal: 320, max: 640 }, height: { ideal: 180, max: 360 } },
+        audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false, channelCount: 2, sampleRate: 48000 },
+        systemAudio: 'include', surfaceSwitching: 'include', selfBrowserSurface: 'exclude'
+      });
+    }
+    if (!stream.getAudioTracks().length) throw new Error('没有捕获到系统音频，请在系统选择器中勾选“共享系统音频”');
+    state.audioSourceStream = stream;
+    state.audioSourceShareActive = true;
+    const result = await emitAck('audio-share-start', {
+      platform: audioPlatformForSource(sourceName, selectedPlatform), sourceName, volume: state.audioSourceVolume
+    }, 15000);
+    if (!result.success) throw new Error(result.error || '服务器拒绝音源共享');
+    state.audioSourceShare = result.audioShare;
+    for (const track of stream.getTracks()) track.addEventListener('ended', () => { if (state.audioSourceStream === stream) stopAudioSourceShare(true); }, { once: true });
+    stream.getVideoTracks().forEach((track) => { track.enabled = false; });
+    startBrowserAudioRelay(stream); applyAudioSourceShareState(result.audioShare);
+    toast('电脑音源已开始同步，房间成员可以一起收听', 'success');
+  } catch (error) {
+    stream?.getTracks().forEach((track) => track.stop());
+    if (state.audioSourceStream === stream) state.audioSourceStream = null;
+    state.audioSourceShareActive = false;
+    closeAudioSourcePeers();
+    toast(`音源共享失败：${localizedError(error, '请重新选择带系统音频的程序或屏幕')}`, 'error', 9000);
+  }
+}
+
+function stopAudioSourceShare(notify = false) {
+  const stream = state.audioSourceStream; state.audioSourceStream = null; state.audioSourceShareActive = false;
+  stream?.getTracks().forEach((track) => track.stop()); stopBrowserAudioRelay(); closeAudioSourcePeers();
+  if (notify && state.socketAuthenticated) state.socket.emit('audio-share-stop');
+  applyAudioSourceShareState({ active: false });
+}
+
+function applyAudioSourceShareState(audioShare = {}) {
+  state.audioSourceShare = audioShare;
+  const active = Boolean(audioShare.active);
+  const own = active && audioShare.socketId === state.socket?.id;
+  if (!active && state.audioSourceStream) stopAudioSourceShare(false);
+  if (!active) closeAudioSourcePeers();
+  if (active && !own) void requestAudioSourcePeerConnection();
+  const remoteAudio = elements.voiceAudioDock?.querySelector('[data-audio-source-remote]');
+  if (remoteAudio) remoteAudio.volume = Math.max(0, Math.min(1, Number(audioShare.volume ?? 1)));
+  const platformNames = { system: '电脑程序', netease: '网易云音乐', qqmusic: 'QQ 音乐', kugou: '酷狗音乐', qishui: '汽水音乐' };
+  const sourceLabel = audioShare.sourceName || platformNames[audioShare.platform] || '电脑音源';
+  if (elements.audioSourceBtn) elements.audioSourceBtn.textContent = own ? '停止共享音源' : active ? `${sourceLabel}播放中` : '共享电脑音源';
+  if (elements.audioSourceStatus) elements.audioSourceStatus.textContent = active
+    ? `${audioShare.displayName || audioShare.username || '成员'} 正在通过${sourceLabel}放歌 · 同步音量 ${Math.round((Number(audioShare.volume) || 0) * 100)}%`
+    : '当前未共享音源';
+  if (elements.startAudioSourceBtn) elements.startAudioSourceBtn.disabled = active;
+  if (elements.stopAudioSourceBtn) elements.stopAudioSourceBtn.disabled = !own;
+}
+
+function createAudioSourcePeer(remoteSocketId, role) {
+  const peer = new RTCPeerConnection({ iceServers: LIVE_VOICE_ICE_SERVERS, iceCandidatePoolSize: 8, bundlePolicy: 'max-bundle', rtcpMuxPolicy: 'require' });
+  peer.syncWatchRemoteSocketId = remoteSocketId;
+  peer.onicecandidate = ({ candidate }) => {
+    if (candidate && state.socketAuthenticated) state.socket.emit('audio-share-signal', { targetSocketId: remoteSocketId, candidate: candidate.toJSON?.() || candidate });
+  };
+  peer.onconnectionstatechange = () => {
+    if (!['failed', 'closed'].includes(peer.connectionState)) return;
+    if (role === 'viewer' && state.remoteAudioSourcePeer === peer) detachRemoteAudioSourcePeer();
+    if (role === 'sharer' && state.audioSourcePeers.get(remoteSocketId) === peer) state.audioSourcePeers.delete(remoteSocketId);
+    try { peer.close(); } catch (_) {}
+  };
+  if (role === 'viewer') {
+    peer.ontrack = ({ track, streams }) => {
+      const stream = streams?.[0] || state.remoteAudioSourceStream || new MediaStream();
+      if (!streams?.[0]) stream.addTrack(track);
+      state.remoteAudioSourceStream = stream;
+      let audio = elements.voiceAudioDock?.querySelector('[data-audio-source-remote]');
+      if (!audio) {
+        audio = document.createElement('audio'); audio.autoplay = true; audio.playsInline = true; audio.dataset.audioSourceRemote = '1';
+        elements.voiceAudioDock?.appendChild(audio);
+      }
+      audio.srcObject = stream;
+      audio.volume = Math.max(0, Math.min(1, Number(state.audioSourceShare?.volume ?? 1)));
+      if (state.masterMuted) muteMediaElement(audio);
+      audio.play().catch(() => showSyncNotice('点击画面后即可继续收听房间音源'));
+      for (const receiver of peer.getReceivers?.() || []) {
+        if (receiver.jitterBufferTarget !== undefined) receiver.jitterBufferTarget = 0.08;
+      }
+    };
+  }
+  return peer;
+}
+
+async function requestAudioSourcePeerConnection() {
+  if (!state.audioSourceShare?.active || state.audioSourceShare.socketId === state.socket?.id || state.remoteAudioSourcePeer || !state.socketAuthenticated || typeof RTCPeerConnection !== 'function') return;
+  const result = await emitAck('audio-share-viewer-ready');
+  if (!result.success && !/当前没有/.test(result.error || '')) console.warn('电脑音源实时连接请求失败:', result.error);
+}
+
+async function createAudioSourceSharerPeer(viewerSocketId) {
+  if (!viewerSocketId || !state.audioSourceStream?.getAudioTracks?.().length || typeof RTCPeerConnection !== 'function') return;
+  const previous = state.audioSourcePeers.get(viewerSocketId);
+  if (previous) { try { previous.close(); } catch (_) {} }
+  const peer = createAudioSourcePeer(viewerSocketId, 'sharer');
+  state.audioSourcePeers.set(viewerSocketId, peer);
+  for (const track of state.audioSourceStream.getAudioTracks()) {
+    const sender = peer.addTrack(track, state.audioSourceStream);
+    try {
+      const parameters = sender.getParameters();
+      parameters.encodings = parameters.encodings?.length ? parameters.encodings : [{}];
+      parameters.encodings[0].maxBitrate = 320000;
+      await sender.setParameters(parameters);
+    } catch (_) {}
+  }
+  try {
+    const transceiver = peer.getTransceivers().find((item) => item.sender?.track?.kind === 'audio');
+    const codecs = RTCRtpSender.getCapabilities?.('audio')?.codecs || [];
+    const opus = codecs.filter((codec) => /opus/i.test(codec.mimeType || '')).map((codec) => ({ ...codec, sdpFmtpLine: `${codec.sdpFmtpLine || ''}${codec.sdpFmtpLine ? ';' : ''}stereo=1;sprop-stereo=1;maxaveragebitrate=320000;usedtx=0;useinbandfec=1` }));
+    if (transceiver && opus.length) transceiver.setCodecPreferences([...opus, ...codecs.filter((codec) => !/opus/i.test(codec.mimeType || ''))]);
+  } catch (_) {}
+  try {
+    await peer.setLocalDescription(await peer.createOffer({ offerToReceiveAudio: false }));
+    const result = await emitAck('audio-share-signal', { targetSocketId: viewerSocketId, description: peer.localDescription });
+    if (!result.success) throw new Error(result.error || '电脑音源实时信令失败');
+  } catch (error) {
+    state.audioSourcePeers.delete(viewerSocketId); try { peer.close(); } catch (_) {}
+    console.warn('建立电脑音源实时连接失败:', error.message);
+  }
+}
+
+async function handleAudioSourceSignal(payload = {}) {
+  const remoteSocketId = String(payload.fromSocketId || '');
+  if (!remoteSocketId || typeof RTCPeerConnection !== 'function') return;
+  try {
+    let peer = payload.description?.type === 'answer' ? state.audioSourcePeers.get(remoteSocketId) : state.remoteAudioSourcePeer;
+    if (payload.description?.type === 'offer') {
+      detachRemoteAudioSourcePeer();
+      peer = createAudioSourcePeer(remoteSocketId, 'viewer');
+      state.remoteAudioSourcePeer = peer;
+    }
+    if (payload.description && peer) {
+      await peer.setRemoteDescription(payload.description);
+      const queued = state.audioSourceSignalQueues.get(remoteSocketId) || [];
+      state.audioSourceSignalQueues.delete(remoteSocketId);
+      for (const candidate of queued) await peer.addIceCandidate(candidate);
+      if (payload.description.type === 'offer') {
+        await peer.setLocalDescription(await peer.createAnswer());
+        await emitAck('audio-share-signal', { targetSocketId: remoteSocketId, description: peer.localDescription });
+      }
+    }
+    if (payload.candidate) {
+      if (peer?.remoteDescription) await peer.addIceCandidate(payload.candidate);
+      else state.audioSourceSignalQueues.set(remoteSocketId, [...(state.audioSourceSignalQueues.get(remoteSocketId) || []), payload.candidate].slice(-64));
+    }
+  } catch (error) { console.warn('电脑音源信令处理失败:', error.message); }
+}
+
+function detachRemoteAudioSourcePeer() {
+  const peer = state.remoteAudioSourcePeer; state.remoteAudioSourcePeer = null;
+  if (peer) { try { peer.close(); } catch (_) {} }
+  if (state.remoteAudioSourceStream) state.remoteAudioSourceStream.getTracks().forEach((track) => track.stop());
+  state.remoteAudioSourceStream = null;
+  const audio = elements.voiceAudioDock?.querySelector('[data-audio-source-remote]');
+  if (audio) { try { audio.srcObject = null; } catch (_) {} audio.remove(); }
+}
+
+function closeAudioSourcePeers() {
+  for (const peer of state.audioSourcePeers.values()) { try { peer.close(); } catch (_) {} }
+  state.audioSourcePeers.clear(); state.audioSourceSignalQueues.clear(); detachRemoteAudioSourcePeer();
+}
+
+function stopBrowserAudioRelay() {
+  if (state.screenAudioProcessor) state.screenAudioProcessor.onaudioprocess = null;
+  for (const node of [state.screenAudioSource, state.screenAudioProcessor, state.screenAudioSink]) { try { node?.disconnect(); } catch (_) {} }
+  try { state.screenAudioContext?.close(); } catch (_) {}
+  state.screenAudioContext = null; state.screenAudioSource = null; state.screenAudioProcessor = null; state.screenAudioSink = null; state.screenAudioSequence = 0; state.screenAudioQueue = []; state.screenAudioLastSequence = 0; state.screenAudioLastSequenceAt = 0;
+}
+
+function binaryScreenAudio(data) {
+  if (data instanceof ArrayBuffer) return data;
+  if (ArrayBuffer.isView(data)) return data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength);
+  if (data?.type === 'Buffer' && Array.isArray(data.data)) return new Uint8Array(data.data).buffer;
+  return null;
+}
+
+function queueNativeCaptureAudio(data, sampleRate = 48000, channels = 2, sequence = 0) {
+  if (!state.nativeCapture?.acked || !state.socketAuthenticated) return false;
+  try {
+    const bytes = typeof data === 'string'
+      ? Uint8Array.from(atob(data.includes(',') ? data.slice(data.indexOf(',') + 1) : data), (character) => character.charCodeAt(0)).buffer
+      : binaryScreenAudio(data);
+    if (!bytes) return false;
+    state.socket.volatile.emit('screen-share-audio', { data: bytes, sampleRate: Number(sampleRate) || 48000, channels: Math.max(1, Math.min(2, Number(channels) || 2)), sequence: Number(sequence) || ++state.screenAudioSequence });
+    return true;
+  } catch (_) { return false; }
+}
+
+function playScreenShareAudio(packet = {}) {
+  if (state.remoteScreenStream?.getAudioTracks().some((track) => track.readyState === 'live')) return;
+  if (state.remoteAudioSourceStream?.getAudioTracks().some((track) => track.readyState === 'live')) return;
+  const bytes = binaryScreenAudio(packet.data); const channels = Math.max(1, Math.min(2, Number(packet.channels) || 1)); const sampleRate = Number(packet.sampleRate) || 48000;
+  if (!bytes || bytes.byteLength % 4) return;
+  try {
+    const input = new Float32Array(bytes); const frames = Math.floor(input.length / channels);
+    if (!frames) return;
+    const sequence = Math.max(0, Math.floor(Number(packet.sequence) || 0));
+    if (sequence && sequence <= state.screenAudioLastSequence) return;
+    if (sequence) { state.screenAudioLastSequence = sequence; state.screenAudioLastSequenceAt = performance.now(); }
+    const context = state.screenPlaybackAudioContext || new AudioContext({ latencyHint: 'playback', sampleRate });
+    state.screenPlaybackAudioContext = context;
+    if (context.state === 'suspended') context.resume().catch(() => {});
+    const buffer = context.createBuffer(channels, frames, sampleRate);
+    for (let channel = 0; channel < channels; channel += 1) {
+      const output = buffer.getChannelData(channel);
+      for (let index = 0; index < frames; index += 1) output[index] = input[index * channels + channel];
+    }
+    state.screenAudioQueue.push({ buffer, sequence, duration: buffer.duration });
+    state.screenAudioQueue.sort((left, right) => left.sequence - right.sequence);
+    if (state.screenAudioQueue.length > 64) state.screenAudioQueue.splice(0, state.screenAudioQueue.length - 64);
+    const now = context.currentTime;
+    const gap = now - (state.screenAudioNextTime || 0);
+    if (gap > .4) {
+      const reference = sequence || state.screenAudioQueue[state.screenAudioQueue.length - 1]?.sequence || 0;
+      if (reference) state.screenAudioQueue = state.screenAudioQueue.filter((item) => item.sequence >= reference - 1);
+      state.screenAudioNextTime = now + .08;
+    }
+    const buffered = Math.max(0, (state.screenAudioNextTime || now) - now);
+    if (buffered < .08 && state.screenAudioQueue.length < 3) return;
+    while (state.screenAudioQueue.length) {
+      const item = state.screenAudioQueue.shift();
+      const source = context.createBufferSource(); source.buffer = item.buffer;
+      const gain = context.createGain(); gain.gain.value = Math.max(0, Math.min(1, Number(packet.volume ?? 1))); source.connect(gain); gain.connect(context.destination);
+      const startAt = Math.max(now + .02, state.screenAudioNextTime || 0);
+      source.start(startAt); state.screenAudioNextTime = startAt + item.duration;
+    }
+  } catch (_) {}
+}
+
+async function getNativeScreenCaptureBridge() {
+  const bridge = window.SyncWatchAndroid;
+  if (!bridge || typeof bridge.isScreenCaptureSupported !== 'function' || typeof bridge.startScreenCapture !== 'function' || typeof bridge.stopScreenCapture !== 'function') return null;
+  try {
+    const supported = await Promise.resolve(bridge.isScreenCaptureSupported());
+    return supported === true || supported === 1 || String(supported).toLowerCase() === 'true' ? bridge : null;
+  } catch (_) { return null; }
+}
+
+async function toggleScreenShare() {
+  if (state.localCapture) return stopLocalCapture(true);
+  if (state.nativeCapture) return stopNativeCapture(true);
+  if (!canShareScreen()) return permissionDeniedToast('共享屏幕或软件画面');
+  if (state.screenShareRequestInFlight) return toast('屏幕共享授权正在处理中，请稍候。');
+  if (state.screenShareActive) return toast('已有成员正在共享屏幕，请等待对方结束。');
+  if (navigator.mediaDevices?.getDisplayMedia) return startBrowserScreenShare();
+  const bridge = await getNativeScreenCaptureBridge();
+  if (bridge) return startNativeScreenCapture(bridge);
+  toast('此设备不支持屏幕捕获。请使用安卓客户端、支持屏幕共享的浏览器和安全连接，或上传媒体后同步播放。', 'error');
+}
+
+function openDesktopShareSettings() {
+  if (state.localCapture || state.nativeCapture) return toggleScreenShare();
+  if (!canShareScreen()) return permissionDeniedToast('共享屏幕或软件画面');
+  const settings = state.desktopShareSettings || {};
+  elements.desktopShareResolution.value = settings.resolution || 'native';
+  elements.desktopShareFps.value = String(settings.fps || 30);
+  elements.desktopShareQuality.value = settings.quality || 'high';
+  elements.desktopShareSystemAudio.checked = settings.systemAudio !== false;
+  elements.desktopShareModal.classList.remove('is-hidden');
+}
+
+function closeDesktopShareSettings() { elements.desktopShareModal?.classList.add('is-hidden'); }
+
+async function startConfiguredDesktopShare() {
+  state.desktopShareSettings = {
+    resolution: elements.desktopShareResolution.value || 'native',
+    fps: Math.max(5, Math.min(60, Number(elements.desktopShareFps.value) || 30)),
+    quality: ['balanced', 'high', 'ultra'].includes(elements.desktopShareQuality.value) ? elements.desktopShareQuality.value : 'high',
+    systemAudio: elements.desktopShareSystemAudio.checked
+  };
+  localStorage.setItem('syncwatchDesktopShareSettings', JSON.stringify(state.desktopShareSettings));
+  closeDesktopShareSettings();
+  await toggleScreenShare();
+}
+
+function configuredCaptureSize() {
+  const value = String(state.desktopShareSettings?.resolution || 'native');
+  const match = value.match(/^(\d+)x(\d+)$/);
+  return match ? { width: Number(match[1]), height: Number(match[2]) } : null;
+}
+
+async function startBrowserScreenShare() {
+  state.screenShareRequestInFlight = true; updateControlAccess();
+  let stream = null; let serverStarted = false;
+  try {
+    const requested = configuredCaptureSize();
+    const fps = Math.max(5, Math.min(60, Number(state.desktopShareSettings?.fps) || 30));
+    const videoConstraints = requested
+      ? { width: { ideal: requested.width, max: requested.width }, height: { ideal: requested.height, max: requested.height }, frameRate: { ideal: fps, max: fps } }
+      : { frameRate: { ideal: fps, max: fps }, resizeMode: 'none' };
+    try {
+      stream = await navigator.mediaDevices.getDisplayMedia({
+        video: videoConstraints,
+        audio: state.desktopShareSettings?.systemAudio === false ? false : { echoCancellation: false, noiseSuppression: false, autoGainControl: false, channelCount: 2, sampleRate: 48000 },
+        preferCurrentTab: true, selfBrowserSurface: 'exclude', systemAudio: 'include', surfaceSwitching: 'include'
+      });
+    } catch (error) {
+      if (!['TypeError', 'NotSupportedError', 'OverconstrainedError'].includes(error?.name)) throw error;
+      stream = await navigator.mediaDevices.getDisplayMedia({ video: videoConstraints, audio: false });
+    }
+    const captureTrack = stream.getVideoTracks()[0];
+    if (!captureTrack) throw new Error('浏览器没有返回屏幕画面轨道');
+    captureTrack.addEventListener('ended', () => {
+      if (state.localCapture === stream) stopLocalCapture(true);
+      else stream?.getTracks().forEach((track) => track.stop());
+    }, { once: true });
+    const result = await emitAck('screen-share-start', { settings: state.desktopShareSettings });
+    if (!result.success) throw new Error(result.error || '服务器拒绝屏幕共享');
+    serverStarted = true;
+    if (captureTrack.readyState === 'ended') throw new Error('屏幕捕获已由用户停止');
+    state.localCapture = stream; elements.screenShareBtn.textContent = '停止共享';
+    showScreenShare({ active: true, socketId: state.socket.id, username: state.user?.username || '我' });
+    startBrowserAudioRelay(stream);
+    await startFrameCapture(stream);
+  } catch (error) {
+    let stopAlreadySent = false;
+    if (state.localCapture === stream) { stopLocalCapture(serverStarted); stopAlreadySent = serverStarted; serverStarted = false; }
+    else stream?.getTracks().forEach((track) => track.stop());
+    if (stream && !stopAlreadySent && state.socketAuthenticated) state.socket.emit('screen-share-stop');
+    toast(`屏幕共享失败：${localizedError(error, '请检查录屏权限后重试')}`, 'error');
+  } finally { state.screenShareRequestInFlight = false; updateControlAccess(); }
+}
+
+async function startNativeScreenCapture(bridge) {
+  if (state.nativeCapture || state.screenShareRequestInFlight || state.screenShareActive) return;
+  const session = ++state.nativeCaptureSession;
+  resetOutgoingScreenFrames();
+  state.nativeCapture = { session, bridge, acked: false, started: false, lastSourceSequence: 0 };
+  state.nativeCapturePendingFrame = null; state.nativeCaptureFrameBusy = false; state.captureSequence = 0;
+  state.screenShareRequestInFlight = true; elements.screenShareBtn.textContent = '等待授权…'; updateControlAccess();
+  clearTimeout(state.nativeCaptureStartTimer);
+  state.nativeCaptureStartTimer = setTimeout(() => {
+    if (state.nativeCapture?.session !== session) return;
+    stopNativeCapture(false); toast('安卓屏幕捕获授权超时，请重试。', 'error');
+  }, 30000);
+  try {
+    const result = await Promise.resolve(bridge.startScreenCapture());
+    if (state.nativeCapture?.session !== session) return;
+    if (result === false || result === 'false') throw new Error('安卓屏幕捕获未能启动');
+  } catch (error) {
+    if (state.nativeCapture?.session === session) { stopNativeCapture(false); toast(`屏幕共享失败：${localizedError(error, '请检查录屏权限后重试')}`, 'error'); }
+  }
+}
+
+async function handleNativeCaptureState(stateValue, message = '') {
+  const nativeState = String(stateValue || '').trim().toLowerCase();
+  const capture = state.nativeCapture;
+  if (!capture) {
+    if (nativeState === 'started') {
+      try { await Promise.resolve(window.SyncWatchAndroid?.stopScreenCapture?.()); } catch (_) {}
+    }
+    return;
+  }
+  if (nativeState === 'started') {
+    if (capture.started) return;
+    capture.started = true; clearTimeout(state.nativeCaptureStartTimer); state.nativeCaptureStartTimer = null;
+    elements.screenShareStatus.textContent = '已获得系统授权，正在连接房间…'; elements.screenShareStatus.classList.remove('is-hidden');
+    const session = capture.session;
+    const result = await emitAck('screen-share-start', { settings: state.desktopShareSettings });
+    if (state.nativeCapture?.session !== session) {
+      if (result.success && state.socketAuthenticated) state.socket.emit('screen-share-stop');
+      return;
+    }
+    if (!result.success) {
+      const remoteShare = result.screenShare?.active ? result.screenShare : null;
+      stopNativeCapture(true);
+      toast(`屏幕共享失败：${result.error || '服务器拒绝屏幕共享'}`, 'error');
+      if (remoteShare) showScreenShare(remoteShare);
+      return;
+    }
+    capture.acked = true; state.screenShareRequestInFlight = false; state.captureSequence = 0; resetOutgoingScreenFrames();
+    elements.screenShareBtn.textContent = '停止共享';
+    showScreenShare({ active: true, socketId: state.socket.id, username: state.user?.username || '我' }); updateControlAccess();
+    return;
+  }
+  if (nativeState === 'stopped') {
+    stopNativeCapture(Boolean(capture.acked || state.screenShareActive), { invokeBridge: false });
+    return;
+  }
+  if (nativeState === 'permission-denied' || nativeState === 'error') {
+    const label = nativeState === 'permission-denied' ? '未授予屏幕录制权限' : '安卓屏幕捕获发生错误';
+    stopNativeCapture(Boolean(capture.acked || state.screenShareActive));
+    toast(`${label}${message ? `：${message}` : ''}`, 'error');
+  }
+}
+
+function stopNativeCapture(notifyServer, { invokeBridge = true } = {}) {
+  const capture = state.nativeCapture; if (!capture) return;
+  resetOutgoingScreenFrames();
+  state.nativeCapture = null; state.nativeCaptureSession += 1; state.screenShareRequestInFlight = false;
+  clearTimeout(state.nativeCaptureStartTimer); state.nativeCaptureStartTimer = null;
+  state.nativeCapturePendingFrame = null; state.nativeCaptureFrameBusy = false; state.captureSequence = 0;
+  elements.screenShareBtn.textContent = '共享画面';
+  if (invokeBridge) {
+    try { Promise.resolve(capture.bridge?.stopScreenCapture?.()).catch(() => {}); } catch (_) {}
+  }
+  if (notifyServer && state.socketAuthenticated) state.socket.emit('screen-share-stop');
+  hideScreenShare(); updateControlAccess();
+}
+
+function queueNativeCaptureFrame(base64, widthValue, heightValue, sequenceValue) {
+  const capture = state.nativeCapture;
+  if (!capture?.acked || !state.screenShareActive || !state.socketAuthenticated || !state.socket?.connected) return;
+  let encoded = typeof base64 === 'string' ? base64 : ''; if (!encoded) return;
+  const comma = encoded.indexOf(','); if (encoded.startsWith('data:image/') && comma >= 0) encoded = encoded.slice(comma + 1);
+  if (encoded.length > MAX_NATIVE_CAPTURE_BASE64_LENGTH + 8) return;
+  if (/\s/.test(encoded)) encoded = encoded.replace(/\s+/g, '');
+  if (!encoded || encoded.length > MAX_NATIVE_CAPTURE_BASE64_LENGTH) return;
+  const width = Math.round(Number(widthValue)); const height = Math.round(Number(heightValue));
+  if (width < 1 || height < 1 || width > 8192 || height > 8192) return;
+  const nativeSequence = Number(sequenceValue);
+  const sourceSequence = Number.isFinite(nativeSequence) && nativeSequence > 0 ? nativeSequence : capture.lastSourceSequence + 1;
+  if (sourceSequence <= capture.lastSourceSequence) return;
+  capture.lastSourceSequence = sourceSequence;
+  state.nativeCapturePendingFrame = { session: capture.session, encoded, width, height, sourceSequence };
+  if (state.nativeCaptureFrameBusy) return;
+  state.nativeCaptureFrameBusy = true; setTimeout(processNativeCaptureFrame, 0);
+}
+
+function processNativeCaptureFrame() {
+  const packet = state.nativeCapturePendingFrame; state.nativeCapturePendingFrame = null;
+  try {
+    const capture = state.nativeCapture;
+    if (!packet || !capture?.acked || capture.session !== packet.session || !state.screenShareActive || !state.socketAuthenticated || !state.socket?.connected) return;
+    const binary = atob(packet.encoded); if (!binary.length || binary.length >= MAX_NATIVE_CAPTURE_BYTES) return;
+    const bytes = new Uint8Array(binary.length);
+    for (let index = 0; index < binary.length; index += 1) bytes[index] = binary.charCodeAt(index);
+    if (state.nativeCapture?.session !== packet.session || !state.nativeCapture.acked || !state.screenShareActive || !state.socketAuthenticated || !state.socket?.connected) return;
+    const sequence = ++state.captureSequence; const frame = { sequence, width: packet.width, height: packet.height, data: bytes };
+    drawScreenFrame(frame); sendCapturedScreenFrame(frame);
+  } catch (_) {}
+  finally {
+    setTimeout(() => {
+      if (state.nativeCapturePendingFrame && state.nativeCapture?.acked) processNativeCaptureFrame();
+      else state.nativeCaptureFrameBusy = false;
+    }, 0);
+  }
+}
+
+async function startFrameCapture(stream) {
+  const session = ++state.captureSession; clearTimeout(state.captureTimer); state.captureSequence = 0; resetOutgoingScreenFrames();
+  const video = document.createElement('video'); video.srcObject = stream; video.muted = true; video.playsInline = true;
+  state.captureVideo = video; state.captureCanvas = document.createElement('canvas');
+  await video.play(); scheduleCaptureFrame(session, 0);
+}
+
+function scheduleCaptureFrame(session, delay = screenCaptureDelay()) {
+  clearTimeout(state.captureTimer);
+  state.captureTimer = setTimeout(() => captureScreenFrame(session), Math.max(0, delay));
+}
+
+async function captureScreenFrame(session) {
+  if (session !== state.captureSession || !state.localCapture || !state.captureVideo || state.captureInFlight) return;
+  const started = performance.now(); state.captureInFlight = true;
+  try {
+    const video = state.captureVideo; if (!video.videoWidth || !video.videoHeight) return;
+    const requested = configuredCaptureSize();
+    const maxWidth = requested?.width || video.videoWidth;
+    const maxHeight = requested?.height || video.videoHeight;
+    const scale = Math.min(1, maxWidth / video.videoWidth, maxHeight / video.videoHeight);
+    const canvas = state.captureCanvas; const width = Math.max(1, Math.round(video.videoWidth * scale)); const height = Math.max(1, Math.round(video.videoHeight * scale));
+    if (canvas.width !== width || canvas.height !== height) { canvas.width = width; canvas.height = height; }
+    canvas.getContext('2d', { alpha: false }).drawImage(video, 0, 0, width, height); drawLocalScreenPreview(canvas);
+    if (state.socketAuthenticated && state.socket.connected && state.screenShareActive) {
+      const quality = ({ balanced: .72, high: .88, ultra: .96 })[state.desktopShareSettings?.quality] || .88;
+      const blob = await canvasToBlob(canvas, 'image/jpeg', quality);
+      if (blob && session === state.captureSession && state.localCapture) {
+        const data = await blob.arrayBuffer();
+        sendCapturedScreenFrame({ sequence: ++state.captureSequence, width, height, data });
+      }
+    }
+  } catch (_) {}
+  finally {
+    state.captureInFlight = false;
+    if (session === state.captureSession && state.localCapture) scheduleCaptureFrame(session, Math.max(0, screenCaptureDelay() - (performance.now() - started)));
+  }
+}
+
+function canvasToBlob(canvas, type, quality) { return new Promise((resolve) => canvas.toBlob(resolve, type, quality)); }
+
+function drawLocalScreenPreview(source) {
+  if (!state.localCapture) return;
+  const canvas = elements.screenShareCanvas; if (canvas.width !== source.width || canvas.height !== source.height) { canvas.width = source.width; canvas.height = source.height; }
+  canvas.getContext('2d', { alpha: false }).drawImage(source, 0, 0);
+}
+
+function stopLocalCapture(notify) {
+  const stream = state.localCapture; if (!stream) return;
+  resetOutgoingScreenFrames(); stopBrowserAudioRelay(); closeScreenPeers();
+  state.localCapture = null; state.captureSession += 1; clearTimeout(state.captureTimer); state.captureTimer = null; state.captureInFlight = false;
+  clearTimeout(state.captureRestoreTimer); state.captureRestoreTimer = null;
+  if (state.captureVideo) { state.captureVideo.pause(); state.captureVideo.srcObject = null; }
+  state.captureVideo = null; state.captureCanvas = null; stream.getTracks().forEach((track) => track.stop()); elements.screenShareBtn.textContent = '共享画面';
+  if (notify && state.socketAuthenticated) state.socket.emit('screen-share-stop');
+  hideScreenShare();
+}
+
+function showScreenShare(share) {
+  if (!share?.active) return;
+  const key = String(share.socketId || share.username || 'screen');
+  if (state.screenShareKey !== key) {
+    clearScreenCanvas();
+    state.screenShareKey = key; state.lastScreenFrameSequence = 0; state.pendingScreenFrame = null; state.screenFrameGeneration += 1;
+  }
+  state.screenShareActive = true; if (state.room) state.room.screenShare = { ...share };
+  suspendMediaForScreenShare(); updateControlAccess();
+  hidePlaybackViews(); elements.emptyStage.classList.add('is-hidden'); elements.screenShareCanvas.classList.remove('is-hidden');
+  const local = hasLocalScreenCapture();
+  elements.screenShareStatus.textContent = `${share.username}${local ? '（本机预览）' : ''} 正在共享屏幕${local ? '' : ' · 等待最新画面'}`; elements.screenShareStatus.classList.remove('is-hidden');
+  if (!local) setTimeout(requestScreenPeerConnection, 0);
+}
+
+function showLocalShareReconnectState() {
+  if (!state.localCapture) return;
+  state.screenShareActive = true; suspendMediaForScreenShare(); updateControlAccess(); hidePlaybackViews(); elements.emptyStage.classList.add('is-hidden'); elements.screenShareCanvas.classList.remove('is-hidden');
+  elements.screenShareStatus.textContent = '连接中断，重连后将自动恢复共享'; elements.screenShareStatus.classList.remove('is-hidden');
+}
+
+async function restoreLocalScreenShare() {
+  if (!state.localCapture || !state.socketAuthenticated || state.captureRestoreInFlight) return;
+  clearTimeout(state.captureRestoreTimer); state.captureRestoreTimer = null; state.captureRestoreInFlight = true;
+  const stream = state.localCapture; const track = stream.getVideoTracks()[0];
+  if (!track || track.readyState === 'ended') { state.captureRestoreInFlight = false; stopLocalCapture(false); return; }
+  try {
+    const result = await emitAck('screen-share-start', { settings: state.desktopShareSettings });
+    if (state.localCapture !== stream || track.readyState === 'ended') return;
+    if (!result.success) {
+      if (result.transient) {
+        showLocalShareReconnectState();
+        state.captureRestoreTimer = setTimeout(() => { if (state.localCapture === stream && state.socketAuthenticated) restoreLocalScreenShare(); }, 1200);
+        return;
+      }
+      const remoteShare = result.screenShare?.active ? result.screenShare : null;
+      toast(`无法恢复屏幕共享：${result.error}`, 'error'); stopLocalCapture(false);
+      if (remoteShare) showScreenShare(remoteShare);
+      return;
+    }
+    resetOutgoingScreenFrames(); showScreenShare({ active: true, socketId: state.socket.id, username: state.user?.username || '我' });
+    if (!state.captureVideo) await startFrameCapture(stream);
+  } catch (error) { toast(`无法恢复屏幕共享：${localizedError(error, '请重新授权屏幕录制')}`, 'error'); if (state.localCapture === stream) stopLocalCapture(false); }
+  finally { state.captureRestoreInFlight = false; }
+}
+
+function handleScreenShareStopped() {
+  if (state.nativeCapture) return stopNativeCapture(false);
+  if (state.localCapture && (state.resumeInFlight || !state.socketAuthenticated)) return showLocalShareReconnectState();
+  if (state.localCapture) stopLocalCapture(false); else hideScreenShare();
+}
+
+function hideScreenShare({ preserveLocal = false } = {}) {
+  if (preserveLocal && state.localCapture) return showLocalShareReconnectState();
+  if (hasLocalScreenCapture()) resetOutgoingScreenFrames();
+  closeScreenPeers(); if (!state.audioSourceShareActive) stopBrowserAudioRelay();
+  try { state.screenPlaybackAudioContext?.close(); } catch (_) {}
+  state.screenPlaybackAudioContext = null; state.screenAudioNextTime = 0; state.screenAudioQueue = []; state.screenAudioLastSequence = 0;
+  const wasActive = state.screenShareActive || state.shareMediaSuspended;
+  state.screenShareActive = false; state.screenShareKey = ''; state.pendingScreenFrame = null; state.lastScreenFrameSequence = 0; state.screenFrameGeneration += 1;
+  clearScreenCanvas(); elements.screenShareCanvas.classList.add('is-hidden'); elements.screenShareStatus.classList.add('is-hidden');
+  if (state.room) state.room.screenShare = { active: false, socketId: null, username: null };
+  state.shareMediaSuspended = false; updateControlAccess();
+  if (wasActive) restorePlaybackStage();
+}
+
+function clearScreenCanvas() {
+  const canvas = elements.screenShareCanvas; canvas.width = 1; canvas.height = 1;
+  canvas.getContext('2d', { alpha: false }).clearRect(0, 0, 1, 1);
+}
+
+function restorePlaybackStage() {
+  state.shareMediaSuspended = false;
+  if (state.currentFile) loadFile(state.currentFile);
+  else if (state.room?.playback?.fileId && state.files.has(state.room.playback.fileId)) loadFile(state.files.get(state.room.playback.fileId));
+  else elements.emptyStage.classList.remove('is-hidden');
+  if (state.room?.playback) adaptiveSynchronize(state.room.playback, true);
+}
+
+function drawScreenFrame(packet) {
+  if (!state.screenShareActive || state.localCapture || !packet) return;
+  const sequence = Math.max(1, Number(packet.sequence) || state.lastScreenFrameSequence + 1);
+  if (sequence <= state.lastScreenFrameSequence || (state.pendingScreenFrame && sequence <= state.pendingScreenFrame.sequence)) return;
+  state.pendingScreenFrame = { ...packet, sequence, generation: state.screenFrameGeneration }; decodeLatestScreenFrame();
+}
+
+async function decodeLatestScreenFrame() {
+  if (state.decodingScreenFrame) return; state.decodingScreenFrame = true;
+  try {
+    while (state.pendingScreenFrame) {
+      const packet = state.pendingScreenFrame; state.pendingScreenFrame = null;
+      const blob = screenPacketBlob(packet); if (!blob) continue;
+      let drawable; try { drawable = await decodeImageBlob(blob); } catch (_) { continue; }
+      const newer = state.pendingScreenFrame?.sequence > packet.sequence;
+      if (!newer && packet.generation === state.screenFrameGeneration && state.screenShareActive && !state.localCapture) {
+        const canvas = elements.screenShareCanvas; const width = Number(packet.width) || drawable.width; const height = Number(packet.height) || drawable.height;
+        if (canvas.width !== width || canvas.height !== height) { canvas.width = width; canvas.height = height; }
+        canvas.getContext('2d', { alpha: false }).drawImage(drawable, 0, 0, width, height); state.lastScreenFrameSequence = packet.sequence;
+        elements.screenShareStatus.textContent = `${state.room?.screenShare?.username || '成员'}${state.nativeCapture?.acked ? '（本机预览）' : ''} 正在共享屏幕`;
+      }
+      drawable.close?.();
+    }
+  } finally { state.decodingScreenFrame = false; if (state.pendingScreenFrame) decodeLatestScreenFrame(); }
+}
+
+function screenPacketBlob(packet) {
+  const data = packet?.data ?? packet;
+  if (data instanceof Blob) return data;
+  if (data instanceof ArrayBuffer) return new Blob([data], { type: 'image/jpeg' });
+  if (ArrayBuffer.isView(data)) return new Blob([data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength)], { type: 'image/jpeg' });
+  if (data?.type === 'Buffer' && Array.isArray(data.data)) return new Blob([new Uint8Array(data.data)], { type: 'image/jpeg' });
+  if (typeof data === 'string' && data.startsWith('data:image/jpeg;base64,')) {
+    try { const bytes = Uint8Array.from(atob(data.slice(data.indexOf(',') + 1)), (character) => character.charCodeAt(0)); return new Blob([bytes], { type: 'image/jpeg' }); } catch (_) { return null; }
+  }
+  return null;
+}
+
+async function decodeImageBlob(blob) {
+  if (window.createImageBitmap) return createImageBitmap(blob);
+  const url = URL.createObjectURL(blob); const image = new Image();
+  try { await new Promise((resolve, reject) => { image.onload = resolve; image.onerror = reject; image.src = url; }); return image; }
+  finally { URL.revokeObjectURL(url); }
+}
+
+function updateLights(on) {
+  if (!state.room) return; state.room.lightsOn = Boolean(on);
+  elements.theater.classList.toggle('lights-on', Boolean(on)); document.body.classList.toggle('ambient-light-on', Boolean(on));
+  elements.lightsBtn.textContent = on ? '关灯' : '开灯'; elements.lightsBtn.setAttribute('aria-pressed', String(Boolean(on)));
+}
+
+async function toggleLights() {
+  if (state.lightsInFlight || !state.socketAuthenticated) return;
+  state.lightsInFlight = true; elements.lightsBtn.disabled = true;
+  try {
+    const result = await emitAck('toggle-lights', !state.room?.lightsOn);
+    if (!result.success) toast(result.error, 'error');
+  } catch (error) { toast(`灯光切换失败：${localizedError(error, '请稍后重试')}`, 'error'); }
+  finally { state.lightsInFlight = false; elements.lightsBtn.disabled = false; }
+}
+
+async function togglePlayerFullscreen() {
+  if (window.SyncWatchAndroid) {
+    state.pseudoFullscreen = !state.pseudoFullscreen;
+    handleFullscreenChange();
+    return;
+  }
+  if (document.fullscreenElement === elements.playerContainer) {
+    try { await document.exitFullscreen(); } catch (error) { toast(`无法退出全屏：${localizedError(error, '请按返回键重试')}`, 'error'); }
+    return;
+  }
+  if (state.pseudoFullscreen) { state.pseudoFullscreen = false; handleFullscreenChange(); return; }
+  try {
+    if (!elements.playerContainer.requestFullscreen) throw new Error('当前浏览器不支持原生全屏');
+    await elements.playerContainer.requestFullscreen();
+  } catch (_) {
+    state.pseudoFullscreen = true; handleFullscreenChange();
+  }
+}
+
+function showF11PromptIfNeeded() {
+  if (state.publicConfig.f11PromptEnabled === false || !elements.f11PromptModal || document.fullscreenElement || state.pseudoFullscreen) return;
+  let preference = '0';
+  try { preference = localStorage.getItem('syncwatchF11Prompt') || '0'; } catch (_) {}
+  const expires = Number(preference);
+  if (preference === '-1' || (Number.isFinite(expires) && expires > Date.now())) return;
+  elements.f11PromptModal.classList.remove('is-hidden');
+  state.f11PromptEndsAt = Date.now() + 10000;
+  clearInterval(state.f11PromptTimer);
+  const updateCountdown = () => {
+    const remaining = Math.max(0, Math.ceil((state.f11PromptEndsAt - Date.now()) / 1000));
+    if (elements.f11PromptCountdown) elements.f11PromptCountdown.textContent = `提示将在 ${remaining} 秒后自动关闭。`;
+    if (!remaining) closeF11Prompt(false);
+  };
+  updateCountdown();
+  state.f11PromptTimer = setInterval(updateCountdown, 250);
+}
+
+function closeF11Prompt(clearPreference = false) {
+  clearInterval(state.f11PromptTimer); state.f11PromptTimer = null; state.f11PromptEndsAt = 0;
+  elements.f11PromptModal?.classList.add('is-hidden');
+  if (clearPreference) {
+    try { localStorage.removeItem('syncwatchF11Prompt'); } catch (_) {}
+  }
+}
+
+function roomEntryNoticePreferenceKey(notice = state.roomEntryNotice) { return `syncwatchRoomEntryNotice:${state.room?.id || 'default'}:${String(notice?.version || 'default')}`; }
+
+function showRoomEntryNotice(notice = {}) {
+  if (!elements.roomEntryNoticeModal || !notice.enabled || !String(notice.text || '').trim()) return;
+  let preference = '0';
+  try { preference = localStorage.getItem(roomEntryNoticePreferenceKey(notice)) || '0'; } catch (_) {}
+  const expires = Number(preference);
+  if (preference === '-1' || (Number.isFinite(expires) && expires > Date.now())) return;
+  state.roomEntryNotice = notice;
+  elements.roomEntryNoticeTitle.textContent = notice.title || '房间通知';
+  elements.roomEntryNoticeMessage.textContent = notice.text;
+  elements.roomEntryNoticeModal.classList.remove('is-hidden');
+  state.roomEntryNoticeEndsAt = Date.now() + 10000;
+  clearInterval(state.roomEntryNoticeTimer);
+  const updateCountdown = () => {
+    const remaining = Math.max(0, Math.ceil((state.roomEntryNoticeEndsAt - Date.now()) / 1000));
+    if (elements.roomEntryNoticeCountdown) elements.roomEntryNoticeCountdown.textContent = `通知将在 ${remaining} 秒后自动关闭。`;
+    if (!remaining) closeRoomEntryNotice();
+  };
+  updateCountdown();
+  state.roomEntryNoticeTimer = setInterval(updateCountdown, 250);
+}
+
+function closeRoomEntryNotice() {
+  clearInterval(state.roomEntryNoticeTimer); state.roomEntryNoticeTimer = null;
+  elements.roomEntryNoticeModal?.classList.add('is-hidden');
+}
+
+function saveRoomEntryNoticePreference() {
+  const value = elements.roomEntryNoticePreference?.value || 'next';
+  const expires = value === 'never' ? -1 : value === 'day' ? Date.now() + 86400000 : value === 'week' ? Date.now() + 604800000 : 0;
+  try { localStorage.setItem(roomEntryNoticePreferenceKey(state.roomEntryNotice), String(expires)); } catch (_) {}
+  closeRoomEntryNotice();
+  toast(value === 'next' ? '下次进房仍会提示通知' : '已保存进房通知提示设置', 'success');
+}
+
+function activeFloatingVideo() {
+  if (!elements.screenShareVideo.classList.contains('is-hidden') && elements.screenShareVideo.srcObject) return elements.screenShareVideo;
+  if (!elements.videoPlayer.classList.contains('is-hidden') && elements.videoPlayer.src) return elements.videoPlayer;
+  return null;
+}
+
+async function toggleFloatingPlayer() {
+  if (state.documentPipWindow && !state.documentPipWindow.closed) {
+    state.documentPipWindow.close();
+    return;
+  }
+  if (document.pictureInPictureElement) {
+    try { await document.exitPictureInPicture(); }
+    catch (error) { toast(floatingPlayerErrorMessage([error]), 'error'); }
+    return;
+  }
+  const video = activeFloatingVideo();
+  if (!video) return toast('悬浮窗当前支持正在播放的视频或实时共享画面', 'error');
+  const bridge = window.SyncWatchAndroid;
+  if (bridge && typeof bridge.enterPictureInPicture === 'function') {
+    try {
+      const entered = await Promise.resolve(bridge.enterPictureInPicture());
+      if (entered !== false && entered !== 'false') { state.floatingPlayerActive = true; toast('已进入手机悬浮窗播放', 'success'); return; }
+    } catch (_) {}
+  }
+  const failures = [];
+  if (window.documentPictureInPicture?.requestWindow) {
+    try {
+      await openDanmakuPictureInPicture(video);
+      return;
+    } catch (error) { failures.push(error); }
+  }
+  if (typeof video.requestPictureInPicture === 'function' && document.pictureInPictureEnabled !== false) {
+    try {
+      if (video.readyState === HTMLMediaElement.HAVE_NOTHING && !video.srcObject) throw new DOMException('视频尚未完成加载', 'InvalidStateError');
+      await video.requestPictureInPicture();
+      state.floatingPlayerActive = true;
+      toast(failures.length ? '弹幕悬浮窗不可用，已切换到系统画中画' : '已进入系统画中画模式', 'success');
+      return;
+    } catch (error) { failures.push(error); }
+  }
+  toast(floatingPlayerErrorMessage(failures), 'error', 8000);
+}
+
+function floatingPlayerErrorMessage(errors = []) {
+  const names = new Set(errors.map((error) => String(error?.name || '')));
+  if (names.has('NotAllowedError')) return '浏览器拒绝打开悬浮播放。请先点击画面开始播放，再直接点击“悬浮播放”；仍失败时请检查浏览器的画中画权限。';
+  if (names.has('InvalidStateError')) return '视频还没有准备好，等画面开始播放后再点击“悬浮播放”。';
+  if (names.has('SecurityError')) return '当前网页地址的安全策略阻止了悬浮播放，请改用 HTTPS 地址、SyncWatch 客户端或安卓客户端。';
+  if (names.has('NotSupportedError')) return '当前浏览器没有启用画中画，请改用最新版 Chrome、Edge、SyncWatch 客户端或安卓客户端。';
+  const lastError = errors[errors.length - 1];
+  return lastError
+    ? `${localizedError(lastError, '无法打开悬浮播放')}。请确认视频已开始播放，并检查浏览器画中画权限。`
+    : '当前系统不支持悬浮播放，请改用最新版 Chrome、Edge、SyncWatch 客户端或安卓客户端。';
+}
+
+async function openDanmakuPictureInPicture(video) {
+  if (state.documentPipWindow && !state.documentPipWindow.closed) { state.documentPipWindow.close(); return; }
+  const pipWindow = await window.documentPictureInPicture.requestWindow({ width: 480, height: 300 });
+  const originalParent = video.parentNode; const originalNext = video.nextSibling;
+  const style = pipWindow.document.createElement('style');
+  style.textContent = 'html,body{width:100%;height:100%;margin:0;overflow:hidden;background:#000}video{width:100%;height:100%;object-fit:contain;background:#000}.pip-danmaku{position:fixed;inset:0;pointer-events:none;overflow:hidden}.pip-danmaku span{position:absolute;right:-70%;white-space:nowrap;font:700 18px system-ui;color:#fff;text-shadow:0 2px 5px #000;animation:pipDanmaku 8s linear forwards}@keyframes pipDanmaku{to{transform:translateX(-180vw)}}';
+  const layer = pipWindow.document.createElement('div'); layer.className = 'pip-danmaku';
+  pipWindow.document.head.appendChild(style); pipWindow.document.body.append(video, layer);
+  state.documentPipWindow = pipWindow; state.pipDanmakuLayer = layer; state.floatingPlayerActive = true;
+  pipWindow.addEventListener('pagehide', () => {
+    if (originalParent) originalParent.insertBefore(video, originalNext?.parentNode === originalParent ? originalNext : null);
+    state.documentPipWindow = null; state.pipDanmakuLayer = null; state.floatingPlayerActive = false;
+  }, { once: true });
+  toast('已进入带弹幕的画中画模式', 'success');
+}
+
+function transformedPlayerViews() {
+  return [elements.videoPlayer, elements.imageViewer, elements.documentViewer, elements.textViewer, elements.sharedWebViewer, elements.screenShareCanvas, elements.screenShareVideo].filter(Boolean);
+}
+
+function updatePlayerTransform() {
+  const transform = `rotate(${state.viewRotation}deg) scale(${state.viewZoom})`;
+  transformedPlayerViews().forEach((view) => { view.style.transform = transform; view.style.transformOrigin = 'center center'; });
+  elements.zoomLevel.textContent = `${Math.round(state.viewZoom * 100)}%`;
+}
+
+async function setPlayerOrientation(orientation) {
+  state.viewRotation = orientation === 'landscape' ? 90 : 0;
+  updatePlayerTransform();
+  try {
+    if (document.fullscreenElement && screen.orientation?.lock) await screen.orientation.lock(orientation === 'landscape' ? 'landscape' : 'portrait');
+  } catch (_) {}
+  toast(orientation === 'landscape' ? '画面已切换为横屏方向' : '画面已切换为竖屏方向', 'success');
+}
+
+function changePlayerZoom(delta) {
+  state.viewZoom = Math.max(0.5, Math.min(3, Math.round((state.viewZoom + delta) * 10) / 10));
+  updatePlayerTransform();
+}
+
+function resetPlayerTransform() {
+  state.viewRotation = 0; state.viewZoom = 1; updatePlayerTransform();
+  try { screen.orientation?.unlock?.(); } catch (_) {}
+}
+
+function openNoticeCenter() {
+  if (!(state.capabilities.owner || state.capabilities.serverHost || state.capabilities.superAdmin || state.permissions.sendNotice)) return toast('当前账号没有发送屏幕公告的权限', 'error');
+  elements.noticeScopeGroup.classList.toggle('is-hidden', !(state.capabilities.serverHost || state.capabilities.superAdmin));
+  elements.noticeScope.value = 'room'; elements.noticeModal.classList.remove('is-hidden'); elements.noticeText.focus();
+}
+
+async function sendScreenNotice(event) {
+  event.preventDefault();
+  const submit = elements.noticeForm.querySelector('button[type="submit"]'); submit.disabled = true;
+  try {
+    const result = await emitAck('screen-notice', {
+      text: elements.noticeText.value, font: elements.noticeFont.value, durationSeconds: Number(elements.noticeDuration.value),
+      fontSize: Number(elements.noticeFontSize.value), color: elements.noticeColor.value, scope: elements.noticeScope.value
+    }, 20000);
+    toast(result.message || result.error, result.success ? 'success' : 'error');
+    if (result.success) { elements.noticeText.value = ''; elements.noticeModal.classList.add('is-hidden'); }
+  } finally { submit.disabled = false; }
+}
+
+function showScreenNotice(notice = {}) {
+  clearTimeout(state.screenNoticeTimer);
+  const mountRoot = document.fullscreenElement || document.body;
+  if (elements.screenNoticeOverlay.parentElement !== mountRoot) mountRoot.appendChild(elements.screenNoticeOverlay);
+  elements.screenNoticeSender.textContent = `${notice.fromName || notice.from || '管理员'} 发布公告`;
+  elements.screenNoticeText.textContent = notice.text || '';
+  const fontFamilies = { system: 'system-ui, sans-serif', serif: 'SimSun, STSong, serif', monospace: 'Consolas, monospace', rounded: 'Microsoft YaHei UI, system-ui, sans-serif' };
+  elements.screenNoticeText.style.fontFamily = fontFamilies[notice.font] || fontFamilies.system;
+  elements.screenNoticeText.style.fontSize = `${Math.max(16, Math.min(72, Number(notice.fontSize) || 28))}px`;
+  elements.screenNoticeText.style.color = /^#[0-9a-f]{6}$/i.test(notice.color || '') ? notice.color : '#ffffff';
+  elements.screenNoticeOverlay.classList.remove('is-hidden');
+  state.screenNoticeTimer = setTimeout(hideScreenNotice, Math.max(2, Math.min(60, Number(notice.durationSeconds) || 8)) * 1000);
+}
+
+function hideScreenNotice() {
+  clearTimeout(state.screenNoticeTimer);
+  elements.screenNoticeOverlay.classList.add('is-hidden');
+  if (elements.screenNoticeOverlay.parentElement !== document.body) document.body.appendChild(elements.screenNoticeOverlay);
+}
+
+function openConversionProgress() {
+  if (!state.authenticated) return;
+  elements.conversionProgressModal.classList.remove('is-hidden');
+  void refreshMediaProcessingStatus();
+}
+
+function applyMediaProcessingStatus(status) {
+  if (!status || typeof status !== 'object') return;
+  state.mediaProcessingStatus = status;
+  const canConfigure = Boolean(status.canConfigure);
+  elements.mediaProcessingAdminControls?.classList.toggle('is-hidden', !canConfigure);
+  if (elements.mediaProcessingConcurrency && Number(status.concurrency) >= 1) elements.mediaProcessingConcurrency.value = String(Math.max(1, Math.min(8, Number(status.concurrency))));
+  if (elements.openConvertedMediaFolderBtn) {
+    const available = canConfigure && Boolean(window.SyncWatchDesktop?.openConvertedMediaFolder);
+    elements.openConvertedMediaFolderBtn.classList.toggle('is-hidden', !available);
+  }
+  if (elements.mediaProcessingControlStatus) {
+    elements.mediaProcessingControlStatus.textContent = `当前 ${Number(status.active) || 0} 个转换中，队列等待 ${Number(status.waiting) || 0} 个 · 同时处理上限 ${Number(status.concurrency) || 3}`;
+  }
+  renderConversionProgress();
+}
+
+async function refreshMediaProcessingStatus() {
+  if (!state.socketAuthenticated) return null;
+  state.mediaProcessingLoading = true;
+  try {
+    const result = await emitAck('media-processing-status', {}, 10000);
+    if (!result.success) throw new Error(result.error || '读取媒体处理状态失败');
+    applyMediaProcessingStatus(result.status);
+    return result.status;
+  } catch (error) {
+    toast(`读取媒体处理状态失败：${localizedError(error, '请检查服务器连接')}`, 'error');
+    return null;
+  } finally { state.mediaProcessingLoading = false; }
+}
+
+function renderConversionProgress() {
+  const status = state.mediaProcessingStatus || {};
+  const counts = status.counts || {};
+  if (elements.conversionProgressSummary) {
+    const values = [Number(counts.converting) || 0, Number(counts.queued) || 0, Number(counts.completed) || 0];
+    elements.conversionProgressSummary.innerHTML = ['转换中', '等待转换', '已完成'].map((label, index) => `<span><small>${label}</small><strong>${values[index]}</strong></span>`).join('');
+  }
+  const allTasks = Array.isArray(status.tasks) ? status.tasks : [...state.files.values()]
+    .filter((file) => file.category === 'video')
+    .map((file) => ({ id: file.id, originalName: file.originalName, roomId: file.roomId, compatibility: file.compatibility || {} }));
+  const query = String(state.mediaProcessingSearch || '').trim().toLocaleLowerCase();
+  const tasks = allTasks.filter((task) => !query || [task.originalName, task.roomId, task.uploadedBy, task.compatibility?.status].join(' ').toLocaleLowerCase().includes(query));
+  state.selectedMediaProcessingTasks = new Set([...state.selectedMediaProcessingTasks].filter((id) => allTasks.some((task) => task.id === id && mediaProcessingTaskCanDismiss(task))));
+  const selectableTasks = tasks.filter(mediaProcessingTaskCanDismiss);
+  if (elements.mediaProcessingSelectAll) {
+    elements.mediaProcessingSelectAll.checked = Boolean(selectableTasks.length) && selectableTasks.every((task) => state.selectedMediaProcessingTasks.has(task.id));
+    elements.mediaProcessingSelectAll.indeterminate = selectableTasks.some((task) => state.selectedMediaProcessingTasks.has(task.id)) && !elements.mediaProcessingSelectAll.checked;
+  }
+  if (elements.deleteSelectedMediaProcessingBtn) elements.deleteSelectedMediaProcessingBtn.disabled = state.selectedMediaProcessingTasks.size === 0;
+  const statusLabels = { native: '原文件可直接播放', queued: '等待转换', converting: '正在转换', ready: '兼容版已完成', failed: '转换失败', unavailable: '服务器无转换组件' };
+  elements.conversionProgressList.innerHTML = tasks.length ? tasks.map((task) => {
+    const compatibility = task.compatibility || {};
+    const progress = compatibility.required ? Math.max(0, Math.min(100, Number(compatibility.progress) || 0)) : 100;
+    const details = compatibility.status === 'converting'
+      ? `速度 ${Number(compatibility.speedRatio || 0).toFixed(2)} 倍速 · 已用 ${formatEta(compatibility.elapsedSeconds)} · 预计剩余 ${formatEta(compatibility.etaSeconds)}`
+      : compatibility.error || (compatibility.ready ? `兼容文件 ${formatSize(compatibility.size || 0)}` : '等待服务器测试');
+    const room = task.roomId ? ` · 房间 ${escapeHtml(task.roomId)}` : '';
+    const canDismiss = mediaProcessingTaskCanDismiss(task);
+    return `<div class="conversion-row" data-media-processing-task="${escapeHtml(task.id)}"><header><label class="conversion-task-select"><input type="checkbox" data-media-processing-select="${escapeHtml(task.id)}" ${state.selectedMediaProcessingTasks.has(task.id) ? 'checked' : ''} ${canDismiss ? '' : 'disabled'}><span>选择</span></label><strong title="${escapeHtml(task.originalName || '未命名影片')}">${escapeHtml(task.originalName || '未命名影片')}</strong><span>${escapeHtml(statusLabels[compatibility.status] || '检测中')}${room}</span></header><progress max="100" value="${progress}"></progress><small>${Math.round(progress)}% · ${escapeHtml(details)}${canDismiss ? '' : ' · 转换完成后可清理记录'}</small><button class="conversion-delete-button danger-text-button" data-media-processing-action="delete" type="button" ${canDismiss ? '' : 'disabled'}>删除记录</button></div>`;
+  }).join('') : '<p class="muted">当前没有符合条件的媒体任务。</p>';
+}
+
+function mediaProcessingTaskCanDismiss(task) {
+  if (!task?.id) return false;
+  const compatibility = task.compatibility || {};
+  return !['queued', 'converting'].includes(compatibility.status)
+    && Boolean(compatibility.ready || ['native', 'ready', 'failed', 'unavailable'].includes(compatibility.status));
+}
+
+function handleMediaProcessingSelection(event) {
+  const input = event.target.closest('[data-media-processing-select]'); if (!input) return;
+  if (input.checked) state.selectedMediaProcessingTasks.add(input.dataset.mediaProcessingSelect);
+  else state.selectedMediaProcessingTasks.delete(input.dataset.mediaProcessingSelect);
+  renderConversionProgress();
+}
+
+function toggleMediaProcessingSelectAll() {
+  const query = String(state.mediaProcessingSearch || '').trim().toLocaleLowerCase();
+  const tasks = (state.mediaProcessingStatus?.tasks || []).filter((task) => !query || [task.originalName, task.roomId, task.uploadedBy, task.compatibility?.status].join(' ').toLocaleLowerCase().includes(query));
+  if (elements.mediaProcessingSelectAll?.checked) tasks.filter(mediaProcessingTaskCanDismiss).forEach((task) => state.selectedMediaProcessingTasks.add(task.id));
+  else tasks.forEach((task) => state.selectedMediaProcessingTasks.delete(task.id));
+  renderConversionProgress();
+}
+
+async function deleteMediaProcessingTask(task, { confirm = true } = {}) {
+  if (!mediaProcessingTaskCanDismiss(task)) return false;
+  const deleteSource = elements.mediaProcessingDeleteSource?.checked === true;
+  const confirmation = deleteSource
+    ? `确定删除“${task.originalName || '未命名影片'}”的处理记录和源影片吗？影片会从媒体库移除，相关文件将暂存到可恢复区。`
+    : `确定删除“${task.originalName || '未命名影片'}”的处理记录吗？影片、源文件和转换文件都会保留。`;
+  if (confirm && !await showAppConfirm(confirmation, { title: deleteSource ? '删除记录和源影片' : '删除处理记录', confirmText: deleteSource ? '确认删除' : '删除记录', danger: true })) return false;
+  try {
+    const result = await emitAck('media-processing-dismiss', {
+      taskIds: [task.id],
+      deleteSource: elements.mediaProcessingDeleteSource?.checked === true
+    }, 20000);
+    if (!result.success) { toast(result.error || '删除处理记录失败', 'error'); return false; }
+    state.selectedMediaProcessingTasks.delete(task.id);
+    if (deleteSource && elements.mediaProcessingDeleteSource) elements.mediaProcessingDeleteSource.checked = false;
+    if (result.status) applyMediaProcessingStatus(result.status);
+    return true;
+  } catch (error) { toast(`删除处理记录失败：${localizedError(error, '请稍后重试')}`, 'error'); return false; }
+}
+
+async function handleMediaProcessingAction(event) {
+  const button = event.target.closest('[data-media-processing-action]'); if (!button) return;
+  const taskId = button.closest('[data-media-processing-task]')?.dataset.mediaProcessingTask;
+  const task = (state.mediaProcessingStatus?.tasks || []).find((item) => item.id === taskId);
+  if (!task || button.dataset.mediaProcessingAction !== 'delete') return;
+  const deleteSource = elements.mediaProcessingDeleteSource?.checked === true;
+  if (await deleteMediaProcessingTask(task)) {
+    await refreshMediaProcessingStatus(); renderFiles();
+    if (!elements.accountModal?.classList.contains('is-hidden')) await openAccount('media');
+    toast(deleteSource ? '处理记录和源影片已删除，可在操作记录中撤销' : '处理记录已删除，影片文件仍然保留', 'success');
+  }
+}
+
+async function deleteSelectedMediaProcessingTasks() {
+  const tasks = (state.mediaProcessingStatus?.tasks || []).filter((task) => state.selectedMediaProcessingTasks.has(task.id) && mediaProcessingTaskCanDismiss(task));
+  if (!tasks.length) return toast('请先选择可删除的已完成处理记录', 'error');
+  const deleteSource = elements.mediaProcessingDeleteSource?.checked === true;
+  const confirmation = deleteSource
+    ? `确定删除所选 ${tasks.length} 条处理记录及对应源影片吗？影片会从媒体库移除，相关文件将暂存到可恢复区。`
+    : `确定删除所选 ${tasks.length} 条处理记录吗？影片、源文件和转换文件都会保留。`;
+  if (!await showAppConfirm(confirmation, { title: deleteSource ? '批量删除记录和源影片' : '批量删除处理记录', confirmText: deleteSource ? '确认删除' : '删除记录', danger: true })) return;
+  const result = await emitAck('media-processing-dismiss', {
+    taskIds: tasks.map((task) => task.id),
+    deleteSource: elements.mediaProcessingDeleteSource?.checked === true
+  }, deleteSource ? 60000 : 20000);
+  if (!result.success) return toast(result.error || '批量删除处理记录失败', 'error');
+  const deleted = Number(result.dismissed) || 0;
+  if (deleteSource && elements.mediaProcessingDeleteSource) elements.mediaProcessingDeleteSource.checked = false;
+  state.selectedMediaProcessingTasks.clear(); await refreshMediaProcessingStatus(); renderFiles();
+  if (!elements.accountModal?.classList.contains('is-hidden')) await openAccount('media');
+  toast(deleteSource
+    ? `已删除 ${deleted}/${tasks.length} 条处理记录和源影片，可在操作记录中撤销`
+    : `已删除 ${deleted}/${tasks.length} 条处理记录，影片文件仍然保留`, deleted === tasks.length ? 'success' : 'error');
+}
+
+async function saveMediaProcessingConcurrency() {
+  const concurrency = Math.max(1, Math.min(8, Math.floor(Number(elements.mediaProcessingConcurrency?.value) || 3)));
+  const result = await adminAction('set-media-processing', { concurrency });
+  toast(result.message || result.error || '媒体处理设置失败', result.success ? 'success' : 'error', 6000);
+  if (result.success) applyMediaProcessingStatus(result.status || { ...(state.mediaProcessingStatus || {}), concurrency });
+}
+
+async function openConvertedMediaFolder() {
+  const bridge = window.SyncWatchDesktop;
+  if (!bridge?.openConvertedMediaFolder) return toast('当前平台不支持打开服务器转换目录', 'error');
+  try {
+    const result = await bridge.openConvertedMediaFolder();
+    if (!result?.success) return toast(result?.error || '打开转换目录失败', 'error');
+    toast('已在资源管理器中打开转换后的视频目录', 'success');
+  } catch (error) { toast(`打开转换目录失败：${localizedError(error)}`, 'error'); }
+}
+
+async function measureNetwork() {
+  if (!state.socketAuthenticated || !state.socket.connected) return;
+  const wallStarted = Date.now(); const started = performance.now();
+  try {
+    const result = await emitAck('network-ping', {}, 5000); if (!result.success) return;
+    const wallFinished = Date.now(); state.localLatency = Math.round(performance.now() - started);
+    updateServerClock(Number(result.serverTime), wallStarted, wallFinished, state.localLatency);
+    elements.localLatency.textContent = `${state.localLatency} 毫秒`;
+    state.socket.emit('network-quality', { latency: state.localLatency, syncPercent: state.syncPercent, drift: state.latestDrift, playbackQuality: state.playbackQuality, connectionState: state.localLatency > 500 ? 'unstable' : 'online' });
+  } catch (_) {}
+}
+function recoverFromBackground() {
+  if (document.hidden || !navigator.onLine) return;
+  if (!state.socket.connected) state.socket.connect();
+  else if (state.token && !state.socketAuthenticated) queueSessionResume(state.authenticated);
+  else if (state.authenticated) refreshRoom();
+}
+function reportWatchProgress() {
+  const now = Date.now(); const elapsed = Math.max(0, Math.min(30, (now - state.lastWatchReport) / 1000)); state.lastWatchReport = now;
+  if (!state.authenticated || !state.socketAuthenticated || !state.socket?.connected || !isActiveTimedMedia() || elements.videoPlayer.classList.contains('is-hidden')) return;
+  const activelyWatching = !elements.videoPlayer.paused && !elements.videoPlayer.ended && elements.videoPlayer.readyState >= 3;
+  state.socket.emit('watch-progress', { fileId: state.currentFile.id, currentTime: elements.videoPlayer.currentTime, duration: elements.videoPlayer.duration || 0, watchedSeconds: activelyWatching ? elapsed : 0 });
+}
+
+function reportPlaybackProgress() {
+  const now = performance.now();
+  if (now - state.lastPlaybackProgress < 1500 || !state.socketAuthenticated || !state.capabilities.owner || state.screenShareActive || state.autoplayBlocked || state.mediaFailed) return;
+  const file = state.currentFile; const playback = state.room?.playback;
+  if (!file || !isActiveTimedMedia() || playback?.fileId !== file.id || elements.videoPlayer.readyState < 1) return;
+  state.lastPlaybackProgress = now;
+  const stalled = playback.isPlaying && !elements.videoPlayer.paused && elements.videoPlayer.readyState < 3;
+  state.socket.emit('playback-progress', {
+    fileId: file.id, currentTime: elements.videoPlayer.currentTime || 0,
+    isPlaying: !elements.videoPlayer.paused && !elements.videoPlayer.ended, stalled,
+    revision: playback.revision
+  });
+}
+
+function onMediaMetadata() {
+  const file = state.currentFile; if (!file || !isActiveTimedMedia()) return;
+  state.mediaFailed = false; updatePlayerInfo(file); attachSubtitleTracks(file);
+  const recovery = state.mediaNetworkRecovery.resume;
+  if (recovery && recovery.fileId === file.id && recovery.generation === state.mediaGeneration && state.room?.playback?.fileId !== file.id) {
+    setProgrammaticTime(recovery.currentTime, state.playbackRevision);
+    setProgrammaticVolume(recovery.volume, recovery.muted);
+  }
+  updatePlayerProgressBar();
+  if (state.pendingPlayback) applyPendingPlayback(true); else if (state.room?.playback?.fileId === file.id) adaptiveSynchronize(state.room.playback, true);
+}
+function onMediaCanPlay() {
+  if (!isActiveTimedMedia()) return;
+  const recovery = state.mediaNetworkRecovery.resume;
+  state.mediaFailed = false;
+  updatePlayerProgressBar();
+  if (state.pendingPlayback) applyPendingPlayback(true);
+  else if (state.currentFile && state.room?.playback?.fileId === state.currentFile.id && !state.screenShareActive) adaptiveSynchronize(state.room.playback, false);
+  else if (recovery && recovery.fileId === state.currentFile?.id && recovery.generation === state.mediaGeneration && recovery.wasPlaying) {
+    setProgrammaticPlaying(true, state.playbackRevision);
+  }
+  clearMediaNetworkRecovery(true);
+}
+
+function beginPlayerSeekDrag() {
+  if (!elements.playerSeekSlider || elements.playerSeekSlider.disabled) return;
+  state.playerSeekDragging = true;
+  state.playerSeekTarget = Number(elements.playerSeekSlider.value);
+  state.seekInteractionUntil = performance.now() + 3200;
+}
+
+function previewPlayerSeek() {
+  const next = Number(elements.playerSeekSlider?.value);
+  if (!Number.isFinite(next)) return;
+  state.playerSeekDragging = true;
+  state.playerSeekTarget = next;
+  state.seekInteractionUntil = performance.now() + 3200;
+  updatePlayerProgressBar(next);
+}
+
+function cancelPlayerSeekDrag() {
+  state.playerSeekDragging = false;
+  state.playerSeekTarget = null;
+  updatePlayerProgressBar();
+}
+
+function commitPlayerSeek() {
+  const slider = elements.playerSeekSlider;
+  const next = Number(state.playerSeekTarget ?? slider?.value);
+  state.playerSeekDragging = false;
+  state.playerSeekTarget = null;
+  if (!Number.isFinite(next) || !isActiveTimedMedia() || state.screenShareActive) return;
+  const duration = Number(elements.videoPlayer.duration);
+  const target = Math.max(0, Number.isFinite(duration) ? Math.min(duration, next) : next);
+  const previous = state.lastCommittedSeek;
+  if (previous && Math.abs(previous.target - target) < .05 && performance.now() - previous.at < 350) return;
+  state.lastCommittedSeek = { target, at: performance.now() };
+  state.seekInteractionUntil = performance.now() + 3200;
+  state.suppressPlaybackNoticeUntil = Date.now() + 3800;
+  if (!canControlPlayback()) {
+    permissionDeniedToast('拖动播放进度');
+    adaptiveSynchronize(state.room?.playback, true);
+    return;
+  }
+  // Keep the thumb and picture at the released position immediately. The
+  // expected-seek marker prevents the native seeked event from sending a
+  // duplicate command while the authoritative server acknowledgement arrives.
+  setProgrammaticTime(target, state.playbackRevision);
+  updatePlayerProgressBar(target);
+  void sendPlayback('seek', target);
+}
+
+function updatePlayerProgressBar(explicitTime = null) {
+  const player = elements.videoPlayer; const bar = elements.playerProgressBar; const slider = elements.playerSeekSlider;
+  if (!player || !bar || !slider) return;
+  const duration = Number(player.duration);
+  const playable = Number.isFinite(duration) && duration > 0 && !player.classList.contains('is-hidden') && !state.screenShareActive && !state.webShare?.active;
+  bar.classList.toggle('is-hidden', !playable);
+  if (!playable) return;
+  const hasExplicit = explicitTime !== null && explicitTime !== undefined && Number.isFinite(Number(explicitTime));
+  const explicit = hasExplicit ? Number(explicitTime) : NaN;
+  const preview = Number(state.playerSeekTarget);
+  const current = Number.isFinite(explicit)
+    ? explicit
+    : state.playerSeekDragging && Number.isFinite(preview) ? preview : Number(player.currentTime) || 0;
+  slider.max = String(duration); slider.value = String(Math.max(0, Math.min(duration, current)));
+  elements.playerCurrentTime.textContent = formatTime(current);
+  elements.playerDuration.textContent = formatTime(duration);
+}
+function tryCompatibilityFallback() {
+  const file = state.currentFile; const compatibility = file?.compatibility || {};
+  if (!file || file.sourceType === 'remote' || !compatibility.required || !compatibility.ready) return false;
+  if (!['original', 'original-fallback'].includes(state.activeMediaVariant)) return false;
+  if (state.compatibilityFallbackFileId === file.id) return false;
+  const fallbackUrl = file.url;
+  if (!fallbackUrl) return false;
+  const playback = state.pendingPlayback || state.room?.playback;
+  const preservedTarget = playback?.fileId === file.id ? { ...playback } : {
+    fileId: file.id, isPlaying: !elements.videoPlayer.paused, currentTime: elements.videoPlayer.currentTime || 0,
+    volume: elements.videoPlayer.volume, updatedAt: Date.now(), revision: state.playbackRevision
+  };
+  state.compatibilityFallbackFileId = file.id;
+  teardownTimedMedia();
+  const source = new URL(mediaUrlWithSessionToken(fallbackUrl), location.href).href;
+  state.activeTimedFileId = file.id; state.activeTimedSource = source; state.activeMediaVariant = 'smooth';
+  state.compatibilityFallbackGeneration = state.mediaGeneration;
+  state.mediaFailed = false; state.pendingPlayback = preservedTarget;
+  elements.videoPlayer.src = source; attachSubtitleTracks(file); elements.videoPlayer.load();
+  showSyncNotice('原画加载失败，正在自动切换公网兼容版…');
+  return true;
+}
+function clearMediaNetworkRecovery(success) {
+  const recovery = state.mediaNetworkRecovery;
+  if (!recovery) return;
+  if (recovery.timer) clearTimeout(recovery.timer);
+  recovery.timer = null; recovery.resume = null;
+  if (success || success === false) { recovery.key = ''; recovery.attempts = 0; }
+}
+function scheduleMediaNetworkRecovery(mediaError) {
+  const file = state.currentFile; const source = state.activeTimedSource;
+  const policy = globalThis.SyncWatchMediaNetworkRecovery;
+  if (!policy?.isEligible({ errorCode: mediaError?.code, sourceType: file?.sourceType, source, pageHref: location.href })) return false;
+  const recovery = state.mediaNetworkRecovery;
+  const key = `${file.id}:${source}`;
+  if (recovery.key !== key) {
+    if (recovery.timer) clearTimeout(recovery.timer);
+    recovery.key = key; recovery.attempts = 0; recovery.timer = null; recovery.resume = null;
+  }
+  if (recovery.timer) return true;
+  const next = policy.nextAttempt(recovery.attempts);
+  if (!next) return false;
+  const video = elements.videoPlayer; const playback = state.room?.playback;
+  const currentTime = Number(video.currentTime) || Math.max(0, Number(playback?.currentTime) || 0);
+  const wasPlaying = playback?.fileId === file.id ? Boolean(playback.isPlaying) : !video.paused && !video.ended;
+  recovery.attempts = next.attempt;
+  recovery.resume = {
+    fileId: file.id, source, variant: state.activeMediaVariant, generation: state.mediaGeneration,
+    currentTime, wasPlaying, volume: video.volume, muted: video.muted
+  };
+  state.mediaFailed = true; video.playbackRate = 1;
+  elements.syncStatus.textContent = `网络恢复 ${next.attempt}/${policy.MAX_ATTEMPTS}`;
+  showSyncNotice(`媒体连接短暂波动，${Math.ceil(next.delayMs / 100) / 10} 秒后自动恢复…`);
+  recovery.timer = setTimeout(() => {
+    recovery.timer = null;
+    if (state.currentFile?.id !== file.id || state.activeTimedSource !== source || state.screenShareActive) {
+      clearMediaNetworkRecovery(false);
+      return;
+    }
+    state.mediaGeneration += 1;
+    recovery.resume.generation = state.mediaGeneration;
+    state.expectedSeek = null; state.expectedPlaybackEvent = null;
+    state.mediaEventBlockUntil = performance.now() + 3000;
+    video.preload = 'auto'; video.src = source; attachSubtitleTracks(file); video.load();
+  }, next.delayMs);
+  return true;
+}
+function handleMediaError() {
+  const mediaError = elements.videoPlayer.error; if (!mediaError || !isActiveTimedMedia()) return;
+  if (scheduleMediaNetworkRecovery(mediaError)) return;
+  if (Number(mediaError.code) !== 2 && tryCompatibilityFallback()) return;
+  state.mediaFailed = true; elements.videoPlayer.playbackRate = 1; elements.syncStatus.textContent = '媒体错误';
+  const compatibility = state.currentFile.compatibility || {};
+  const extension = String(state.currentFile.originalName || '').split('.').pop()?.toUpperCase();
+  const compatibilityHint = state.currentFile.sourceType === 'remote'
+    ? '请检查 COS/OSS 签名是否过期、Bucket CORS 是否允许当前网站执行 GET/HEAD、是否支持 Range，以及文件是否为 H.264/AAC MP4。'
+    : compatibility.required && !compatibility.ready
+    ? compatibility.status === 'failed'
+      ? `服务器生成公网兼容版失败：${compatibility.error || '请重新点击播放重试'}。`
+      : compatibility.status === 'unavailable'
+        ? `${compatibility.error || '当前服务器未内置媒体转码器，远端设备需要自行支持原始视频编码'}。建议上传 H.264/AAC MP4 兼容版。`
+        : '服务器正在生成 720P H.264/AAC 公网兼容版，完成后影片库会自动刷新。'
+    : ['MKV', 'AVI', 'MOV', 'FLAC'].includes(extension)
+      ? `当前浏览器可能不支持 ${extension} 内的音视频编码，请等待服务器生成公网兼容版。`
+      : '请检查服务器网络、登录状态和 HTTP Range 支持，或确认文件完整。';
+  toast(`无法播放“${state.currentFile.originalName}”。${compatibilityHint}`, 'error', 9000);
+  showSyncNotice(`媒体加载失败（错误码 ${mediaError.code || '--'}）`);
+}
+async function updatePlayerInfo(file) {
+  if (!['video', 'audio'].includes(file.category)) return elements.playerInfo.classList.add('is-hidden');
+  const fileId = file.id; const generation = state.mediaGeneration;
+  const metadata = file.metadata || {}; const compatibility = file.compatibility || {};
+  const usingSmooth = state.activeMediaVariant === 'smooth';
+  const sourceWidth = metadata.width || elements.videoPlayer.videoWidth; const sourceHeight = metadata.height || elements.videoPlayer.videoHeight;
+  const height = usingSmooth ? Math.min(Number(sourceHeight) || compatibility.maxHeight || 720, compatibility.maxHeight || 720) : sourceHeight;
+  const width = usingSmooth && sourceWidth && sourceHeight ? Math.round((Number(sourceWidth) / Number(sourceHeight)) * height / 2) * 2 : sourceWidth;
+  elements.playerResolution.textContent = height ? `${width}×${height}` : '媒体';
+  elements.playerCodec.textContent = usingSmooth ? 'H264 · 流畅版' : `${metadata.videoCodec || metadata.audioCodec || '编码检测中'} · 原画`;
+  elements.playerInfo.classList.remove('is-hidden');
+  if (!navigator.mediaCapabilities?.decodingInfo || file.category !== 'video') return elements.hardwareDecode.textContent = '硬件解码：浏览器未报告';
+  try {
+    const codec = usingSmooth ? 'avc1.640029' : /265|HEVC/i.test(metadata.videoCodec) ? 'hvc1.2.4.L153.B0' : 'avc1.42E01E';
+    const contentType = usingSmooth ? 'video/mp4' : file.mimeType;
+    const info = await navigator.mediaCapabilities.decodingInfo({ type: 'file', video: { contentType: `${contentType}; codecs="${codec}"`, width: width || 1920, height: height || 1080, bitrate: usingSmooth ? 3500000 : 8000000, framerate: 30 } });
+    if (generation !== state.mediaGeneration || state.currentFile?.id !== fileId) return;
+    elements.hardwareDecode.textContent = !info.supported ? '解码：浏览器不支持' : `图形处理器解码：${info.powerEfficient ? '开启' : info.smooth ? '可播放' : '性能可能不足'}`;
+  } catch (_) { if (generation === state.mediaGeneration && state.currentFile?.id === fileId) elements.hardwareDecode.textContent = '图形处理器解码：未确认'; }
+}
+
+async function showQr() {
+  let address = preferredShareAddress();
+  const publicAddress = publicShareAddress();
+  const localAddress = lanShareAddress();
+  if (publicAddress && localAddress && publicAddress !== localAddress) {
+    const selected = await showAppSelect({
+      title: '生成房间二维码', description: '请选择二维码中包含的访问地址。两种地址都会自动带上当前房间号。', label: '地址类型',
+      options: [
+        { value: 'public', label: `公网地址：${publicAddress}` },
+        { value: 'lan', label: `内网地址：${localAddress}` }
+      ],
+      initialValue: address === publicAddress ? 'public' : 'lan', confirmText: '生成二维码', cancelText: '关闭'
+    });
+    if (selected === null) return;
+    address = selected === 'public' ? publicAddress : localAddress;
+  }
+  try {
+    const response = await fetchWithTimeout(`/api/room/qr?url=${encodeURIComponent(address)}`, { headers: authHeaders() }, 10000);
+    if (!response.ok) return toast(`二维码生成失败（${response.status}）`, 'error');
+    const svg = await response.text(); const type = publicAddress && address === publicAddress ? '公网地址' : '内网地址';
+    elements.qrBox.innerHTML = `<strong class="qr-address-type">${type}</strong>${svg}<code class="qr-address-value">${escapeHtml(address)}</code>`; elements.qrBox.classList.toggle('is-hidden');
+  } catch (error) { toast(`二维码生成失败：${localizedError(error, '请稍后重试')}`, 'error'); }
+}
+function preferredShareAddress() {
+  const customBase = String(elements.roomShareUrl?.dataset.customBase || '').trim();
+  if (customBase) return shareAddressForBase(customBase);
+  const current = shareAddressForBase(location.origin);
+  const localHost = ['127.0.0.1', 'localhost', '::1', '[::1]'].includes(location.hostname);
+  return localHost ? (publicShareAddress() || lanShareAddress()) : current;
+}
+function shareAddressForBase(baseValue) {
+  const base = normalizeShareBase(baseValue);
+  const roomId = String(state.room?.id || elements.roomIdInput?.value || state.publicConfig?.defaultRoomId || '').trim().toUpperCase();
+  try {
+    const address = new URL(base, location.href);
+    if (roomId) address.searchParams.set('room', roomId);
+    address.hash = '';
+    return address.toString();
+  } catch (_) {
+    if (!roomId) return base;
+    const separator = String(base).includes('?') ? '&' : '?';
+    return `${base}${separator}room=${encodeURIComponent(roomId)}`;
+  }
+}
+function publicShareAddress() {
+  const tunnelAddress = activeTunnelPublicUrl();
+  if (state.tunnelLastStatus) return tunnelAddress ? shareAddressForBase(tunnelAddress) : '';
+  const configured = String(state.publicConfig?.publicAddress || '').trim();
+  const currentLooksPublic = !['127.0.0.1', 'localhost', '::1', '[::1]'].includes(location.hostname)
+    && !/^(?:10\.|192\.168\.|172\.(?:1[6-9]|2\d|3[01])\.)/.test(location.hostname);
+  return tunnelAddress ? shareAddressForBase(tunnelAddress) : configured ? shareAddressForBase(configured) : currentLooksPublic ? shareAddressForBase(location.origin) : '';
+}
+function lanShareAddress() {
+  const localHost = ['127.0.0.1', 'localhost', '::1', '[::1]'].includes(location.hostname);
+  const ipv4Base = (state.publicConfig?.addresses || []).find((address) => {
+    try { return /^(?:\d{1,3}\.){3}\d{1,3}$/.test(new URL(address).hostname); }
+    catch (_) { return false; }
+  });
+  const locationBase = /^(?:\d{1,3}\.){3}\d{1,3}$/.test(location.hostname) ? location.origin : '';
+  return shareAddressForBase(ipv4Base || locationBase || (localHost ? state.publicConfig?.addresses?.[0] || location.origin : location.origin));
+}
+function normalizeShareBase(value) {
+  const raw = String(value || '').trim();
+  if (!raw) return location.origin;
+  const candidate = /^[a-z][a-z0-9+.-]*:\/\//i.test(raw) ? raw : `https://${raw}`;
+  try {
+    const url = new URL(candidate);
+    if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password) return location.origin;
+    url.pathname = '/';
+    return url.toString().replace(/\/$/, '');
+  } catch (_) { return location.origin; }
+}
+function applyShareDomain() {
+  const input = elements.roomShareUrl;
+  if (!input) return;
+  const value = String(input.value || '').trim();
+  if (!value) return toast('请输入公网域名，例如 baiduw', 'error');
+  const base = normalizeShareBase(value);
+  if (base === location.origin && !/^(?:https?:\/\/)?(?:127\.0\.0\.1|localhost|::1)(?::\d+)?$/i.test(value)) return toast('域名格式不正确', 'error');
+  input.dataset.customBase = base;
+  input.value = roomShareAddress();
+  toast(`分享地址已替换为：${input.value}`, 'success');
+}
+function resetShareAddress() {
+  const input = elements.roomShareUrl;
+  if (!input) return;
+  const ipv4Base = (state.publicConfig?.addresses || []).find((address) => {
+    try { return /^(?:\d{1,3}\.){3}\d{1,3}$/.test(new URL(address).hostname); }
+    catch (_) { return false; }
+  });
+  const locationBase = /^(?:\d{1,3}\.){3}\d{1,3}$/.test(location.hostname) ? location.origin : '';
+  input.dataset.customBase = normalizeShareBase(ipv4Base || locationBase || state.publicConfig?.addresses?.[0] || location.origin);
+  input.value = roomShareAddress();
+  elements.qrBox?.classList.add('is-hidden');
+  toast(`已重置为当前 IPv4 房间地址：${input.value}`, 'success');
+}
+function roomShareAddress() { return preferredShareAddress(); }
+async function copyText(value, successMessage, fallbackTitle = '复制地址') {
+  const text = String(value ?? '');
+  try {
+    if (!navigator.clipboard?.writeText) throw new Error('Clipboard API unavailable');
+    await navigator.clipboard.writeText(text); toast(successMessage, 'success'); return true;
+  } catch (_) {}
+  let copied = false;
+  const textarea = document.createElement('textarea');
+  textarea.value = text; textarea.readOnly = true; textarea.setAttribute('aria-hidden', 'true');
+  textarea.style.cssText = 'position:fixed;left:-9999px;top:0;width:1px;height:1px;opacity:0;pointer-events:none';
+  document.body.appendChild(textarea);
+  try {
+    textarea.focus({ preventScroll: true }); textarea.select(); textarea.setSelectionRange(0, textarea.value.length);
+    copied = typeof document.execCommand === 'function' && document.execCommand('copy') === true;
+  } catch (_) { copied = false; }
+  textarea.remove();
+  if (copied) { toast(successMessage, 'success'); return true; }
+  await showAppInput({
+    title: fallbackTitle, description: '系统剪贴板暂时不可用，请长按或按 Ctrl+C 复制下面的内容。', label: '内容',
+    initialValue: text, readOnly: true, required: false, confirmText: '完成', cancelText: '关闭'
+  });
+  return false;
+}
+async function copyAddress() {
+  let address = preferredShareAddress();
+  const hasCustomBase = Boolean(String(elements.roomShareUrl?.dataset.customBase || '').trim());
+  const publicAddress = publicShareAddress(); const localAddress = lanShareAddress();
+  if (!hasCustomBase && publicAddress && localAddress && publicAddress !== localAddress) {
+    const selected = await showAppSelect({
+      title: '分享房间', description: '请选择要复制的地址类型。关闭窗口不会执行复制。', label: '分享地址',
+      options: [
+        { value: 'public', label: `公网地址：${publicAddress}` },
+        { value: 'lan', label: `内网地址：${localAddress}` }
+      ], initialValue: publicAddress === shareAddressForBase(location.origin) ? 'public' : 'lan', confirmText: '复制所选地址', cancelText: '关闭'
+    });
+    if (selected === null) return;
+    address = selected === 'public' ? publicAddress : localAddress;
+  }
+  await copyText(address, `已复制：${address}`, '分享当前房间地址');
+}
+
+async function copyLanAddress() {
+  const address = lanShareAddress();
+  if (!address) return toast('当前没有可用的内网地址', 'error');
+  await copyText(address, `内网房间地址已复制：${address}`, '复制内网地址');
+}
+
+async function copyPublicAddress() {
+  const address = publicShareAddress();
+  if (!address) return toast('公网访问尚未开启，请先开启公网访问', 'error');
+  await copyText(address, `公网房间地址已复制：${address}`, '复制公网地址');
+}
+
+async function copyRoomCode() {
+  const code = String(state.room?.id || elements.roomCode?.textContent || '').trim();
+  if (!code) return;
+  await copyText(code, `房间号 ${code} 已复制`, '复制房间号');
+}
+
+function activeTunnelPublicUrl() {
+  const status = state.tunnelLastStatus;
+  return status?.state === 'running' && status.verified === true
+    ? String(status.publicUrl || '').trim()
+    : '';
+}
+
+async function copyTunnelUrl() {
+  const baseUrl = activeTunnelPublicUrl();
+  const url = baseUrl ? shareAddressForBase(baseUrl) : '';
+  if (!url) return toast('公网访问尚未开启', 'error');
+  await copyText(url, `公网房间地址已复制：${url}`, '复制公网地址');
+}
+
+async function openExternalUrl(value) {
+  const url = String(value || '').trim();
+  if (!/^https?:\/\//i.test(url)) return false;
+  if (window.SyncWatchDesktop?.openExternal) {
+    try { const result = await window.SyncWatchDesktop.openExternal(url); return result?.success !== false; } catch (_) { return false; }
+  }
+  const bridge = window.SyncWatchAndroid;
+  if (bridge && typeof bridge.openExternal === 'function') {
+    try { return bridge.openExternal(url) !== false; } catch (_) { return false; }
+  }
+  const opened = window.open(url, '_blank', 'noopener,noreferrer');
+  return Boolean(opened);
+}
+
+async function openTunnelUrl() {
+  const baseUrl = activeTunnelPublicUrl();
+  const url = baseUrl ? shareAddressForBase(baseUrl) : '';
+  if (!url) return toast('公网访问尚未开启', 'error');
+  if (!await openExternalUrl(url)) toast('无法打开浏览器，请手动复制公网地址', 'error');
+}
+
+async function changeCurrentRoomId() {
+  if (!state.authenticated || !state.room) return toast('请先登录并进入房间', 'error');
+  if (!(state.capabilities.owner || state.capabilities.superAdmin)) return toast('只有当前房主或超级管理员可以修改房间号', 'error');
+  const currentRoomId = String(state.room.id || '').trim().toUpperCase();
+  const value = await showAppInput({
+    title: '修改当前房间号',
+    description: `当前房间号：${currentRoomId}。修改后会同步迁移影片、聊天、播放记录和在线成员会话。`,
+    label: '新的房间号', initialValue: currentRoomId, maxLength: 32, confirmText: '保存房间号',
+    validate: (input) => /^[A-Z0-9]{4,32}$/.test(input.trim().toUpperCase()) ? '' : '请输入 4-32 位大写字母或数字'
+  });
+  if (value === null) return;
+  const newRoomId = value.trim().toUpperCase();
+  if (newRoomId === currentRoomId) return toast('新房间号与当前房间号相同', 'error');
+  const result = await adminAction('rename-room-id', { roomId: currentRoomId, newRoomId });
+  toast(result.message || result.error || (result.success ? '房间号已修改' : '修改房间号失败'), result.success ? 'success' : 'error', 7000);
+}
+
+async function convertTemporaryRoom() {
+  if (!state.authenticated || !state.room?.temporary) return toast('当前房间不是临时房间', 'error');
+  if (!(state.capabilities.owner || state.capabilities.superAdmin || state.permissions.manageRoom)) return toast('只有房主或管理员可以转换临时房间', 'error');
+  let name = String(state.room.name || '').replace(/ 的临时房间$/, ' 的房间');
+  let roomIdMode = 'custom';
+  let newRoomId = '';
+  let step = 0;
+  while (step < 3) {
+    if (step === 0) {
+      const value = await showAppInput({
+        title: '转为正式房间',
+        description: '正式房间会保存到“我的房间”和服务器房间列表，不会在管理员离开后自动删除。转为正式房间后仍可修改房间号和访问密码。',
+        label: '正式房间名称', initialValue: name, maxLength: 40, confirmText: '下一步', allowBack: true
+      });
+      if (value === null) return;
+      name = value; step = 1; continue;
+    }
+    if (step === 1) {
+      const value = await showAppSelect({
+        title: '设置正式房间号',
+        description: '您可以自己设置一个容易记住的房间号，也可以让服务器随机生成一个未被使用的房间号。',
+        label: '房间号生成方式', initialValue: roomIdMode,
+        options: [
+          { value: 'custom', label: '自己设置房间号' },
+          { value: 'random', label: '随机生成房间号' }
+        ],
+        confirmText: roomIdMode === 'random' ? '转换为正式房间' : '下一步', allowBack: true
+      });
+      if (value === APP_DIALOG_BACK) { step = 0; continue; }
+      if (value === null) return;
+      roomIdMode = value;
+      if (roomIdMode === 'random') { newRoomId = ''; break; }
+      step = 2; continue;
+    }
+    const policy = state.publicConfig.roomIdPolicy || state.adminSettings?.roomIdPolicy || {};
+    const minLength = policy.enabled ? Math.max(1, Number(policy.minLength) || 4) : 4;
+    const maxLength = policy.enabled ? Math.min(32, Number(policy.maxLength) || 32) : 32;
+    const value = await showAppInput({
+      title: '自己设置正式房间号',
+      description: policy.enabled ? `服务器房间号规则已启用，长度为 ${minLength}-${maxLength} 位。` : '房间号由 4-32 位大写字母或数字组成。',
+      label: '新的房间号', initialValue: newRoomId, maxLength, confirmText: '转换为正式房间', allowBack: true,
+      validate: (input) => {
+        const normalized = String(input || '').trim().toUpperCase();
+        if (normalized.length < minLength || normalized.length > maxLength) return `房间号长度应为 ${minLength}-${maxLength} 位`;
+        const patterns = { uppercase_alnum: /^[A-Z0-9]+$/, uppercase_no_ambiguous: /^[A-HJ-NP-Z2-9]+$/, letters: /^[A-Z]+$/, digits: /^[0-9]+$/ };
+        if (!policy.enabled) return /^[A-Z0-9]+$/.test(normalized) ? '' : '房间号只能包含大写字母或数字';
+        if (policy.mode === 'custom') {
+          try { return policy.customPattern && new RegExp(`^(?:${policy.customPattern})$`).test(normalized) ? '' : '房间号不符合服务器自定义规则'; }
+          catch (_) { return '服务器房间号规则无效，请联系服务器管理员'; }
+        }
+        return patterns[policy.mode || 'uppercase_alnum']?.test(normalized) ? '' : '房间号不符合服务器规则';
+      }
+    });
+    if (value === APP_DIALOG_BACK) { step = 1; continue; }
+    if (value === null) return;
+    newRoomId = value.trim().toUpperCase(); break;
+  }
+  const result = await adminAction('convert-temporary-room', {
+    roomId: state.room.id, name, roomIdMode, newRoomId, passwordProvided: false
+  });
+  if (result.success && result.room) applyRoom(result.room);
+  toast(result.message || result.error || '临时房间转换失败', result.success ? 'success' : 'error', 7000);
+}
+
+function switchSideTab(tab) {
+  if (tab === 'admin' && !(state.capabilities.owner || state.capabilities.serverHost || state.capabilities.superAdmin || state.permissions.manageRoom || state.permissions.manageChat)) return toast('当前账号没有管理权限', 'error');
+  document.querySelectorAll('.tab-button[data-tab]').forEach((button) => button.classList.toggle('active', button.dataset.tab === tab)); elements.usersTab.classList.toggle('is-hidden', tab !== 'users'); elements.adminTab.classList.toggle('is-hidden', tab !== 'admin');
+}
+function setMobileModuleActive(module) {
+  document.querySelectorAll('[data-mobile-module]').forEach((button) => {
+    button.classList.toggle('active', button.dataset.mobileModule === module);
+  });
+}
+
+function openMobileModule(module) {
+  setMobileModuleActive(module);
+  elements.filePanel?.classList.remove('mobile-open');
+  elements.userPanel?.classList.remove('mobile-open');
+  if (module === 'library') {
+    elements.filePanel?.classList.add('mobile-open');
+    return;
+  }
+  if (module === 'members') {
+    elements.userPanel?.classList.add('mobile-open');
+    return;
+  }
+  if (module === 'chat') {
+    if (state.mobileChatCollapsed) {
+      state.mobileChatCollapsed = false;
+      try { localStorage.setItem('syncwatchMobileChatCollapsed', '0'); } catch (_) {}
+      applyMobileChatCollapsed();
+    }
+    elements.chatPanel?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    return;
+  }
+  elements.playerContainer?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function toggleMobilePanel(panel) {
+  const opening = !panel.classList.contains('mobile-open');
+  panel.classList.toggle('mobile-open', opening);
+  const other = panel === elements.filePanel ? elements.userPanel : elements.filePanel;
+  other.classList.remove('mobile-open');
+  setMobileModuleActive(opening ? panel === elements.filePanel ? 'library' : 'members' : 'watch');
+}
+
+function updateAdministrativeAccess() {
+  const allowed = Boolean(state.capabilities.owner || state.capabilities.serverHost || state.capabilities.superAdmin || state.permissions.manageRoom || state.permissions.manageChat);
+  const canShareWeb = Boolean(state.capabilities.owner || state.capabilities.serverHost || state.capabilities.superAdmin || state.permissions.shareWeb);
+  const button = document.querySelector('.tab-button[data-tab="admin"]'); button?.classList.toggle('is-hidden', !allowed);
+  elements.managementHubBtn?.classList.toggle('is-hidden', !state.authenticated || !allowed);
+  elements.lanScanBtn?.classList.remove('is-hidden');
+  elements.serverSettingsLoginBtn?.classList.toggle('is-hidden', state.authenticated && !(state.capabilities.serverHost || state.capabilities.superAdmin));
+  elements.changeCurrentRoomIdBtn?.classList.toggle('is-hidden', !state.authenticated || !(state.capabilities.owner || state.capabilities.superAdmin));
+  elements.convertTemporaryRoomBtn?.classList.toggle('is-hidden', !state.authenticated || !state.room?.temporary || !(state.capabilities.owner || state.capabilities.superAdmin || state.permissions.manageRoom));
+  elements.viewLocationAuthorizationsBtn?.classList.toggle('is-hidden', !state.authenticated || !canViewMemberLocations());
+  elements.syncThemeBtn?.classList.toggle('is-hidden', !canRequestThemeSync());
+  renderThemeSyncTargets(); renderTemporaryRoomNotice();
+  elements.noticeCenterBtn?.classList.toggle('is-hidden', !state.authenticated || !(state.capabilities.owner || state.capabilities.serverHost || state.capabilities.superAdmin || state.permissions.sendNotice));
+  elements.webShareBtn?.classList.toggle('is-hidden', !state.authenticated || !canShareWeb);
+  elements.conversionProgressBtn?.classList.toggle('is-hidden', !state.authenticated);
+  elements.quickDissolveRoomBtn?.classList.toggle('is-hidden', !state.authenticated || !state.capabilities.owner);
+  if (!allowed && !elements.adminTab.classList.contains('is-hidden')) switchSideTab('users');
+  const canManageChat = Boolean(state.authenticated && (state.capabilities.owner || state.capabilities.superAdmin || state.capabilities.serverHost || state.permissions.manageChat));
+  elements.chatManageBtn?.classList.add('is-hidden');
+  elements.operationHistoryBtn?.classList.add('is-hidden');
+  elements.managementChatManageBtn?.classList.toggle('is-hidden', !canManageChat);
+  if (!canManageChat) closeChatManager();
+}
+
+async function adminAction(action, extra = {}) { return emitAck('admin-action', { action, adminPassword: elements.adminPassword.value, ...extra }); }
+async function loadAdminSettings({ silent = false } = {}) {
+  if (!state.authenticated) {
+    if (silent) return;
+    const username = String(elements.adminUsername?.value || '').trim();
+    const password = String(elements.adminPassword?.value || '');
+    if (!username || !password) return toast('请输入超级管理员账号和密码', 'error');
+    const buttonText = elements.loadAdminBtn?.textContent || '验证并加载';
+    if (elements.loadAdminBtn) { elements.loadAdminBtn.disabled = true; elements.loadAdminBtn.textContent = '正在验证…'; }
+    try {
+      const loginResult = await emitAck('user-login', { username, password, roomId: '', roomPassword: '', ...deviceInfo() }, 30000);
+      if (!loginResult.success) return toast(loginResult.error || '超级管理员验证失败', 'error');
+      if (!loginResult.capabilities?.superAdmin) return toast('该账号不是超级管理员，不能打开服务器设置', 'error', 7000);
+      state.token = loginResult.token;
+      await finishAuthentication(loginResult, false);
+      if (!state.authenticated) return;
+    } catch (error) {
+      return toast(localizedError(error, '超级管理员验证失败'), 'error');
+    } finally {
+      if (elements.loadAdminBtn) { elements.loadAdminBtn.disabled = false; elements.loadAdminBtn.textContent = buttonText; }
+    }
+  }
+  const result = await adminAction('get-settings'); if (!result.success) return toast(result.error, 'error'); state.adminSettings = result.admin; hydratePersistentRequests(result.admin);
+  elements.managementAuth?.classList.toggle('is-hidden', Boolean(result.admin.serverAdmin));
+  if (result.admin.serverAdmin) {
+    if (elements.adminUsername) elements.adminUsername.value = '';
+    if (elements.adminPassword) elements.adminPassword.value = '';
+  }
+  elements.roomNameInput.value = result.admin.roomName; elements.maxUsersInput.value = result.admin.maxUsers; elements.uploadApprovalToggle.checked = result.admin.requireUploadApproval;
+  if (elements.roomAllowGuests) elements.roomAllowGuests.checked = result.admin.allowGuests !== false;
+  elements.uploadLimitMb.value = result.admin.uploadLimitBytes ? Math.round(result.admin.uploadLimitBytes / 1024 / 1024) : 0; elements.uploadTimeLimit.value = result.admin.uploadTimeLimitSeconds;
+  const mail = result.admin.mail || {};
+  elements.mailSettingsCard?.classList.toggle('is-hidden', !result.admin.serverAdmin);
+  elements.brandingSettingsCard?.classList.toggle('is-hidden', !result.admin.serverAdmin);
+  elements.passwordPolicyCard?.classList.toggle('is-hidden', !result.admin.serverAdmin);
+  elements.blockedWordsCard?.classList.toggle('is-hidden', !result.admin.serverAdmin);
+  elements.roomIdPolicyCard?.classList.toggle('is-hidden', !result.admin.serverAdmin);
+  elements.accountNumberPolicyCard?.classList.toggle('is-hidden', !result.admin.serverAdmin);
+  elements.accountTierCard?.classList.toggle('is-hidden', !result.admin.serverAdmin);
+  elements.watchLevelSettingsCard?.classList.toggle('is-hidden', !result.admin.serverAdmin);
+  elements.androidBuildSettingsCard?.classList.toggle('is-hidden', !result.admin.serverAdmin);
+  elements.adminContactSettingsCard?.classList.toggle('is-hidden', !result.admin.serverAdmin);
+  elements.legalAgreementSettingsCard?.classList.toggle('is-hidden', !result.admin.serverAdmin);
+  elements.dataBackupCard?.classList.toggle('is-hidden', !result.admin.serverAdmin);
+  elements.loginCubeSettingsCard?.classList.toggle('is-hidden', !result.admin.serverAdmin);
+  elements.marqueeSettingsCard?.classList.toggle('is-hidden', !result.admin.serverAdmin);
+  elements.loginMusicSettingsCard?.classList.toggle('is-hidden', !result.admin.serverAdmin);
+  elements.roomEntryNoticeSettingsCard?.classList.toggle('is-hidden', !(result.admin.serverAdmin || result.admin.roomEntryNoticeTargets?.length));
+  elements.lanAccessCard?.classList.toggle('is-hidden', !result.admin.serverAdmin);
+  elements.factoryResetCard?.classList.toggle('is-hidden', !result.admin.serverAdmin);
+  if (result.admin.serverAdmin) {
+    elements.serverLogsCard?.classList.remove('is-hidden');
+    elements.mailHost.value = mail.host || 'smtp.qq.com';
+    elements.mailPort.value = Number(mail.port) || 465;
+    elements.mailUser.value = mail.user || '';
+    elements.mailRecoveryEmail.value = mail.recoveryEmail || '';
+    elements.mailFromEmail.value = mail.fromEmail || mail.user || '';
+    elements.mailFromName.value = mail.fromName || 'SyncWatch';
+    elements.mailAuthCode.value = '';
+    elements.mailUseTls.checked = mail.useTls !== false;
+    elements.mailSecure.checked = mail.secure !== false;
+    elements.mailEnabled.checked = mail.enabled !== false;
+    elements.mailRegistrationVerification.checked = Boolean(mail.registrationVerificationEnabled);
+    elements.mailBindingVerification.checked = mail.bindingVerificationEnabled !== false;
+    elements.mailAccountRecovery.checked = mail.accountRecoveryEnabled !== false;
+    elements.mailAdminRecovery.checked = mail.adminRecoveryEnabled !== false;
+    elements.mailTemplateLanguage.value = mail.defaultLocale || 'zh-CN';
+    state.mailTemplateDrafts = JSON.parse(JSON.stringify(mail.templates || {}));
+    state.mailTemplateKey = '';
+    switchMailTemplateEditor();
+    state.verificationCodes = Array.isArray(result.admin.verificationCodes) ? result.admin.verificationCodes : state.verificationCodes;
+    renderVerificationCodes();
+    elements.requirePublicRoomPassword.checked = Boolean(result.admin.requireRoomPasswordForPublicAccess);
+    elements.publicPasswordPolicyStatus.textContent = result.admin.requireRoomPasswordForPublicAccess
+      ? '已开启：公网访问期间所有房间必须设置访问密码'
+      : '已关闭：可在无房间密码时开启公网访问';
+    renderLanAccessSetting(result.admin.lanAccessEnabled !== false);
+    elements.mailSettingsStatus.textContent = mail.configured
+      ? `${mail.enabled ? '已启用' : '已保存但未启用'} · ${mail.host || 'SMTP'}:${mail.port || 465} · ${mail.fromEmail || mail.user}`
+      : '尚未保存完整的 SMTP 账号与加密凭据';
+    elements.mailConfigurationBadge.textContent = mail.configured ? (mail.enabled ? '运行中' : '已保存') : '未配置';
+    elements.mailConfigurationBadge.classList.toggle('is-active', Boolean(mail.enabled && mail.configured));
+    const branding = result.admin.branding || state.publicConfig.branding || {};
+    elements.brandingOwner.value = branding.owner || 'xuan';
+    elements.brandingNotice.value = branding.notice || `版权所有 © ${branding.owner || 'xuan'}，保留所有权利。`;
+    elements.brandingStatus.textContent = '当前版权信息已同步到所有访问端';
+    const loginCube = result.admin.loginCube || state.publicConfig.loginCube || {};
+    state.publicConfig.loginCube = normalizeClientLoginCube(loginCube);
+    renderLoginCubeSettings(state.publicConfig.loginCube);
+    applyLoginCubeSettings(state.publicConfig.loginCube);
+    if (elements.loginCubeSettingsStatus) elements.loginCubeSettingsStatus.textContent = '六面内容和旋转参数已从服务器加载';
+    const passwordPolicy = result.admin.passwordPolicy || { mode: 'unrestricted', minLength: 6, maxLength: 72, expiryDays: 7 };
+    elements.passwordPolicyMode.value = passwordPolicy.mode;
+    elements.passwordPolicyMin.value = passwordPolicy.minLength;
+    elements.passwordPolicyMax.value = passwordPolicy.maxLength;
+    elements.passwordPolicyExpiryDays.value = Number(passwordPolicy.expiryDays) || 0;
+    elements.adminUnlimitedDevices.checked = result.admin.adminUnlimitedDevices !== false;
+    elements.passwordPolicyStatus.textContent = Number(passwordPolicy.expiryDays) > 0
+      ? `当前规则已用于注册、改密与管理员重置；密码每 ${passwordPolicy.expiryDays} 天需要修改`
+      : '当前规则已用于注册、改密与管理员重置；定期修改已关闭';
+    if (elements.blockedWordsInput) elements.blockedWordsInput.value = (result.admin.blockedWords || []).join('\n');
+    if (elements.blockedWordsStatus) elements.blockedWordsStatus.textContent = `当前启用 ${result.admin.blockedWords?.length || 0} 个屏蔽词`;
+    const roomIdPolicy = result.admin.roomIdPolicy || { enabled: false, mode: 'uppercase_alnum', minLength: 4, maxLength: 32, customPattern: '' };
+    const accountNumberPolicy = result.admin.accountNumberPolicy || { prefix: 'SW', separator: '-', digits: 6, nextNumber: 1 };
+    if (elements.accountIdPolicyPrefix) elements.accountIdPolicyPrefix.value = accountNumberPolicy.prefix || 'SW';
+    if (elements.accountIdPolicySeparator) elements.accountIdPolicySeparator.value = accountNumberPolicy.separator ?? '-';
+    if (elements.accountIdPolicyDigits) elements.accountIdPolicyDigits.value = accountNumberPolicy.digits || 6;
+    if (elements.accountIdPolicyNextNumber) elements.accountIdPolicyNextNumber.value = accountNumberPolicy.nextNumber || 1;
+    if (elements.accountIdPolicyStatus) elements.accountIdPolicyStatus.textContent = `当前规则：${accountNumberPolicy.prefix || 'SW'}${accountNumberPolicy.separator ?? '-'} + ${accountNumberPolicy.digits || 6} 位数字`;
+    elements.roomIdPolicyEnabled.checked = Boolean(roomIdPolicy.enabled); elements.roomIdPolicyMode.value = roomIdPolicy.mode || 'uppercase_alnum'; elements.roomIdPolicyMin.value = roomIdPolicy.minLength || 4; elements.roomIdPolicyMax.value = roomIdPolicy.maxLength || 32; elements.roomIdPolicyPattern.value = roomIdPolicy.customPattern || ''; elements.roomIdPolicyPatternLabel.classList.toggle('is-hidden', elements.roomIdPolicyMode.value !== 'custom'); elements.roomIdPolicyStatus.textContent = roomIdPolicy.enabled ? '房间号规则已启用' : '默认不限制规则';
+    const contact = result.admin.contact || {};
+    elements.adminContactLabel.value = contact.label || '联系服务器管理员'; elements.adminContactQq.value = contact.qq || '';
+    elements.adminContactWechat.value = contact.wechat || ''; elements.adminContactEmail.value = contact.email || '';
+    elements.adminContactPhone.value = contact.phone || ''; elements.adminContactNote.value = contact.note || '';
+    const agreement = result.admin.legalAgreement || state.publicConfig.legalAgreement || {};
+    elements.legalAgreementVersion.value = agreement.version || '2.1.5'; elements.legalAgreementTitle.value = agreement.title || '';
+    elements.legalAgreementText.value = agreement.text || '';
+    const marquee = result.admin.marqueeNotice || {};
+    elements.marqueeEnabled.checked = Boolean(marquee.enabled);
+    elements.marqueeLoginEnabled.checked = marquee.loginEnabled !== false;
+    elements.marqueeTextInput.value = marquee.text || '';
+    elements.marqueeColor.value = /^#[0-9a-f]{6}$/i.test(marquee.color || '') ? marquee.color : '#f3c96a';
+    elements.marqueeSpeed.value = Number(marquee.speed) || 30;
+    elements.marqueeScope.value = marquee.scope || 'all';
+    elements.marqueeStatus.textContent = marquee.enabled ? '当前正在滚动显示' : '当前未启用';
+    const loginMusic = result.admin.loginMusic || state.publicConfig.loginMusic || {};
+    state.publicConfig.loginMusic = normalizedLoginMusic({ enabled: false, title: '', url: '', volume: 0.3, loop: true, ...loginMusic });
+    if (elements.loginMusicEnabled) elements.loginMusicEnabled.checked = loginMusic.enabled === true;
+    if (elements.loginMusicTitle) elements.loginMusicTitle.value = loginMusic.title || '';
+    if (elements.loginMusicUrl) elements.loginMusicUrl.value = loginMusic.url || '';
+    if (elements.loginMusicVolume) elements.loginMusicVolume.value = Math.max(0, Math.min(1, Number(loginMusic.volume) || 0.3));
+    if (elements.loginMusicLoop) elements.loginMusicLoop.checked = loginMusic.loop !== false;
+    updateLoginMusicVolumeLabel();
+    renderLoginMusicTracks(state.publicConfig.loginMusic);
+    if (elements.loginMusicStatus) elements.loginMusicStatus.textContent = loginMusic.url ? `${loginMusic.enabled ? '已启用' : '已保存但未启用'} · ${loginMusic.title || '登录背景音乐'}` : '当前未设置登录音乐';
+    if (elements.registrationAccountNoticeToggle) {
+      elements.registrationAccountNoticeToggle.checked = result.admin.registrationAccountNoticeEnabled !== false;
+      elements.registrationAccountNoticeToggle.disabled = false;
+    }
+    const roomEntryNotice = result.admin.roomEntryNotice || state.publicConfig.roomEntryNotice || {};
+    state.publicConfig.roomEntryNotice = roomEntryNotice;
+    populateRoomEntryNoticeTargets(result.admin);
+    await loadTunnelStartupSettings({ silent: true });
+  }
+  if (!result.admin.serverAdmin && elements.registrationAccountNoticeToggle) {
+    elements.registrationAccountNoticeToggle.checked = result.admin.registrationAccountNoticeEnabled !== false;
+    elements.registrationAccountNoticeToggle.disabled = true;
+  }
+  elements.serverLogsCard?.classList.toggle('is-hidden', !result.admin.serverAdmin);
+  renderPermissionGroups(result.admin.permissionGroups || {});
+  if (elements.experiencePerMinute) elements.experiencePerMinute.value = Math.max(0, Number(result.admin.experiencePerMinute) || 0);
+  if (elements.experiencePolicyStatus) elements.experiencePolicyStatus.textContent = `当前规则：每观看一分钟获得 ${Math.max(0, Number(result.admin.experiencePerMinute) || 0)} 经验`;
+  renderWatchLevelSettings(result.admin.watchLevels || []);
+  renderAccountTiers(result.admin.accountTiers || {});
+  renderRegistrationRequests(result.admin.registrationRequests || []); renderRegistrationWhitelist(result.admin.registrationIpWhitelist || []);
+  renderRoomQuotaRequests(result.admin.roomQuotaRequests || []);
+  renderPending(result.admin.pendingFiles); renderBlacklist(result.admin.blacklist); renderAdminAccounts(result.admin.accounts); renderGlobalRooms(result.admin.rooms || []); applySelectedPermissions(); if (result.admin.serverAdmin) void loadServerLogs(); if (!silent) toast('管理设置已加载', 'success');
+}
+
+async function loadServerLogs() {
+  if (!state.adminSettings?.serverAdmin && !state.capabilities.superAdmin && !state.capabilities.serverHost) return;
+  const result = await emitAck('server-logs', {
+    adminPassword: elements.adminPassword?.value || '',
+    category: elements.serverLogCategory?.value || '', level: elements.serverLogLevel?.value || '',
+    query: elements.serverLogQuery?.value || '', limit: 300
+  }, 20000);
+  if (!result.success) { if (elements.serverLogList) elements.serverLogList.innerHTML = `<p class="muted">${escapeHtml(result.error || '日志读取失败')}</p>`; return; }
+  elements.serverLogsCard?.classList.remove('is-hidden');
+  const logs = Array.isArray(result.logs) ? result.logs : [];
+  elements.serverLogList.innerHTML = logs.length ? logs.map((entry) => `<article class="history-row"><div><strong>${escapeHtml(entry.summary || entry.action || '服务器事件')}</strong><p>${escapeHtml(entry.category || 'server')} · ${escapeHtml(entry.level || 'info')} · ${escapeHtml(entry.actorName || entry.actor || 'system')} · ${escapeHtml(entry.roomId || '')}</p><small>${formatDate(entry.timestamp)}${entry.reversible ? ' · 可回溯' : ' · 不可回溯'}</small></div></article>`).join('') : '<p class="muted">没有符合条件的日志</p>';
+}
+
+function initializeMailTemplatePresets() {
+  if (!elements.mailTemplatePreset) return;
+  elements.mailTemplatePreset.innerHTML = MAIL_TEMPLATE_PRESETS.map((preset, index) => `<option value="${preset.id}">${String(index + 1).padStart(2, '0')} · ${escapeHtml(preset.name)}</option>`).join('');
+  queueMicrotask(() => syncEnhancedSelect(elements.mailTemplatePreset));
+}
+
+function toggleMailTutorial() {
+  if (!elements.mailTutorialPanel || !elements.mailTutorialBtn) return;
+  const open = elements.mailTutorialPanel.classList.toggle('is-hidden') === false;
+  elements.mailTutorialBtn.setAttribute('aria-expanded', String(open));
+  elements.mailTutorialBtn.textContent = open ? '收起教程' : '配置教程';
+}
+
+function applyMailTemplatePreset() {
+  const preset = MAIL_TEMPLATE_PRESETS.find((item) => item.id === elements.mailTemplatePreset?.value) || MAIL_TEMPLATE_PRESETS[0];
+  if (!preset || !elements.mailTemplateSubject || !elements.mailTemplateHtml) return;
+  const resetFlow = elements.mailTemplateEvent?.value === 'passwordReset';
+  const english = elements.mailTemplateLanguage?.value === 'en-US';
+  const title = english ? (resetFlow ? 'Reset your SyncWatch password' : 'Verify your SyncWatch email') : (resetFlow ? '重置您的 SyncWatch 密码' : '验证您的 SyncWatch 邮箱');
+  const intro = english ? `Hello {{recipient_name}}, you requested to ${resetFlow ? 'reset the password for {{account_name}}' : '{{action_name}}'}.` : `您好，{{recipient_name}}。您正在${resetFlow ? '重置 {{account_name}} 的密码' : '进行“{{action_name}}”'}。`;
+  const reminder = english ? 'This one-time code expires in {{expires_in_minutes}} minutes. If this was not you, ignore this email.' : '验证码将在 {{expires_in_minutes}} 分钟后失效且仅可使用一次。如非本人操作，请忽略本邮件。';
+  elements.mailTemplateSubject.value = english ? `[{{site_name}}] ${title}` : `【{{site_name}}】${title}`;
+  const borderStyle = preset.layout === 'ticket' ? '2px dashed' : preset.layout === 'neon' ? '1px solid' : '1px solid';
+  const radius = preset.layout === 'paper' || preset.layout === 'letter' ? '2px' : preset.layout === 'ticket' ? '0' : '10px';
+  const codeBackground = preset.layout === 'neon' ? '#080b16' : preset.hue;
+  const codeColor = preset.layout === 'neon' ? preset.hue : '#111';
+  elements.mailTemplateHtml.value = `<!doctype html><html><body style="margin:0;background:${preset.background};color:#f7f2e8;font-family:${preset.fontFamily}"><table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="padding:32px 12px;background:${preset.background}"><tr><td align="center"><table role="presentation" width="620" cellspacing="0" cellpadding="0" style="max-width:620px;background:${preset.background};border:${borderStyle} ${preset.hue};border-radius:${radius}"><tr><td style="padding:30px"><div style="color:${preset.hue};font-size:12px;font-weight:700;letter-spacing:1px">{{site_name}} · ${preset.name} · ${preset.markup}</div><h1 style="margin:12px 0 18px;color:#fff;font-size:24px">${title}</h1><p style="color:#d3d0ca;line-height:1.8">${intro}</p><div style="margin:28px 0;padding:18px;text-align:center;color:${codeColor};background:${codeBackground};border:1px solid ${preset.hue};border-radius:${radius};font-size:34px;font-weight:800;letter-spacing:10px">{{verification_code}}</div><p style="color:#aaa49b;line-height:1.8">${reminder}</p><div style="margin-top:26px;padding-top:18px;border-top:1px solid #ffffff20;color:#807b73;font-size:12px">{{site_name}} · {{recipient_email}}</div></td></tr></table></td></tr></table></body></html>`;
+  updateMailTemplateDraft();
+  toast(`已应用第 ${MAIL_TEMPLATE_PRESETS.indexOf(preset) + 1} 套邮件模板：${preset.name}`, 'success');
+}
+
+function normalizedVerificationCodeRecord(record = {}) {
+  const expiresAt = Date.parse(record.expiresAt || record.expireAt || '') || Number(record.expiresAt || record.expireAt) || 0;
+  const used = Boolean(record.used || record.usedAt || record.status === 'used');
+  const expired = !used && (record.status === 'expired' || (expiresAt > 0 && expiresAt <= Date.now()));
+  return {
+    ...record, id: String(record.id || record.requestId || record.digestId || ''),
+    accountName: String(record.accountName || record.username || record.account || '未知账号'),
+    maskedEmail: String(record.maskedEmail || '').trim() || maskEmailAddress(record.email || ''),
+    type: String(record.type || record.purpose || record.kind || 'verification'),
+    status: used ? 'used' : expired ? 'expired' : 'active', expiresAt
+  };
+}
+
+function visibleVerificationCodes() {
+  const query = String(state.verificationCodeSearch || '').trim().toLocaleLowerCase('zh-CN');
+  return state.verificationCodes.map(normalizedVerificationCodeRecord).filter((record) => {
+    if (state.verificationCodeType && record.type !== state.verificationCodeType) return false;
+    if (state.verificationCodeStatus && record.status !== state.verificationCodeStatus) return false;
+    return !query || [record.accountName, record.maskedEmail, record.type].join(' ').toLocaleLowerCase('zh-CN').includes(query);
+  }).sort((left, right) => (Date.parse(right.createdAt || '') || 0) - (Date.parse(left.createdAt || '') || 0));
+}
+
+function renderVerificationCodes() {
+  if (!elements.verificationCodeList) return;
+  const records = visibleVerificationCodes();
+  const visibleIds = new Set(records.map((record) => record.id).filter(Boolean));
+  state.selectedVerificationCodes = new Set([...state.selectedVerificationCodes].filter((id) => state.verificationCodes.some((record) => String(record.id || record.requestId || record.digestId || '') === id)));
+  const labels = { registration: '注册验证', binding: '绑定邮箱', unbinding: '解绑邮箱', 'password-reset': '找回密码', 'admin-reset': '管理员找回', verification: '邮箱验证' };
+  elements.verificationCodeList.innerHTML = records.length ? records.map((record) => `<article class="admin-row verification-code-row"><label class="manage-select-row"><input data-verification-code-select type="checkbox" value="${escapeHtml(record.id)}" ${state.selectedVerificationCodes.has(record.id) ? 'checked' : ''}><span></span></label><div><strong>${escapeHtml(record.accountName)}</strong><p>${escapeHtml(record.maskedEmail)} · ${escapeHtml(labels[record.type] || record.type)}</p><small>${record.status === 'active' ? '有效' : record.status === 'used' ? '已使用' : '已过期'} · 创建于 ${formatDate(record.createdAt)}${record.expiresAt ? ` · 到期 ${formatDate(new Date(record.expiresAt).toISOString())}` : ''}</small></div></article>`).join('') : '<p class="muted">没有符合条件的验证码记录。</p>';
+  if (elements.verificationCodeSelectAll) {
+    const selectedVisible = [...visibleIds].filter((id) => state.selectedVerificationCodes.has(id));
+    elements.verificationCodeSelectAll.checked = Boolean(visibleIds.size && selectedVisible.length === visibleIds.size);
+    elements.verificationCodeSelectAll.indeterminate = Boolean(selectedVisible.length && selectedVisible.length < visibleIds.size);
+  }
+  if (elements.deleteSelectedVerificationCodesBtn) elements.deleteSelectedVerificationCodesBtn.disabled = !state.selectedVerificationCodes.size;
+}
+
+async function loadVerificationCodes() {
+  if (!state.adminSettings?.serverAdmin) return toast('请先验证服务器管理员密码并加载设置', 'error');
+  if (elements.refreshVerificationCodesBtn) elements.refreshVerificationCodesBtn.disabled = true;
+  try {
+    const result = await adminAction('get-verification-codes', { limit: 500 });
+    if (!result.success) return toast(result.error || '验证码记录读取失败', 'error');
+    state.verificationCodes = Array.isArray(result.records) ? result.records : Array.isArray(result.verificationCodes) ? result.verificationCodes : [];
+    renderVerificationCodes();
+  } finally { if (elements.refreshVerificationCodesBtn) elements.refreshVerificationCodesBtn.disabled = false; }
+}
+
+function toggleAllVerificationCodes() {
+  const ids = visibleVerificationCodes().map((record) => record.id).filter(Boolean);
+  if (elements.verificationCodeSelectAll?.checked) ids.forEach((id) => state.selectedVerificationCodes.add(id));
+  else ids.forEach((id) => state.selectedVerificationCodes.delete(id));
+  renderVerificationCodes();
+}
+
+function handleVerificationCodeSelection(event) {
+  const input = event.target.closest('[data-verification-code-select]');
+  if (!input) return;
+  input.checked ? state.selectedVerificationCodes.add(input.value) : state.selectedVerificationCodes.delete(input.value);
+  renderVerificationCodes();
+}
+
+async function deleteSelectedVerificationCodes() {
+  const ids = [...state.selectedVerificationCodes];
+  if (!ids.length) return toast('请先选择验证码记录', 'error');
+  const phrase = `删除 ${ids.length} 条验证码记录`;
+  const confirmation = await showAppInput({ title: '批量删除验证码记录', description: `删除后记录不可恢复。请输入“${phrase}”确认，也可一键填入。`, label: '确认文字', fillValue: phrase, maxLength: 60, confirmText: '确认删除', danger: true, validate: (value) => value === phrase ? '' : `请输入：${phrase}` });
+  if (confirmation === null) return;
+  const result = await adminAction('delete-verification-codes', { ids });
+  toast(result.message || result.error || '验证码记录删除完成', result.success ? 'success' : 'error');
+  if (result.success) { state.selectedVerificationCodes.clear(); await loadVerificationCodes(); }
+}
+
+function selectedMailTemplateKey() {
+  return `${elements.mailTemplateEvent?.value || 'verification'}:${elements.mailTemplateLanguage?.value || 'zh-CN'}`;
+}
+
+function updateMailTemplateDraft() {
+  if (!state.mailTemplateKey || !elements.mailTemplateSubject || !elements.mailTemplateHtml) return;
+  state.mailTemplateDrafts[state.mailTemplateKey] = {
+    subject: elements.mailTemplateSubject.value,
+    html: elements.mailTemplateHtml.value
+  };
+  previewMailTemplate();
+}
+
+function switchMailTemplateEditor() {
+  if (!elements.mailTemplateSubject || !elements.mailTemplateHtml) return;
+  if (state.mailTemplateKey) {
+    state.mailTemplateDrafts[state.mailTemplateKey] = {
+      subject: elements.mailTemplateSubject.value,
+      html: elements.mailTemplateHtml.value
+    };
+  }
+  state.mailTemplateKey = selectedMailTemplateKey();
+  const template = state.mailTemplateDrafts[state.mailTemplateKey] || { subject: '', html: '' };
+  elements.mailTemplateSubject.value = template.subject || '';
+  elements.mailTemplateHtml.value = template.html || '';
+  previewMailTemplate();
+}
+
+function previewMailTemplate() {
+  if (!elements.mailTemplatePreview || !elements.mailTemplateSubject || !elements.mailTemplateHtml) return;
+  const samples = {
+    site_name: 'SyncWatch', recipient_name: '张三', recipient_email: 'user@example.com',
+    verification_code: '123456', expires_in_minutes: '10', action_name: '邮箱验证', account_name: '账号 ZhangSan'
+  };
+  const replace = (value) => String(value || '').replace(/\{\{\s*([a-z_]+)\s*\}\}/gi, (_match, key) => samples[key] || '');
+  const subject = replace(elements.mailTemplateSubject.value).replace(/[\r\n]+/g, ' ').slice(0, 200);
+  const html = replace(elements.mailTemplateHtml.value);
+  const unsafe = /<\s*\/?\s*(?:script|iframe|object|embed|form|input|button|textarea|select|svg|math|base|link)\b/i.test(html)
+    || /\son[a-z]+\s*=|(?:javascript|vbscript)\s*:|data\s*:\s*text\/html|<meta\b[^>]*http-equiv\s*=\s*["']?refresh/i.test(html);
+  elements.mailTemplatePreviewSubject.textContent = subject || '未填写邮件主题';
+  const previewPolicy = '<meta http-equiv="Content-Security-Policy" content="default-src \'none\'; style-src \'unsafe-inline\'; img-src data: https:; font-src data:;">';
+  // Keep the template's inline styles and <style> blocks so the preview shows
+  // the real mail layout. The sandboxed iframe carries its own CSP meta that
+  // allows inline styles; the saved email template is delivered unchanged.
+  const previewHtml = html;
+  const safePreview = previewHtml
+    ? (/<head\b[^>]*>/i.test(previewHtml) ? previewHtml.replace(/<head\b[^>]*>/i, (match) => `${match}${previewPolicy}`) : `${previewPolicy}${previewHtml}`)
+    : `<body style="background:#f4f4f5;color:#1f2937;font-family:sans-serif;padding:24px">请在左侧填写 HTML 模板。</body>`;
+  elements.mailTemplatePreview.srcdoc = unsafe
+    ? `<!doctype html>${previewPolicy}<body><h2>预览已阻止</h2><p>模板包含脚本、表单、自动跳转或其他不安全内容，请删除后重试。</p></body>`
+    : safePreview;
+}
+
+function handleMailPlaceholderClick(event) {
+  const button = event.target.closest('[data-mail-placeholder]');
+  if (!button || !elements.mailTemplateHtml) return;
+  const placeholder = button.dataset.mailPlaceholder || '';
+  const input = elements.mailTemplateHtml;
+  const start = Number.isInteger(input.selectionStart) ? input.selectionStart : input.value.length;
+  const end = Number.isInteger(input.selectionEnd) ? input.selectionEnd : start;
+  input.setRangeText(placeholder, start, end, 'end');
+  input.focus(); updateMailTemplateDraft();
+}
+
+async function restoreMailTemplate() {
+  if (!state.adminSettings?.serverAdmin) return toast('请先验证服务器管理员密码并加载设置', 'error');
+  const event = elements.mailTemplateEvent.value;
+  const locale = elements.mailTemplateLanguage.value;
+  if (!await showAppConfirm('恢复后会覆盖当前事件和语言的自定义模板，其他模板不会改变。', {
+    title: '恢复官方邮件模板', confirmText: '确认恢复', danger: true
+  })) return;
+  elements.restoreMailTemplateBtn.disabled = true;
+  try {
+    const result = await adminAction('restore-mail-template', { event, locale });
+    if (!result.success) return toast(result.error, 'error');
+    state.adminSettings.mail = result.mail;
+    state.mailTemplateDrafts = JSON.parse(JSON.stringify(result.mail.templates || {}));
+    state.mailTemplateKey = '';
+    switchMailTemplateEditor();
+    toast(result.message, 'success');
+  } finally { elements.restoreMailTemplateBtn.disabled = false; }
+}
+
+async function testMailConnection() {
+  if (!state.adminSettings?.serverAdmin) return toast('请先验证服务器管理员密码并加载设置', 'error');
+  elements.testMailConnectionBtn.disabled = true;
+  elements.mailSettingsStatus.textContent = '正在验证 SMTP 连接、TLS 与登录凭据…';
+  try {
+    const result = await adminAction('test-mail-connection');
+    elements.mailSettingsStatus.textContent = result.message || result.error;
+    toast(result.message || result.error, result.success ? 'success' : 'error', 7000);
+  } finally { elements.testMailConnectionBtn.disabled = false; }
+}
+
+async function saveMailSettings() {
+  if (!state.adminSettings?.serverAdmin) return toast('请先验证服务器管理员密码并加载设置', 'error');
+  updateMailTemplateDraft();
+  elements.saveMailSettingsBtn.disabled = true;
+  try {
+    const result = await adminAction('set-mail-settings', {
+      host: elements.mailHost.value.trim(), port: Number(elements.mailPort.value),
+      user: elements.mailUser.value.trim(), password: elements.mailAuthCode.value,
+      recoveryEmail: elements.mailRecoveryEmail.value.trim(),
+      fromEmail: elements.mailFromEmail.value.trim(), fromName: elements.mailFromName.value.trim(),
+      useTls: elements.mailUseTls.checked, secure: elements.mailSecure.checked, enabled: elements.mailEnabled.checked,
+      registrationVerificationEnabled: elements.mailRegistrationVerification.checked,
+      bindingVerificationEnabled: elements.mailBindingVerification.checked,
+      accountRecoveryEnabled: elements.mailAccountRecovery.checked,
+      adminRecoveryEnabled: elements.mailAdminRecovery.checked,
+      defaultLocale: elements.mailTemplateLanguage.value,
+      templates: state.mailTemplateDrafts
+    });
+    toast(result.message || result.error, result.success ? 'success' : 'error', 7000);
+    if (!result.success) return;
+    elements.mailAuthCode.value = '';
+    state.adminSettings.mail = result.mail;
+    state.mailTemplateDrafts = JSON.parse(JSON.stringify(result.mail.templates || {}));
+    state.publicConfig.passwordRecoveryAvailable = Boolean(result.mail?.enabled && result.mail?.configured && (result.mail.accountRecoveryEnabled || result.mail.adminRecoveryEnabled));
+    state.publicConfig.registrationEmailVerificationRequired = Boolean(result.mail?.enabled && result.mail?.configured && result.mail.registrationVerificationEnabled);
+    state.publicConfig.emailBindingAvailable = Boolean(result.mail?.enabled && result.mail?.configured && result.mail.bindingVerificationEnabled);
+    applyPublicConfig();
+    elements.mailSettingsStatus.textContent = result.mail?.configured
+      ? `${result.mail.enabled ? '已启用' : '已保存但未启用'} · ${result.mail.host}:${result.mail.port} · ${result.mail.fromEmail}`
+      : '尚未保存完整的 SMTP 账号与加密凭据';
+    elements.mailConfigurationBadge.textContent = result.mail?.enabled && result.mail?.configured ? '运行中' : (result.mail?.configured ? '已保存' : '未配置');
+    elements.mailConfigurationBadge.classList.toggle('is-active', Boolean(result.mail?.enabled && result.mail?.configured));
+  } finally { elements.saveMailSettingsBtn.disabled = false; }
+}
+function revokeLoginCubeEditorObjectUrls() {
+  for (const [editor, entry] of state.loginCubeEditorObjectUrls) {
+    const url = typeof entry === 'string' ? entry : entry?.url;
+    if (url) URL.revokeObjectURL(url);
+    if (editor?.dataset) delete editor.dataset.loginCubePreviewObjectUrl;
+  }
+  state.loginCubeEditorObjectUrls.clear();
+}
+
+function releaseLoginCubeEditorObjectUrl(editor) {
+  if (!editor) return;
+  const entry = state.loginCubeEditorObjectUrls.get(editor);
+  const url = typeof entry === 'string' ? entry : entry?.url || editor.dataset?.loginCubePreviewObjectUrl;
+  if (!url) return;
+  URL.revokeObjectURL(url);
+  state.loginCubeEditorObjectUrls.delete(editor);
+  delete editor.dataset.loginCubePreviewObjectUrl;
+}
+
+function updateLoginCubeSpeedLabel() {
+  if (!elements.loginCubeRotationSpeedValue || !elements.loginCubeRotationSpeed) return;
+  const value = Math.max(0, Math.min(18, Number(elements.loginCubeRotationSpeed.value) || 0));
+  elements.loginCubeRotationSpeedValue.textContent = `${value.toFixed(value % 1 ? 1 : 0)}°/秒`;
+}
+
+function renderLoginCubeSettings(value = state.adminSettings?.loginCube || state.publicConfig.loginCube) {
+  if (!elements.loginCubeSettingsGrid) return;
+  const settings = normalizeClientLoginCube(value);
+  revokeLoginCubeEditorObjectUrls();
+  if (elements.loginCubeDisplayMode) elements.loginCubeDisplayMode.value = settings.displayMode;
+  if (elements.loginCubeRotationDirection) elements.loginCubeRotationDirection.value = settings.rotationDirection;
+  if (elements.loginCubeAutoRotate) elements.loginCubeAutoRotate.checked = settings.autoRotate;
+  if (elements.loginCubeInertia) elements.loginCubeInertia.checked = settings.inertia;
+  if (elements.loginCubeRotationSpeed) elements.loginCubeRotationSpeed.value = settings.rotationSpeed;
+  if (elements.loginCubeDisplayMode) {
+    const modelOption = elements.loginCubeDisplayMode.querySelector('option[value="model"]');
+    if (modelOption) modelOption.disabled = !settings.model.url;
+    elements.loginCubeDisplayMode.title = settings.model.url ? '' : '上传并通过服务器校验后可选用自定义模型';
+  }
+  if (elements.loginCubeModelStatus) {
+    elements.loginCubeModelStatus.textContent = settings.model.url
+      ? `当前模型：${settings.model.originalName || 'login-model.glb'} · ${formatSize(settings.model.size)}`
+      : '当前未上传自定义模型';
+  }
+  if (elements.deleteLoginCubeModelBtn) elements.deleteLoginCubeModelBtn.disabled = !settings.model.url;
+  updateLoginCubeSpeedLabel();
+  elements.loginCubeSettingsGrid.innerHTML = settings.faces.map((face) => `
+    <article class="login-cube-face-editor" data-login-cube-face-editor="${face.id}">
+      <div class="login-cube-editor-preview" data-login-cube-editor-preview>${face.image ? `<img src="${escapeHtml(face.image)}" alt="">` : `<span>${escapeHtml(face.icon || '◇')}</span>`}<strong>${escapeHtml(face.title || face.label)}</strong></div>
+      <div class="login-cube-editor-fields">
+        <div class="login-cube-editor-heading"><strong>${escapeHtml(face.label)}</strong><small>${escapeHtml(face.id)}</small></div>
+        <div class="login-cube-editor-title-row"><label>图标<input data-login-cube-field="icon" maxlength="16" value="${escapeHtml(face.icon)}" placeholder="例如 🎬"></label><label>标题<input data-login-cube-field="title" maxlength="60" value="${escapeHtml(face.title)}"></label></div>
+        <label>说明文字<textarea data-login-cube-field="text" maxlength="240" rows="2">${escapeHtml(face.text)}</textarea></label>
+        <label>图片地址（选填）<input data-login-cube-field="image" maxlength="2048" value="${escapeHtml(face.image)}" placeholder="https://... 或上传本地图片"></label>
+        <div class="login-cube-image-actions"><label class="secondary-button login-cube-file-button">选择图片<input data-login-cube-image-file type="file" accept="image/png,image/jpeg,image/webp,image/gif"></label><button data-login-cube-clear-image class="text-button" type="button">清除图片</button></div>
+      </div>
+    </article>`).join('');
+}
+
+function updateLoginCubeEditorPreview(editor) {
+  const preview = editor?.querySelector('[data-login-cube-editor-preview]');
+  if (!preview) return;
+  const icon = editor.querySelector('[data-login-cube-field="icon"]')?.value || '◇';
+  const title = editor.querySelector('[data-login-cube-field="title"]')?.value || '未设置标题';
+  const imageUrl = editor.querySelector('[data-login-cube-field="image"]')?.value.trim() || '';
+  const selectedFile = editor.querySelector('[data-login-cube-image-file]')?.files?.[0];
+  let previewUrl = imageUrl;
+  if (selectedFile) {
+    const previous = state.loginCubeEditorObjectUrls.get(editor);
+    if (previous?.file === selectedFile && previous.url) previewUrl = previous.url;
+    else {
+      releaseLoginCubeEditorObjectUrl(editor);
+      previewUrl = URL.createObjectURL(selectedFile);
+      editor.dataset.loginCubePreviewObjectUrl = previewUrl;
+      state.loginCubeEditorObjectUrls.set(editor, { url: previewUrl, file: selectedFile });
+    }
+  } else {
+    releaseLoginCubeEditorObjectUrl(editor);
+  }
+  preview.innerHTML = `${previewUrl ? `<img src="${escapeHtml(previewUrl)}" alt="">` : `<span>${escapeHtml(icon)}</span>`}<strong>${escapeHtml(title)}</strong>`;
+}
+
+function handleLoginCubeEditorPreview(event) {
+  const editor = event.target.closest('[data-login-cube-face-editor]');
+  if (!editor) return;
+  if (event.target.matches('[data-login-cube-image-file]')) {
+    const file = event.target.files?.[0];
+    if (file && (!/^image\/(?:png|jpeg|webp|gif)$/i.test(file.type) || file.size > 2 * 1024 * 1024)) {
+      event.target.value = '';
+      toast('立方体图片仅支持 PNG、JPG、WebP、GIF，且单张不能超过 2 MB', 'error');
+    } else if (file) {
+      const imageField = editor.querySelector('[data-login-cube-field="image"]');
+      if (imageField) imageField.value = '';
+    }
+  } else if (event.target.matches('[data-login-cube-field="image"]')) {
+    const fileField = editor.querySelector('[data-login-cube-image-file]');
+    if (fileField?.files?.length) fileField.value = '';
+  }
+  updateLoginCubeEditorPreview(editor);
+}
+
+function handleLoginCubeEditorAction(event) {
+  const button = event.target.closest('[data-login-cube-clear-image]');
+  if (!button) return;
+  const editor = button.closest('[data-login-cube-face-editor]');
+  const image = editor?.querySelector('[data-login-cube-field="image"]');
+  const file = editor?.querySelector('[data-login-cube-image-file]');
+  if (image) image.value = '';
+  if (file) file.value = '';
+  updateLoginCubeEditorPreview(editor);
+}
+
+function resetLoginCubeSettingsEditor() {
+  renderLoginCubeSettings({ displayMode: 'cube', rotationDirection: 'right', autoRotate: true, inertia: true, rotationSpeed: 16, faces: LOGIN_CUBE_FACE_DEFAULTS, model: state.publicConfig.loginCube?.model || {} });
+  if (elements.loginCubeSettingsStatus) elements.loginCubeSettingsStatus.textContent = '已恢复默认预览，点击“保存并同步”后生效。';
+}
+
+function validateSelectedLoginCubeModel() {
+  const file = elements.loginCubeModelFile?.files?.[0];
+  if (!file) return;
+  const validName = /\.glb$/i.test(file.name);
+  if (!validName || file.size < 20 || file.size > 25 * 1024 * 1024) {
+    elements.loginCubeModelFile.value = '';
+    const message = validName ? 'GLB 模型必须小于 25 MB 且不能是空文件' : '仅支持单文件 .glb，不支持 .gltf 或外部资源';
+    if (elements.loginCubeModelStatus) elements.loginCubeModelStatus.textContent = message;
+    toast(message, 'error');
+    return;
+  }
+  if (elements.loginCubeModelStatus) elements.loginCubeModelStatus.textContent = `待上传：${file.name} · ${formatSize(file.size)}`;
+}
+
+async function uploadLoginCubeModel() {
+  if (!state.adminSettings?.serverAdmin) return toast('请先验证服务器管理员身份并加载设置', 'error');
+  const file = elements.loginCubeModelFile?.files?.[0];
+  if (!file) return toast('请先选择一个单文件 GLB 模型', 'error');
+  validateSelectedLoginCubeModel();
+  if (!elements.loginCubeModelFile?.files?.[0]) return;
+  elements.uploadLoginCubeModelBtn.disabled = true;
+  if (elements.loginCubeModelStatus) elements.loginCubeModelStatus.textContent = '正在上传并由服务器校验 GLB…';
+  try {
+    const result = await uploadFileWithProgress('/api/login-cube-model', 'model', file, elements.loginCubeModelUploadProgress);
+    state.loginCubeModelFailedUrl = '';
+    state.adminSettings.loginCube = normalizeClientLoginCube(result.loginCube);
+    state.publicConfig.loginCube = state.adminSettings.loginCube;
+    renderLoginCubeSettings(state.publicConfig.loginCube);
+    applyLoginCubeSettings(state.publicConfig.loginCube);
+    elements.loginCubeModelFile.value = '';
+    if (elements.loginCubeModelStatus) elements.loginCubeModelStatus.textContent = result.message;
+    toast(result.message, 'success', 5000);
+  } catch (error) {
+    const message = localizedError(error, 'GLB 模型上传失败');
+    if (elements.loginCubeModelStatus) elements.loginCubeModelStatus.textContent = message;
+    toast(message, 'error', 7000);
+  } finally { elements.uploadLoginCubeModelBtn.disabled = false; }
+}
+
+async function deleteLoginCubeModel() {
+  if (!state.adminSettings?.serverAdmin) return toast('请先验证服务器管理员身份并加载设置', 'error');
+  const model = normalizeClientLoginCube(state.adminSettings.loginCube).model;
+  if (!model.url) return;
+  if (!await showAppConfirm(`确定删除登录模型“${model.originalName || 'login-model.glb'}”吗？正在使用时会恢复为 3D 立方体。`, {
+    title: '删除自定义登录模型', confirmText: '确认删除', danger: true
+  })) return;
+  elements.deleteLoginCubeModelBtn.disabled = true;
+  try {
+    const response = await fetchWithTimeout('/api/login-cube-model', { method: 'DELETE', headers: authHeaders() }, 20000);
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok || !result.success) throw new Error(result.error || `删除失败（${response.status}）`);
+    state.loginCubeModelGeneration += 1;
+    state.loginCubeModelUrl = '';
+    state.loginCubeModelFailedUrl = '';
+    for (const child of [...(state.loginCubeModelRoot?.children || [])]) {
+      state.loginCubeModelRoot.remove(child); disposeLoginCubeObject(child);
+    }
+    state.adminSettings.loginCube = normalizeClientLoginCube(result.loginCube);
+    state.publicConfig.loginCube = state.adminSettings.loginCube;
+    renderLoginCubeSettings(state.publicConfig.loginCube);
+    applyLoginCubeSettings(state.publicConfig.loginCube);
+    toast(result.message, 'success');
+  } catch (error) {
+    toast(localizedError(error, '删除自定义模型失败'), 'error');
+    elements.deleteLoginCubeModelBtn.disabled = false;
+  }
+}
+
+function imageFileDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.addEventListener('load', () => resolve(String(reader.result || '')), { once: true });
+    reader.addEventListener('error', () => reject(new Error('读取图片失败')), { once: true });
+    reader.readAsDataURL(file);
+  });
+}
+
+async function saveLoginCubeSettings() {
+  if (!state.adminSettings?.serverAdmin) return toast('请先验证服务器管理员身份并加载设置', 'error');
+  const editors = [...(elements.loginCubeSettingsGrid?.querySelectorAll('[data-login-cube-face-editor]') || [])];
+  const faces = editors.map((editor) => ({
+    id: editor.dataset.loginCubeFaceEditor,
+    icon: editor.querySelector('[data-login-cube-field="icon"]')?.value || '',
+    title: editor.querySelector('[data-login-cube-field="title"]')?.value || '',
+    text: editor.querySelector('[data-login-cube-field="text"]')?.value || '',
+    image: editor.querySelector('[data-login-cube-field="image"]')?.value.trim() || '',
+    file: editor.querySelector('[data-login-cube-image-file]')?.files?.[0] || null
+  }));
+  elements.saveLoginCubeSettingsBtn.disabled = true;
+  if (elements.loginCubeSettingsStatus) elements.loginCubeSettingsStatus.textContent = '正在上传图片并同步六面设置…';
+  try {
+    for (const face of faces) {
+      if (!face.file) continue;
+      const upload = await adminAction('set-login-cube-image', { faceId: face.id, dataUrl: await imageFileDataUrl(face.file) });
+      if (!upload.success) throw new Error(upload.error || `${face.id} 面图片上传失败`);
+      face.image = upload.image;
+    }
+    const result = await adminAction('set-login-cube-settings', {
+      displayMode: elements.loginCubeDisplayMode?.value || 'cube',
+      rotationDirection: elements.loginCubeRotationDirection?.value || 'right',
+      autoRotate: elements.loginCubeAutoRotate?.checked !== false,
+      inertia: elements.loginCubeInertia?.checked !== false,
+      rotationSpeed: Number(elements.loginCubeRotationSpeed?.value) || 0,
+      faces: faces.map(({ file, ...face }) => face),
+      model: state.publicConfig.loginCube?.model || {}
+    });
+    if (!result.success) throw new Error(result.error || '保存登录立方体失败');
+    state.adminSettings.loginCube = result.loginCube;
+    state.publicConfig.loginCube = result.loginCube;
+    applyLoginCubeSettings(result.loginCube);
+    renderLoginCubeSettings(result.loginCube);
+    if (elements.loginCubeSettingsStatus) elements.loginCubeSettingsStatus.textContent = result.message;
+    toast(result.message, 'success', 6000);
+  } catch (error) {
+    const message = localizedError(error, '保存登录立方体失败');
+    if (elements.loginCubeSettingsStatus) elements.loginCubeSettingsStatus.textContent = message;
+    toast(message, 'error', 7000);
+  } finally { elements.saveLoginCubeSettingsBtn.disabled = false; }
+}
+
+async function saveBranding() {
+  if (!state.adminSettings?.serverAdmin) return toast('请先验证服务器管理员密码并加载设置', 'error');
+  const owner = elements.brandingOwner.value.trim();
+  const notice = elements.brandingNotice.value.trim();
+  if (!owner) return toast('版权所有者名称不能为空', 'error');
+  elements.saveBrandingBtn.disabled = true;
+  try {
+    const result = await adminAction('set-branding', { owner, notice });
+    if (!result.success) return toast(result.error, 'error');
+    state.adminSettings.branding = result.branding;
+    state.publicConfig = { ...state.publicConfig, branding: result.branding };
+    elements.brandingOwner.value = result.branding.owner;
+    elements.brandingNotice.value = result.branding.notice;
+    elements.brandingStatus.textContent = result.message;
+    applyPublicConfig(); toast(result.message, 'success');
+  } finally { elements.saveBrandingBtn.disabled = false; }
+}
+async function saveMarqueeSettings() {
+  if (!state.adminSettings?.serverAdmin) return toast('请先验证服务器管理员密码并加载设置', 'error');
+  const result = await adminAction('set-marquee-notice', {
+    enabled: elements.marqueeEnabled.checked, loginEnabled: elements.marqueeLoginEnabled.checked,
+    text: elements.marqueeTextInput.value.trim(), color: elements.marqueeColor.value,
+    speed: Number(elements.marqueeSpeed.value) || 30, scope: elements.marqueeScope.value
+  });
+  elements.marqueeStatus.textContent = result.message || result.error || '';
+  if (result.success) {
+    state.adminSettings.marqueeNotice = result.marqueeNotice;
+    state.publicConfig.marqueeNotice = result.marqueeNotice;
+    applyRoomMarquee(result.marqueeNotice); applyLoginMarquee(result.marqueeNotice);
+    toast(result.message, 'success', 6000);
+  }
+  else toast(result.error || '保存滚动公告失败', 'error');
+}
+function populateRoomEntryNoticeTargets(admin = state.adminSettings || {}) {
+  if (!elements.roomEntryNoticeScope) return;
+  const previous = elements.roomEntryNoticeScope.value;
+  const targets = Array.isArray(admin.roomEntryNoticeTargets) ? admin.roomEntryNoticeTargets : [];
+  const options = [];
+  if (admin.serverAdmin) options.push('<option value="global">全服务器默认通知</option>');
+  options.push(...targets.map((room) => `<option value="${escapeHtml(room.id)}">房间：${escapeHtml(room.name || '私人影院')}（${escapeHtml(room.id)}）</option>`));
+  elements.roomEntryNoticeScope.innerHTML = options.join('');
+  const available = new Set([...(admin.serverAdmin ? ['global'] : []), ...targets.map((room) => room.id)]);
+  const preferred = available.has(previous) ? previous
+    : targets.some((room) => room.id === state.room?.id) ? state.room.id
+      : admin.serverAdmin ? 'global' : targets[0]?.id || '';
+  elements.roomEntryNoticeScope.value = preferred;
+  syncEnhancedSelect(elements.roomEntryNoticeScope);
+  renderRoomEntryNoticeEditor();
+}
+
+function renderRoomEntryNoticeEditor() {
+  if (!elements.roomEntryNoticeScope || !state.adminSettings) return;
+  const scopeValue = elements.roomEntryNoticeScope.value;
+  const globalScope = scopeValue === 'global';
+  const target = state.adminSettings.roomEntryNoticeTargets?.find((room) => room.id === scopeValue);
+  const inherited = Boolean(!globalScope && target && !target.notice);
+  const notice = globalScope ? state.adminSettings.roomEntryNotice || {} : target?.notice || target?.effectiveNotice || state.adminSettings.roomEntryNotice || {};
+  if (elements.roomEntryNoticeEnabled) elements.roomEntryNoticeEnabled.checked = Boolean(notice.enabled);
+  if (elements.roomEntryNoticeText) elements.roomEntryNoticeText.value = notice.text || '';
+  elements.resetRoomEntryNoticeBtn?.classList.toggle('is-hidden', globalScope || inherited);
+  if (elements.saveRoomEntryNoticeBtn) elements.saveRoomEntryNoticeBtn.textContent = globalScope ? '保存全服务器默认通知' : '保存此房间通知';
+  if (elements.roomEntryNoticeStatus) {
+    elements.roomEntryNoticeStatus.textContent = inherited
+      ? `当前继承全服务器默认通知${notice.enabled ? '（已启用）' : '（未启用）'}`
+      : notice.enabled
+        ? `当前已启用${notice.updatedAt ? ` · 更新于 ${formatDate(notice.updatedAt)}` : ''}`
+        : '当前未启用进房通知';
+  }
+}
+
+async function saveRoomEntryNoticeSettings() {
+  if (!state.adminSettings) return toast('请先加载管理设置', 'error');
+  const scopeValue = elements.roomEntryNoticeScope?.value || 'global';
+  const globalScope = scopeValue === 'global';
+  if (globalScope && !state.adminSettings.serverAdmin) return toast('只有超级管理员可以修改全服务器默认通知', 'error');
+  const result = await adminAction('set-room-entry-notice', {
+    scope: globalScope ? 'global' : 'room', roomId: globalScope ? '' : scopeValue,
+    enabled: elements.roomEntryNoticeEnabled?.checked === true,
+    text: elements.roomEntryNoticeText?.value.trim() || ''
+  });
+  if (elements.roomEntryNoticeStatus) elements.roomEntryNoticeStatus.textContent = result.message || result.error || '';
+  if (!result.success) return toast(result.error || '保存进房通知失败', 'error');
+  if (globalScope) {
+    state.adminSettings.roomEntryNotice = result.roomEntryNotice;
+    state.publicConfig.roomEntryNotice = result.roomEntryNotice;
+    for (const target of state.adminSettings.roomEntryNoticeTargets || []) if (!target.notice) target.effectiveNotice = { ...result.roomEntryNotice, scope: 'global', roomId: target.id };
+  } else {
+    const target = state.adminSettings.roomEntryNoticeTargets?.find((room) => room.id === scopeValue);
+    if (target) { target.notice = result.roomEntryNotice; target.effectiveNotice = result.roomEntryNotice; }
+  }
+  renderRoomEntryNoticeEditor();
+  toast(result.message || '进房通知已保存', 'success');
+}
+
+async function resetRoomEntryNoticeSettings() {
+  const roomId = elements.roomEntryNoticeScope?.value || '';
+  const target = state.adminSettings?.roomEntryNoticeTargets?.find((room) => room.id === roomId);
+  if (!target?.notice) return;
+  if (!await showAppConfirm(`确定让房间“${target.name}（${target.id}）”恢复使用全服务器默认进房通知吗？`, {
+    title: '恢复全局通知', confirmText: '恢复默认'
+  })) return;
+  const result = await adminAction('set-room-entry-notice', { scope: 'room', roomId, inheritGlobal: true });
+  if (!result.success) return toast(result.error || '恢复全局通知失败', 'error');
+  target.notice = null; target.effectiveNotice = result.roomEntryNotice;
+  renderRoomEntryNoticeEditor();
+  toast(result.message || '已恢复全局默认通知', 'success');
+}
+async function savePasswordPolicy() {
+  if (!state.adminSettings?.serverAdmin) return toast('请先验证服务器管理员密码并加载设置', 'error');
+  const result = await adminAction('set-password-policy', {
+    mode: elements.passwordPolicyMode.value, minLength: Number(elements.passwordPolicyMin.value), maxLength: Number(elements.passwordPolicyMax.value),
+    expiryDays: Number(elements.passwordPolicyExpiryDays.value)
+  });
+  if (!result.success) return toast(result.error, 'error');
+  const deviceResult = await adminAction('set-admin-multi-device', { enabled: elements.adminUnlimitedDevices.checked });
+  if (!deviceResult.success) return toast(deviceResult.error, 'error');
+  state.publicConfig.passwordPolicy = result.passwordPolicy;
+  state.adminSettings.passwordPolicy = result.passwordPolicy;
+  state.adminSettings.adminUnlimitedDevices = deviceResult.enabled;
+  const expiryText = Number(result.passwordPolicy.expiryDays) > 0 ? `密码每 ${result.passwordPolicy.expiryDays} 天需要修改` : '定期修改已关闭';
+  elements.passwordPolicyStatus.textContent = `${result.message}；${expiryText}；${deviceResult.message}`;
+  applyPublicConfig(); toast('密码与登录策略已保存', 'success');
+}
+async function saveBlockedWords() {
+  if (!state.adminSettings?.serverAdmin) return toast('请先验证服务器管理员密码并加载设置', 'error');
+  const blockedWords = String(elements.blockedWordsInput?.value || '').split(/[\r\n,，]+/).map((word) => word.trim()).filter(Boolean);
+  const result = await adminAction('set-blocked-words', { blockedWords });
+  if (!result.success) return toast(result.error || '屏蔽词保存失败', 'error');
+  state.adminSettings.blockedWords = result.blockedWords || [];
+  elements.blockedWordsInput.value = state.adminSettings.blockedWords.join('\n');
+  elements.blockedWordsStatus.textContent = result.message || `当前启用 ${state.adminSettings.blockedWords.length} 个屏蔽词`;
+  toast(result.message || '屏蔽词已保存', 'success');
+}
+async function saveRoomIdPolicy() {
+  if (!state.adminSettings?.serverAdmin) return toast('请先验证服务器管理员密码并加载设置', 'error');
+  const policy = {
+    enabled: elements.roomIdPolicyEnabled.checked,
+    mode: elements.roomIdPolicyMode.value,
+    minLength: Number(elements.roomIdPolicyMin.value), maxLength: Number(elements.roomIdPolicyMax.value),
+    customPattern: elements.roomIdPolicyPattern.value
+  };
+  const result = await adminAction('set-room-id-policy', { policy });
+  toast(result.message || result.error, result.success ? 'success' : 'error');
+  if (!result.success) return;
+  state.adminSettings.roomIdPolicy = result.roomIdPolicy; state.publicConfig.roomIdPolicy = result.roomIdPolicy;
+  elements.roomIdPolicyStatus.textContent = result.message; applyPublicConfig();
+}
+
+async function saveAccountIdPolicy() {
+  if (!state.adminSettings?.serverAdmin) return toast('请先验证服务器管理员密码并加载设置', 'error');
+  const result = await adminAction('set-account-number-policy', {
+    prefix: elements.accountIdPolicyPrefix?.value || 'SW',
+    separator: elements.accountIdPolicySeparator?.value || '-',
+    digits: Number(elements.accountIdPolicyDigits?.value) || 6,
+    nextNumber: Number(elements.accountIdPolicyNextNumber?.value) || 1
+  });
+  if (!result.success) return toast(result.error || '保存账户编号规则失败', 'error');
+  state.adminSettings.accountNumberPolicy = result.accountNumberPolicy || result.policy || state.adminSettings.accountNumberPolicy;
+  const policy = state.adminSettings.accountNumberPolicy || {};
+  if (elements.accountIdPolicyPrefix) elements.accountIdPolicyPrefix.value = policy.prefix || 'SW';
+  if (elements.accountIdPolicySeparator) elements.accountIdPolicySeparator.value = policy.separator ?? '-';
+  if (elements.accountIdPolicyDigits) elements.accountIdPolicyDigits.value = policy.digits || 6;
+  if (elements.accountIdPolicyNextNumber) elements.accountIdPolicyNextNumber.value = policy.nextNumber || 1;
+  if (elements.accountIdPolicyStatus) elements.accountIdPolicyStatus.textContent = result.message || '账户编号规则已保存';
+  toast('账户编号规则已更新', 'success');
+}
+function renderAccountTiers(tiers = {}) {
+  const entries = Object.values(tiers).sort((left, right) => String(left.name).localeCompare(String(right.name), 'zh-CN'));
+  elements.accountTierList.innerHTML = entries.map((tier) => `<div class="admin-row" data-tier-id="${escapeHtml(tier.id)}"><header><strong>${escapeHtml(tier.name)}</strong><small>${escapeHtml(tier.id)} · ${Number(tier.uploadLimitBytes) ? formatSize(tier.uploadLimitBytes) : '不限上传'} · ${Number(tier.roomQuota) ? `${tier.roomQuota} 个房间` : '不限房间'}</small></header><small>${escapeHtml(tier.description || '')}</small><div class="actions"><button data-tier-action="edit" type="button">查看/编辑</button>${['basic','advanced','professional','s_node'].includes(tier.id) ? '' : '<button data-tier-action="delete" type="button">删除</button>'}</div></div>`).join('') || '<p class="muted">暂无权限等级</p>';
+}
+function openAccountTierEditor(tierId = '') {
+  const tier = state.adminSettings?.accountTiers?.[tierId] || {};
+  elements.accountTierEditor.classList.remove('is-hidden'); elements.accountTierId.value = tier.id || ''; elements.accountTierId.readOnly = Boolean(tier.id);
+  elements.accountTierName.value = tier.name || ''; elements.accountTierUploadGb.value = Number(tier.uploadLimitBytes) ? (Number(tier.uploadLimitBytes) / 1024 / 1024 / 1024).toFixed(1) : 0;
+  elements.accountTierRoomQuota.value = Number(tier.roomQuota) || 0; elements.accountTierDescription.value = tier.description || '';
+}
+function closeAccountTierEditor() { elements.accountTierEditor?.classList.add('is-hidden'); }
+async function saveAccountTier() {
+  if (!state.adminSettings?.serverAdmin) return toast('请先验证服务器管理员密码并加载设置', 'error');
+  const result = await adminAction('save-account-tier', { tierId: elements.accountTierId.value.trim(), name: elements.accountTierName.value.trim(), uploadLimitBytes: Math.floor(Number(elements.accountTierUploadGb.value || 0) * 1024 * 1024 * 1024), roomQuota: Number(elements.accountTierRoomQuota.value || 0), description: elements.accountTierDescription.value.trim() });
+  toast(result.message || result.error, result.success ? 'success' : 'error');
+  if (result.success) { state.adminSettings.accountTiers = result.accountTiers; renderAccountTiers(result.accountTiers); closeAccountTierEditor(); }
+}
+async function handleAccountTierAction(event) {
+  const button = event.target.closest('[data-tier-action]'); if (!button) return;
+  const tierId = button.closest('[data-tier-id]')?.dataset.tierId; if (!tierId) return;
+  if (button.dataset.tierAction === 'edit') return openAccountTierEditor(tierId);
+  if (!await showAppConfirm('删除该权限等级后，使用它的账号会恢复基础等级。', { title: '删除权限等级', confirmText: '删除', danger: true })) return;
+  const result = await adminAction('delete-account-tier', { tierId }); toast(result.message || result.error, result.success ? 'success' : 'error');
+  if (result.success) { state.adminSettings.accountTiers = result.accountTiers; renderAccountTiers(result.accountTiers); }
+}
+async function saveAdminContact() {
+  if (!state.adminSettings?.serverAdmin) return toast('请先验证服务器管理员密码并加载设置', 'error');
+  const contact = {
+    label: elements.adminContactLabel.value, qq: elements.adminContactQq.value, wechat: elements.adminContactWechat.value,
+    email: elements.adminContactEmail.value, phone: elements.adminContactPhone.value, note: elements.adminContactNote.value
+  };
+  const result = await adminAction('set-admin-contact', { contact });
+  if (!result.success) return toast(result.error, 'error');
+  state.adminSettings.contact = result.contact; state.publicConfig.contact = result.contact;
+  elements.adminContactStatus.textContent = result.message; applyPublicConfig(); toast(result.message, 'success');
+}
+async function saveLegalAgreement() {
+  if (!state.adminSettings?.serverAdmin) return toast('请先验证服务器管理员密码并加载设置', 'error');
+  if (!await showAppConfirm('发布新协议版本后，所有账号下次进入时都需要重新阅读并确认。', { title: '发布使用协议', confirmText: '确认发布' })) return;
+  const result = await adminAction('set-legal-agreement', { agreement: { version: elements.legalAgreementVersion.value, title: elements.legalAgreementTitle.value, text: elements.legalAgreementText.value } });
+  if (!result.success) return toast(result.error, 'error');
+  state.adminSettings.legalAgreement = result.legalAgreement; state.publicConfig.legalAgreement = result.legalAgreement;
+  elements.legalAgreementStatus.textContent = result.message; toast(result.message, 'success', 7000);
+}
+
+function selectedBackupScopes() {
+  const selected = [...(elements.dataBackupScopes?.querySelectorAll('input[type="checkbox"]:checked') || [])].map((input) => input.value);
+  if (selected.length) return [...new Set(selected)];
+  const legacy = elements.dataBackupScope?.value || 'all';
+  return legacy === 'all' ? ['config', 'accounts', 'rooms', 'media-index', 'chat'] : [legacy];
+}
+
+function syncLegacyBackupScopeFromChecks() {
+  const scopes = selectedBackupScopes();
+  if (!elements.dataBackupScope) return;
+  elements.dataBackupScope.value = scopes.length === 5 ? 'all' : scopes.length === 1 ? scopes[0] : 'all';
+}
+
+function updateBackupExportProgress({ label = '正在生成备份', loaded = 0, total = 0, complete = false, failed = false } = {}) {
+  if (!elements.dataBackupProgress) return;
+  elements.dataBackupProgress.classList.remove('is-hidden');
+  const safeLoaded = Math.max(0, Number(loaded) || 0);
+  const safeTotal = Math.max(0, Number(total) || 0);
+  const percent = failed ? 0 : complete ? 100 : safeTotal > 0 ? Math.min(99, Math.floor((safeLoaded / safeTotal) * 100)) : 0;
+  elements.dataBackupProgressLabel.textContent = label;
+  elements.dataBackupProgressPercent.textContent = failed ? '失败' : safeTotal > 0 || complete ? `${percent}%` : '计算中';
+  if (failed || safeTotal > 0 || complete) {
+    elements.dataBackupProgressBar.max = 100;
+    elements.dataBackupProgressBar.value = percent;
+  } else elements.dataBackupProgressBar.removeAttribute('value');
+  elements.dataBackupProgressDetail.textContent = safeTotal > 0
+    ? `${formatSize(safeLoaded)} / ${formatSize(safeTotal)}`
+    : safeLoaded > 0 ? `已接收 ${formatSize(safeLoaded)}` : '等待服务器开始传输';
+}
+
+async function readBackupResponseWithProgress(response) {
+  const total = Math.max(0, Number(response.headers.get('Content-Length')) || 0);
+  if (!response.body?.getReader) {
+    const blob = await response.blob();
+    updateBackupExportProgress({ label: '备份传输完成', loaded: blob.size, total: total || blob.size, complete: true });
+    return blob;
+  }
+  const reader = response.body.getReader(); const chunks = []; let loaded = 0;
+  updateBackupExportProgress({ label: '正在接收备份数据', loaded, total });
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    if (!value?.byteLength) continue;
+    chunks.push(value); loaded += value.byteLength;
+    updateBackupExportProgress({ label: '正在接收备份数据', loaded, total });
+  }
+  updateBackupExportProgress({ label: '备份传输完成', loaded, total: total || loaded, complete: true });
+  return new Blob(chunks, { type: response.headers.get('Content-Type') || 'application/octet-stream' });
+}
+
+async function exportServerData() {
+  if (!state.adminSettings?.serverAdmin) return toast('请先验证服务器管理员密码并加载设置', 'error');
+  const scopes = selectedBackupScopes();
+  const scope = scopes.length === 5 ? 'all' : scopes.join('-');
+  const includesMedia = scopes.includes('media-index');
+  elements.dataBackupStatus.textContent = includesMedia ? '正在打包影片与转码文件，文件较大时请保持服务器运行…' : '正在生成备份…'; elements.exportDataBtn.disabled = true;
+  updateBackupExportProgress({ label: includesMedia ? '正在整理影片与转码文件' : '正在整理服务器数据' });
+  try {
+    const response = await fetchWithTimeout(`/api/host/data/export?scopes=${encodeURIComponent(scopes.join(','))}${includesMedia ? '&format=binary' : ''}`, { headers: authHeaders() }, includesMedia ? 30 * 60 * 1000 : 2 * 60 * 1000);
+    if (!response.ok) throw new Error((await response.text()) || `导出失败（${response.status}）`);
+    const blob = await readBackupResponseWithProgress(response); const link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = `SyncWatch-v2.1.5-${scope}-${new Date().toISOString().slice(0, 10)}.${includesMedia ? 'swbackup' : 'json'}`; document.body.appendChild(link); link.click(); link.remove(); setTimeout(() => URL.revokeObjectURL(link.href), 60000);
+    elements.dataBackupStatus.textContent = '备份已生成并下载'; toast('数据备份已导出', 'success');
+  } catch (error) { elements.dataBackupStatus.textContent = localizedError(error, '导出备份失败'); updateBackupExportProgress({ label: '备份导出失败', failed: true }); if (elements.dataBackupProgressDetail) elements.dataBackupProgressDetail.textContent = elements.dataBackupStatus.textContent; toast(elements.dataBackupStatus.textContent, 'error'); }
+  finally { elements.exportDataBtn.disabled = false; }
+}
+
+async function importServerData(file) {
+  if (!state.adminSettings?.serverAdmin) return toast('请先验证服务器管理员密码并加载设置', 'error');
+  elements.importDataBtn.disabled = true; elements.dataBackupStatus.textContent = '正在校验备份…';
+  try {
+    const binary = /\.swbackup$/i.test(file.name || '') || file.type === 'application/vnd.syncwatch.backup';
+    let response;
+    if (binary) response = await fetchWithTimeout(`/api/host/data/import-binary?scopes=${encodeURIComponent(selectedBackupScopes().join(','))}`, { method: 'POST', headers: authHeaders({ 'Content-Type': 'application/octet-stream' }), body: file }, 30 * 60 * 1000);
+    else {
+      const text = await file.text(); const payload = JSON.parse(text);
+      response = await fetchWithTimeout('/api/host/data/import', { method: 'POST', headers: authHeaders({ 'Content-Type': 'application/json' }), body: JSON.stringify({ ...payload, scopes: selectedBackupScopes() }) }, 30 * 60 * 1000);
+    }
+    const result = await response.json(); if (!response.ok || !result.success) throw new Error(result.error || `导入失败（${response.status}）`);
+    elements.dataBackupStatus.textContent = result.message || '备份已导入'; toast(result.message || '备份已导入，部分设置将在刷新后生效', 'success', 8000); await loadAdminSettings({ silent: true });
+  } catch (error) { elements.dataBackupStatus.textContent = localizedError(error, '导入备份失败'); toast(elements.dataBackupStatus.textContent, 'error'); }
+  finally { elements.importDataBtn.disabled = false; if (elements.importDataInput) elements.importDataInput.value = ''; }
+}
+async function testMailSettings() {
+  if (!state.adminSettings?.serverAdmin) return toast('请先验证服务器管理员密码并加载设置', 'error');
+  elements.testMailSettingsBtn.disabled = true;
+  elements.mailSettingsStatus.textContent = '正在通过当前 SMTP 配置发送测试邮件…';
+  try {
+    const result = await adminAction('test-mail-settings', { recipient: elements.mailTestRecipient.value.trim(), templateEvent: elements.mailTestTemplate?.value || 'verification' });
+    elements.mailSettingsStatus.textContent = result.message || result.error;
+    toast(result.message || result.error, result.success ? 'success' : 'error', 7000);
+  } finally { elements.testMailSettingsBtn.disabled = false; }
+}
+async function saveRoomSettings() {
+  const result = await adminAction('set-room', {
+    roomName: elements.roomNameInput.value,
+    maxUsers: Number(elements.maxUsersInput.value),
+    requireUploadApproval: elements.uploadApprovalToggle.checked,
+    allowGuests: elements.roomAllowGuests?.checked !== false
+  });
+  toast(result.message || result.error, result.success ? 'success' : 'error');
+  if (result.success && state.adminSettings) state.adminSettings.allowGuests = elements.roomAllowGuests?.checked !== false;
+}
+async function saveExperiencePolicy() {
+  const experiencePerMinute = Number(elements.experiencePerMinute?.value);
+  const result = await adminAction('set-experience-policy', { experiencePerMinute });
+  if (elements.experiencePolicyStatus) elements.experiencePolicyStatus.textContent = result.message || result.error;
+  toast(result.message || result.error, result.success ? 'success' : 'error');
+  if (result.success && state.adminSettings) state.adminSettings.experiencePerMinute = result.experiencePerMinute;
+}
+async function saveUploadLimits() { const result = await adminAction('set-upload-limits', { uploadLimitBytes: Math.floor(Number(elements.uploadLimitMb.value || 0) * 1024 * 1024), uploadTimeLimitSeconds: Number(elements.uploadTimeLimit.value || 0) }); toast(result.message || result.error, result.success ? 'success' : 'error'); }
+async function savePermissions() {
+  const username = elements.permissionUser.value; if (!username) return toast('请选择成员', 'error');
+  const result = await adminAction('set-permissions', {
+    username, groupId: elements.permissionGroup.value, administrator: elements.permAdministrator.checked,
+    control: elements.permControl.checked, upload: elements.permUpload.checked, delete: elements.permDelete.checked,
+    shareScreen: elements.permShareScreen.checked, shareAudio: elements.permShareAudio.checked, shareWeb: elements.permShareWeb.checked, voiceChat: elements.permVoiceChat.checked,
+    manageChat: elements.permManageChat.checked, manageRoom: elements.permManageRoom.checked, sendNotice: elements.permSendNotice.checked
+  });
+  toast(result.message || result.error, result.success ? 'success' : 'error'); if (result.success) loadAdminSettings();
+}
+function applySelectedPermissions() {
+  const username = elements.permissionUser.value;
+  const current = state.adminSettings?.permissions?.[username] || state.users.find((user) => user.username === username)?.permissions || { control: false, upload: true, delete: false, shareScreen: false, shareAudio: false, shareWeb: false, voiceChat: true, manageChat: false, manageRoom: false, sendNotice: false, administrator: false, groupId: 'member' };
+  const assignedGroup = state.adminSettings?.memberGroups?.[username] || current.groupId || 'member';
+  elements.permissionGroup.value = [...elements.permissionGroup.options].some((option) => option.value === assignedGroup) ? assignedGroup : 'member';
+  elements.permAdministrator.checked = Boolean(current.administrator || assignedGroup === 'administrator');
+  elements.permControl.checked = Boolean(current.control); elements.permUpload.checked = Boolean(current.upload); elements.permDelete.checked = Boolean(current.delete);
+  elements.permShareScreen.checked = Boolean(current.shareScreen); elements.permShareAudio.checked = Boolean(current.shareAudio); elements.permShareWeb.checked = Boolean(current.shareWeb); elements.permVoiceChat.checked = current.voiceChat !== false;
+  elements.permManageChat.checked = Boolean(current.manageChat); elements.permManageRoom.checked = Boolean(current.manageRoom); elements.permSendNotice.checked = Boolean(current.sendNotice);
+  applyAdministratorToggle(false);
+}
+function renderPermissionGroups(groups) {
+  const entries = Object.values(groups || {}).sort((left, right) => Number(Boolean(right.system)) - Number(Boolean(left.system)) || String(left.name).localeCompare(String(right.name), 'zh-CN'));
+  const validCustomIds = new Set(entries.filter((group) => !group.system).map((group) => group.id));
+  state.selectedPermissionGroups = new Set([...state.selectedPermissionGroups].filter((id) => validCustomIds.has(id)));
+  elements.permissionGroup.innerHTML = entries.map((group) => `<option value="${escapeHtml(group.id)}">${escapeHtml(group.name)}</option>`).join('') || '<option value="member">成员</option>';
+  const memberGroups = state.adminSettings?.memberGroups || {};
+  elements.permissionGroupList.innerHTML = entries.map((group) => {
+    const assigned = Object.values(memberGroups).filter((id) => id === group.id).length;
+    const selector = group.system ? '' : `<label class="permission-group-select"><input data-permission-group-select type="checkbox" value="${escapeHtml(group.id)}" ${state.selectedPermissionGroups.has(group.id) ? 'checked' : ''}><span>选择</span></label>`;
+    return `<div class="admin-row" data-group-id="${escapeHtml(group.id)}"><header>${selector}<strong>${escapeHtml(group.name)}</strong><small>${escapeHtml(group.id)}${group.system ? ' · 系统' : ''} · ${assigned} 名成员</small></header><div class="actions"><button data-group-action="edit" type="button">查看/编辑</button>${group.system ? '' : '<button data-group-action="delete" type="button">删除</button>'}</div></div>`;
+  }).join('') || '<p class="muted">暂无权限组</p>';
+  updatePermissionGroupSelection();
+}
+
+function updatePermissionGroupSelection(event) {
+  const input = event?.target?.matches?.('[data-permission-group-select]') ? event.target : null;
+  if (input) input.checked ? state.selectedPermissionGroups.add(input.value) : state.selectedPermissionGroups.delete(input.value);
+  const boxes = [...(elements.permissionGroupList?.querySelectorAll('[data-permission-group-select]') || [])];
+  const checked = boxes.filter((box) => state.selectedPermissionGroups.has(box.value));
+  boxes.forEach((box) => { box.checked = state.selectedPermissionGroups.has(box.value); });
+  if (elements.selectAllPermissionGroups) {
+    elements.selectAllPermissionGroups.checked = Boolean(boxes.length && checked.length === boxes.length);
+    elements.selectAllPermissionGroups.indeterminate = Boolean(checked.length && checked.length < boxes.length);
+  }
+  if (elements.deletePermissionGroupsBtn) {
+    elements.deletePermissionGroupsBtn.disabled = !state.selectedPermissionGroups.size;
+    elements.deletePermissionGroupsBtn.textContent = state.selectedPermissionGroups.size ? `批量删除（${state.selectedPermissionGroups.size}）` : '批量删除';
+  }
+}
+
+function toggleAllPermissionGroups() {
+  const boxes = [...(elements.permissionGroupList?.querySelectorAll('[data-permission-group-select]') || [])];
+  state.selectedPermissionGroups = elements.selectAllPermissionGroups.checked ? new Set(boxes.map((box) => box.value)) : new Set();
+  updatePermissionGroupSelection();
+}
+
+async function deletePermissionGroups(groupIds) {
+  const ids = [...new Set(groupIds)].filter(Boolean);
+  if (!ids.length) return;
+  if (!await showAppConfirm(`确定删除 ${ids.length} 个自定义权限组吗？若仍有成员使用，可在下一步确认将这些成员恢复为普通成员。`, { title: '删除权限组', confirmText: '检查并删除', danger: true })) return;
+  let result = await adminAction(ids.length === 1 ? 'delete-permission-group' : 'delete-permission-groups', ids.length === 1 ? { groupId: ids[0] } : { groupIds: ids });
+  if (!result.success && result.code === 'PERMISSION_GROUP_IN_USE') {
+    const names = (result.assignedUsers || []).join('、');
+    if (!await showAppConfirm(`这些权限组仍有 ${result.assignedUsers?.length || 0} 名成员使用：${names || '未知成员'}。是否先将他们移出权限组，再继续删除？`, { title: '权限组正在使用', confirmText: '移出成员并删除', danger: true })) return;
+    result = await adminAction(ids.length === 1 ? 'delete-permission-group' : 'delete-permission-groups', ids.length === 1 ? { groupId: ids[0], forceRemoveMembers: true } : { groupIds: ids, forceRemoveMembers: true });
+  }
+  toast(result.message || result.error, result.success ? 'success' : 'error');
+  if (result.success) { state.selectedPermissionGroups.clear(); await loadAdminSettings(); }
+}
+
+function deleteSelectedPermissionGroups() { return deletePermissionGroups([...state.selectedPermissionGroups]); }
+
+function renderWatchLevelSettings(levels) {
+  if (!elements.watchLevelSettingsList) return;
+  const entries = Array.isArray(levels) ? levels : [];
+  elements.watchLevelSettingsList.innerHTML = entries.length
+    ? entries.map((level) => `<article class="watch-level-setting"><header><strong>${levelEmoji(level.level)} Lv.${Number(level.level) || 1} ${escapeHtml(level.name || '')}</strong><span>达到 ${Number(level.minExperience) || 0} 经验</span></header><small>升级后继续累计观看经验；当前成员资料会实时显示进度。</small></article>`).join('')
+    : '<p class="muted">暂无观影等级配置</p>';
+}
+function applySelectedPermissionGroup() {
+  if (elements.permAdministrator.checked) return;
+  const group = state.adminSettings?.permissionGroups?.[elements.permissionGroup.value];
+  if (!group) return;
+  const permissions = group.permissions || {};
+  elements.permControl.checked = Boolean(permissions.control); elements.permUpload.checked = Boolean(permissions.upload); elements.permDelete.checked = Boolean(permissions.delete);
+  elements.permShareScreen.checked = Boolean(permissions.shareScreen); elements.permShareAudio.checked = Boolean(permissions.shareAudio); elements.permShareWeb.checked = Boolean(permissions.shareWeb); elements.permVoiceChat.checked = permissions.voiceChat !== false;
+  elements.permManageChat.checked = Boolean(permissions.manageChat); elements.permManageRoom.checked = Boolean(permissions.manageRoom); elements.permSendNotice.checked = Boolean(permissions.sendNotice);
+}
+function applyAdministratorToggle(applyDefaults = true) {
+  const administrator = Boolean(elements.permAdministrator.checked);
+  const controls = [elements.permControl, elements.permUpload, elements.permDelete, elements.permShareScreen, elements.permShareAudio, elements.permShareWeb, elements.permVoiceChat, elements.permManageChat, elements.permManageRoom, elements.permSendNotice];
+  elements.permissionGroup.disabled = administrator;
+  for (const control of controls) { if (administrator && applyDefaults !== false) control.checked = true; control.disabled = administrator; }
+}
+function openPermissionGroupEditor(groupId = '') {
+  const group = state.adminSettings?.permissionGroups?.[groupId] || null;
+  const permissions = group?.permissions || {};
+  elements.permissionGroupId.value = group?.id || ''; elements.permissionGroupId.readOnly = Boolean(group);
+  elements.permissionGroupName.value = group?.name || '';
+  elements.groupPermControl.checked = Boolean(permissions.control); elements.groupPermUpload.checked = Boolean(permissions.upload); elements.groupPermDelete.checked = Boolean(permissions.delete);
+  elements.groupPermShareScreen.checked = Boolean(permissions.shareScreen); elements.groupPermShareAudio.checked = Boolean(permissions.shareAudio); elements.groupPermShareWeb.checked = Boolean(permissions.shareWeb); elements.groupPermVoiceChat.checked = permissions.voiceChat !== false;
+  elements.groupPermManageChat.checked = Boolean(permissions.manageChat); elements.groupPermManageRoom.checked = Boolean(permissions.manageRoom); elements.groupPermSendNotice.checked = Boolean(permissions.sendNotice);
+  elements.savePermissionGroupBtn.disabled = Boolean(group?.system);
+  elements.permissionGroupEditor.classList.remove('is-hidden');
+}
+function closePermissionGroupEditor() { elements.permissionGroupEditor.classList.add('is-hidden'); elements.permissionGroupId.readOnly = false; elements.savePermissionGroupBtn.disabled = false; }
+async function savePermissionGroup() {
+  const result = await adminAction('save-permission-group', {
+    groupId: elements.permissionGroupId.value, name: elements.permissionGroupName.value,
+    control: elements.groupPermControl.checked, upload: elements.groupPermUpload.checked, delete: elements.groupPermDelete.checked,
+    shareScreen: elements.groupPermShareScreen.checked, shareAudio: elements.groupPermShareAudio.checked, shareWeb: elements.groupPermShareWeb.checked, voiceChat: elements.groupPermVoiceChat.checked,
+    manageChat: elements.groupPermManageChat.checked, manageRoom: elements.groupPermManageRoom.checked, sendNotice: elements.groupPermSendNotice.checked
+  });
+  toast(result.message || result.error, result.success ? 'success' : 'error');
+  if (result.success) { closePermissionGroupEditor(); await loadAdminSettings(); }
+}
+async function handlePermissionGroupAction(event) {
+  const button = event.target.closest('[data-group-action]'); if (!button) return;
+  const groupId = button.closest('[data-group-id]')?.dataset.groupId; if (!groupId) return;
+  if (button.dataset.groupAction === 'edit') return openPermissionGroupEditor(groupId);
+  return deletePermissionGroups([groupId]);
+}
+function renderRegistrationRequests(requests) {
+  if (!elements.registrationRequestList) return;
+  state.registrationRequests = Array.isArray(requests) ? requests : (state.registrationRequests || []);
+  const mode = ['cards', 'compact', 'table'].includes(state.registrationViewMode) ? state.registrationViewMode : 'cards';
+  if (elements.registrationViewMode) elements.registrationViewMode.value = mode;
+  elements.registrationRequestList.className = `registration-request-list view-${mode}`;
+  const rows = state.registrationRequests.map((request) => {
+    const requestedCount = Math.max(1, Math.min(50, Math.floor(Number(request.requestedCount) || 1)));
+    const statusText = request.status === 'pending' ? '待处理' : request.status === 'approved' ? '已批准' : request.status === 'denied' ? '已拒绝' : escapeHtml(request.status || 'pending');
+    const actions = request.status === 'pending' ? `<div class="actions"><button data-registration-action="approve" type="button">批准 ${requestedCount} 个</button><button data-registration-action="deny" type="button">拒绝</button></div>` : '';
+    if (mode === 'table') {
+      return `<tr data-request-id="${escapeHtml(request.id)}"><td>${escapeHtml(request.ip || '未知 IP')}</td><td>${escapeHtml(request.username || '未填写账号')}</td><td>${requestedCount}</td><td>${escapeHtml(request.deviceName || request.platform || '未知设备')}</td><td>${statusText}</td><td class="actions">${actions}</td></tr>`;
+    }
+    return `<div class="admin-row" data-request-id="${escapeHtml(request.id)}"><header><strong>${escapeHtml(request.ip || '未知 IP')}</strong><small>${statusText}</small></header><small>${escapeHtml(request.username || '未填写账号')} · 申请 ${requestedCount} 个账号 · ${escapeHtml(request.deviceName || request.platform || '未知设备')}</small>${actions}</div>`;
+  }).join('');
+  elements.registrationRequestList.innerHTML = rows
+    ? (mode === 'table' ? `<table class="admin-request-table"><thead><tr><th>IP</th><th>账号</th><th>申请数量</th><th>设备</th><th>状态</th><th>操作</th></tr></thead><tbody>${rows}</tbody></table>` : rows)
+    : '<p class="muted">暂无待处理申请</p>';
+}
+function renderRoomQuotaRequests(requests) {
+  if (!elements.roomQuotaRequestList) return;
+  elements.roomQuotaRequestList.innerHTML = requests.length ? requests.map((request) => `<div class="admin-row" data-room-quota-request="${escapeHtml(request.id)}"><header><strong>${escapeHtml(request.username || '未知账号')}</strong><small>${escapeHtml(request.status || 'pending')}</small></header><small>当前额度 ${Number(request.currentQuota) || 1} · 申请额度 ${Number(request.requestedQuota) || 1} · ${escapeHtml(request.reason || '未填写原因')}</small>${request.status === 'pending' ? '<div class="actions"><button data-room-quota-action="approve" type="button">批准</button><button data-room-quota-action="deny" type="button">拒绝</button></div>' : ''}</div>`).join('') : '<p class="muted">暂无待处理的建房额度申请</p>';
+}
+function renderRegistrationWhitelist(addresses) {
+  elements.registrationWhitelistList.innerHTML = addresses.length ? addresses.map((ipAddress) => `<div class="admin-row" data-ip-address="${escapeHtml(ipAddress)}"><header><strong>${escapeHtml(ipAddress)}</strong><button data-whitelist-action="remove" type="button">移除</button></header></div>`).join('') : '<p class="muted">白名单为空</p>';
+}
+async function addRegistrationWhitelist() {
+  const ipAddress = elements.registrationWhitelistInput.value.trim(); if (!ipAddress) return toast('请输入 IP 地址', 'error');
+  const result = await adminAction('add-registration-whitelist', { ipAddress });
+  toast(result.message || result.error, result.success ? 'success' : 'error');
+  if (result.success) { elements.registrationWhitelistInput.value = ''; loadAdminSettings(); }
+}
+async function handleRegistrationWhitelistAction(event) {
+  const button = event.target.closest('[data-whitelist-action]'); if (!button) return;
+  const ipAddress = button.closest('[data-ip-address]')?.dataset.ipAddress; if (!ipAddress) return;
+  const result = await adminAction('remove-registration-whitelist', { ipAddress });
+  toast(result.message || result.error, result.success ? 'success' : 'error'); if (result.success) loadAdminSettings();
+}
+async function handleRegistrationRequestAction(event) {
+  const button = event.target.closest('[data-registration-action]'); if (!button) return;
+  const requestId = button.closest('[data-request-id]')?.dataset.requestId; if (!requestId) return;
+  const action = button.dataset.registrationAction === 'approve' ? 'approve-registration-request' : 'deny-registration-request';
+  const result = await adminAction(action, { requestId });
+  toast(result.message || result.error, result.success ? 'success' : 'error'); if (result.success) loadAdminSettings();
+}
+async function handleRoomQuotaRequestAction(event) {
+  const button = event.target.closest('[data-room-quota-action]');
+  if (!button) return;
+  const requestId = button.closest('[data-room-quota-request]')?.dataset.roomQuotaRequest;
+  if (!requestId) return;
+  const result = await adminAction('resolve-room-quota-request', { requestId, approved: button.dataset.roomQuotaAction === 'approve' });
+  toast(result.message || result.error, result.success ? 'success' : 'error');
+  if (result.success) await loadAdminSettings();
+}
+
+async function requestMoreRoomsWithCredentials() {
+  const username = elements.username.value.trim();
+  const password = elements.password.value;
+  if (!username || !password) return setLoginStatus('请先填写已注册的账号和密码，再申请建房额度');
+  let requestedQuotaValue = '2';
+  let reason = '需要分别管理不同的观影房间';
+  let step = 0;
+  while (step < 2) {
+    if (step === 0) {
+      const value = await showAppInput({
+        title: '申请更多建房数量', description: '将使用当前登录框中已填写的账号和密码验证身份，不会自动进入房间。',
+        label: '申请总额度', inputType: 'number', initialValue: requestedQuotaValue, maxLength: 4,
+        validate: (input) => Number.isInteger(Number(input)) && Number(input) >= 2 && Number(input) <= 9999 ? '' : '请输入 2 到 9999 之间的整数', confirmText: '下一步', allowBack: true
+      });
+      if (value === null) return;
+      requestedQuotaValue = value; step = 1; continue;
+    }
+    const value = await showAppInput({ title: '填写申请原因', label: '申请原因', initialValue: reason, maxLength: 240, confirmText: '提交申请', allowBack: true });
+    if (value === APP_DIALOG_BACK) { step = 0; continue; }
+    if (value === null) return;
+    reason = value; step = 2;
+  }
+  const result = await emitAck('room-quota-request', { username, password, requestedQuota: Number(requestedQuotaValue), reason, ...deviceInfo() }, 20000);
+  setLoginStatus(result.message || result.error, Boolean(result.success));
+  toast(result.message || result.error, result.success ? 'success' : 'error', 7000);
+}
+
+async function requestMoreRooms() {
+  if (!state.authenticated) return requestMoreRoomsWithCredentials();
+  if (!state.authenticated) return toast('请先登录账号，再申请建房额度', 'error');
+  const currentQuota = Number(state.profile?.roomQuota) || 1;
+  let requestedQuotaValue = String(currentQuota + 1);
+  let reason = '需要分别管理不同的观影房间';
+  let step = 0;
+  while (step < 2) {
+    if (step === 0) {
+      const value = await showAppInput({
+        title: '申请更多建房数量', description: `当前额度为 ${currentQuota} 个房间。请输入希望调整到的总房间数量。`,
+        label: '申请总额度', inputType: 'number', initialValue: requestedQuotaValue, maxLength: 4,
+        validate: (input) => Number.isInteger(Number(input)) && Number(input) > currentQuota && Number(input) <= 9999 ? '' : `请输入大于 ${currentQuota} 且不超过 9999 的整数`, confirmText: '下一步', allowBack: true
+      });
+      if (value === null) return;
+      requestedQuotaValue = value; step = 1; continue;
+    }
+    const value = await showAppInput({ title: '填写申请原因', label: '申请原因', initialValue: reason, maxLength: 240, confirmText: '提交申请', allowBack: true });
+    if (value === APP_DIALOG_BACK) { step = 0; continue; }
+    if (value === null) return;
+    reason = value; step = 2;
+  }
+  const result = await emitAck('room-quota-request', { requestedQuota: Number(requestedQuotaValue), reason }, 20000);
+  toast(result.message || result.error, result.success ? 'success' : 'error', 7000);
+}
+async function setAccessPassword() { const result = await adminAction('set-access-password', { accessPassword: elements.accessPassword.value }); toast(result.message || result.error, result.success ? 'success' : 'error'); if (result.success) elements.accessPassword.value = ''; }
+async function changeAdminPassword() { const result = await adminAction('change-admin-password', { newAdminPassword: elements.newAdminPassword.value }); toast(result.message || result.error, result.success ? 'success' : 'error'); if (result.success) { elements.adminPassword.value = elements.newAdminPassword.value; elements.newAdminPassword.value = ''; elements.defaultPasswordWarning.classList.add('is-hidden'); } }
+function renderPending(files) { elements.pendingList.innerHTML = files?.length ? files.map((file) => `<div class="admin-row" data-file-id="${file.id}"><header><strong>${escapeHtml(file.originalName)}</strong><small>${escapeHtml(file.uploadedBy)}</small></header><div class="actions"><button data-pending="approve">允许</button><button data-pending="reject">拒绝</button></div></div>`).join('') : '<p class="muted">暂无待审核文件</p>'; }
+async function handlePendingAction(event) { const button = event.target.closest('[data-pending]'); if (!button) return; const result = await adminAction(button.dataset.pending === 'approve' ? 'approve-upload' : 'reject-upload', { fileId: button.closest('[data-file-id]').dataset.fileId }); toast(result.message || result.error, result.success ? 'success' : 'error'); if (result.success) loadAdminSettings(); }
+function renderBlacklist(list) { elements.blacklistContent.innerHTML = list?.length ? list.map((item) => `<div class="admin-row" data-ban-id="${item.id}"><header><strong>${escapeHtml(item.username)}</strong><small>${escapeHtml(item.ip)}</small></header><div class="actions"><button data-unban>解除封禁</button></div></div>`).join('') : '<p class="muted">没有封禁设备</p>'; }
+async function handleUnban(event) { const button = event.target.closest('[data-unban]'); if (!button) return; const result = await adminAction('unban', { id: button.closest('[data-ban-id]').dataset.banId }); toast(result.message || result.error, result.success ? 'success' : 'error'); if (result.success) loadAdminSettings(); }
+
+function filterAndSortAccounts(accounts = [], { query = '', presence = 'all', sort = 'name-asc', superOnly = false } = {}) {
+  const normalizedQuery = String(query || '').trim().toLocaleLowerCase('zh-CN');
+  const filtered = (Array.isArray(accounts) ? accounts : []).filter((account) => {
+    if (superOnly && account.superAdmin !== true && account.username !== 'admin') return false;
+    const online = isAccountOnline(account);
+    if (presence === 'online' && !online) return false;
+    if (presence === 'offline' && online) return false;
+    if (!normalizedQuery) return true;
+    return [account.username, account.displayName, account.adminRemark, account.email, account.id, account.registrationIp, account.lastIp]
+      .some((value) => String(value || '').toLocaleLowerCase('zh-CN').includes(normalizedQuery));
+  });
+  const nameOf = (account) => String(account.displayName || account.username || '').trim();
+  const registeredAt = (account) => Date.parse(account.registeredAt || account.createdAt || account.registrationTime || '') || 0;
+  return filtered.sort((left, right) => {
+    if (sort === 'online-first') {
+      const presenceOrder = Number(isAccountOnline(right)) - Number(isAccountOnline(left));
+      if (presenceOrder) return presenceOrder;
+    } else if (sort === 'registered-desc') {
+      const timeOrder = registeredAt(right) - registeredAt(left);
+      if (timeOrder) return timeOrder;
+    }
+    const direction = sort === 'name-desc' ? -1 : 1;
+    return direction * nameOf(left).localeCompare(nameOf(right), 'zh-CN', { numeric: true, sensitivity: 'base' });
+  });
+}
+
+function renderAdminAccounts(accounts) {
+  const list = elements.accountAdminList;
+  if (!list) return;
+  const viewMode = ['cards', 'compact', 'table'].includes(state.accountViewMode) ? state.accountViewMode : 'cards';
+  state.accountViewMode = viewMode;
+  if (elements.accountViewMode) elements.accountViewMode.value = viewMode;
+  list.className = `account-admin-list view-${viewMode}`;
+  const sourceAccounts = Array.isArray(accounts) ? accounts : [];
+  if (elements.showSuperAdminAccountsBtn) {
+    elements.showSuperAdminAccountsBtn.setAttribute('aria-pressed', String(state.accountAdminSuperOnly));
+    elements.showSuperAdminAccountsBtn.textContent = state.accountAdminSuperOnly ? '显示全部账号' : '仅看超级管理员';
+  }
+  if (!sourceAccounts.length) {
+    list.innerHTML = '<p class="muted">暂无账号</p>';
+    updateAdminAccountBulkControls();
+    return;
+  }
+  const existingAccounts = new Set(sourceAccounts.map((account) => account.username));
+  state.selectedAdminAccounts = new Set([...state.selectedAdminAccounts].filter((username) => existingAccounts.has(username)));
+  const canManageAccounts = Boolean(state.adminSettings?.serverAdmin);
+  const canManageSuperAdmins = state.adminSettings?.canManageSuperAdmins === true;
+  if (elements.accountAdminPresence) elements.accountAdminPresence.value = state.accountAdminPresence || 'all';
+  if (elements.accountAdminSort) elements.accountAdminSort.value = state.accountAdminSort || 'name-asc';
+  const visibleAccounts = filterAndSortAccounts(sourceAccounts, {
+    query: elements.accountAdminSearch?.value || '', presence: state.accountAdminPresence,
+    sort: state.accountAdminSort, superOnly: state.accountAdminSuperOnly
+  });
+  if (!visibleAccounts.length) {
+    list.innerHTML = state.accountAdminSuperOnly ? '<p class="muted">没有找到超级管理员账号</p>' : '<p class="muted">没有匹配的账号</p>';
+    updateAdminAccountBulkControls();
+    return;
+  }
+  list.innerHTML = visibleAccounts.map((account) => {
+    const displayName = account.displayName || account.username;
+    const online = isAccountOnline(account);
+    const passwordMeta = account.passwordStatus && typeof account.passwordStatus === 'object'
+      ? account.passwordStatus
+      : { configured: account.passwordStatus !== 'not-set' };
+    const passwordStatusLine = !passwordMeta.configured
+      ? '\u767b\u5f55\u5bc6\u7801\uff1a\u672a\u8bbe\u7f6e'
+      : `\u767b\u5f55\u5bc6\u7801\uff1a\u5df2\u5b89\u5168\u8bbe\u7f6e${passwordMeta.mustChange ? ' \u00b7 \u5f85\u4fee\u6539' : ''}${passwordMeta.expired ? ' \u00b7 \u5df2\u8fc7\u671f' : ''}${passwordMeta.changedAt ? ` \u00b7 \u66f4\u65b0\u4e8e ${formatDate(passwordMeta.changedAt)}` : ''}\uff08\u4e0d\u53ef\u67e5\u770b\u660e\u6587\uff09`;
+    const actions = canManageAccounts
+      ? `<button data-admin-account="rename">强制改名</button><button data-admin-account="remark">备注</button><button data-admin-account="reset">重置为默认密码</button><button data-admin-account="location-request" ${account.username === state.user?.username ? 'disabled' : ''}>重新申请位置</button><div class="account-admin-email-actions"><button data-admin-account="email-change">强制修改邮箱</button><button data-admin-account="email-clear" ${account.email ? '' : 'disabled'}>清除邮箱绑定</button></div>${canManageSuperAdmins ? `<button data-admin-account="super">${account.superAdmin ? '撤销超管' : '设为超管'}</button>` : ''}<button data-admin-account="room-block">${account.roomCreationBlocked ? '允许建房' : '禁止建房'}</button>${account.username === 'admin' ? '' : '<button data-admin-account="delete">删除账号</button>'}`
+      : '<span class="admin-action-note">输入服务器管理员密码并重新加载后可改名或管理账号</span>';
+    const renameEditor = canManageAccounts ? `<div class="admin-inline-editor is-hidden" data-admin-rename-editor><label>新名字<input data-admin-rename-input maxlength="24" autocomplete="off" value="${escapeHtml(displayName)}"></label><button data-admin-account="rename-save" type="button">保存改名</button><button data-admin-account="rename-cancel" type="button">取消</button></div>` : '';
+    const levelEditor = canManageAccounts ? `<div class="account-level-editor account-profile-editor"><label>经验值<input data-account-experience type="number" min="0" max="10000000" value="${Math.max(0, Number(account.experience) || 0)}"></label><label>固定等级<select data-account-level><option value="0" ${account.levelOverride ? '' : 'selected'}>按经验自动升级</option>${(state.adminSettings?.watchLevels || []).map((level) => `<option value="${level.level}" ${Number(account.levelOverride) === level.level ? 'selected' : ''}>Lv.${level.level} ${escapeHtml(level.name)}</option>`).join('')}</select></label><label>注册天数<input data-account-registration-days type="number" min="0" max="36500" value="${Math.max(0, Number(account.registrationDays) || 0)}"></label><label>累计在线秒数<input data-account-online-seconds type="number" min="0" max="3153600000" value="${Math.max(0, Number(account.onlineSeconds) || 0)}"></label><label class="wide">个性签名<input data-account-signature maxlength="160" value="${escapeHtml(account.signature || '')}"></label><button data-admin-account="level-save" type="button">保存资料与等级</button></div>` : '';
+    const quotaEditor = canManageAccounts ? `<div class="account-level-editor"><label>建房额度<input data-account-room-quota type="number" min="1" max="9999" value="${Math.max(1, Number(account.roomQuota) || 1)}" ${account.username === 'admin' ? 'disabled' : ''}></label><button data-admin-account="quota-save" type="button" ${account.username === 'admin' ? 'disabled' : ''}>保存额度</button></div>` : '';
+    const tiers = Object.values(state.adminSettings?.accountTiers || {});
+    const tierEditor = canManageAccounts && tiers.length ? `<div class="account-level-editor"><label>权限等级<select data-account-tier ${account.superAdmin ? 'disabled' : ''}>${tiers.map((tier) => `<option value="${escapeHtml(tier.id)}" ${account.tierId === tier.id ? 'selected' : ''}>${escapeHtml(tier.name)}${Number(tier.uploadLimitBytes) ? ` · ${formatSize(tier.uploadLimitBytes)}` : ' · 不限'}</option>`).join('')}</select></label><button data-admin-account="tier-save" type="button" ${account.superAdmin ? 'disabled' : ''}>应用等级</button></div>` : '';
+    const ownedRooms = (account.rooms || []).map((room) => `${room.name || '私人影院'}（${room.id}）`).join('、') || '无';
+    const onlineSessions = (account.onlineSessions || []).map((session) => `<li><strong>${escapeHtml(session.deviceName || '未知设备')}</strong><span>房间 ${escapeHtml(session.roomId || '未知')} · ${escapeHtml(session.ipAddress || '未知 IP')} · ${escapeHtml(session.platform || '')} ${escapeHtml(session.browser || '')} · ${session.latency ?? '--'} 毫秒 · ${escapeHtml(session.connectionState || 'online')}</span></li>`).join('') || '<li><span>当前无在线会话</span></li>';
+    const devices = (account.devices || []).slice(0, 8).map((device) => `<li><strong>${escapeHtml(device.name || '未知设备')}</strong><span>${escapeHtml(device.platform || '')} ${escapeHtml(device.browser || '')} · ${formatDate(device.lastSeen)}</span></li>`).join('') || '<li><span>没有设备记录</span></li>';
+    const logins = (account.loginHistory || []).slice(0, 8).map((entry) => `<li><strong>${escapeHtml(entry.ip || '未知 IP')}</strong><span>${escapeHtml(entry.device || '')} · ${formatDate(entry.time)}</span></li>`).join('') || '<li><span>没有登录记录</span></li>';
+    if (viewMode === 'table') {
+      const statusText = online ? `在线 ${account.onlineSessions?.length || 1} 个会话` : `离线 / ${formatDate(account.lastLogin)}`;
+      const quotaText = `${Number(account.ownedRoomCount) || 0}/${Number(account.roomQuota) <= 0 || Number(account.roomQuota) >= 9999 ? '不限' : Number(account.roomQuota) || 1}`;
+      return `<tr data-account="${escapeHtml(account.username)}"><td><label class="admin-account-select"><input data-admin-account-select type="checkbox" value="${escapeHtml(account.username)}" ${state.selectedAdminAccounts.has(account.username) ? 'checked' : ''}><span>选择</span></label></td><td><strong>${escapeHtml(account.username)}</strong><small>${escapeHtml(account.id)}</small></td><td>${escapeHtml(displayName)}</td><td>${escapeHtml(account.email || '未绑定邮箱')}</td><td><small>${escapeHtml(account.registrationIp || '未知')}</small><small>${escapeHtml(account.lastIp || '未知')}</small></td><td>${statusText}</td><td>${quotaText}</td><td><div class="actions">${actions}</div></td></tr>`;
+    }
+    return `<div class="admin-row admin-account-detail" data-account="${escapeHtml(account.username)}"><header><label class="admin-account-select"><input data-admin-account-select type="checkbox" value="${escapeHtml(account.username)}" ${state.selectedAdminAccounts.has(account.username) ? 'checked' : ''}><span>选择</span></label><strong><span class="online-indicator ${online ? 'is-online' : ''}"></span>${escapeHtml(displayName)}</strong><small>${account.superAdmin ? '超级管理员 · ' : ''}${escapeHtml(account.id)}</small></header>${account.adminRemark ? `<small class="account-admin-remark">管理员备注：${escapeHtml(account.adminRemark)}</small>` : ''}<small>登录账号：${escapeHtml(account.username)} · ${escapeHtml(account.email || '未绑定邮箱')} · ${online ? `在线会话 ${account.onlineSessions?.length || 1}` : `离线 / ${formatDate(account.lastLogin)}`}</small><small>${passwordStatusLine}</small><small>注册 IP：${escapeHtml(account.registrationIp || '未知')} · 最近 IP：${escapeHtml(account.lastIp || '未知')} · 最近设备：${escapeHtml(account.deviceName || '未知设备')}</small><small>Lv.${account.level || 1} ${escapeHtml(account.levelName || '初映小星')} · ${Math.max(0, Number(account.experience) || 0)} 经验 · 建房 ${Number(account.ownedRoomCount) || 0}/${Number(account.roomQuota) <= 0 || Number(account.roomQuota) >= 9999 ? '不限' : Number(account.roomQuota) || 1}${account.roomCreationBlocked ? ' · 已禁止创建房间' : ''}${account.multiDeviceLogin ? ' · 允许多设备登录' : ''}</small><small>所属房间：${escapeHtml(ownedRooms)}</small><details><summary>在线会话、设备与登录明细</summary><h4>在线会话</h4><ul>${onlineSessions}</ul><h4>历史设备</h4><ul>${devices}</ul><h4>最近登录</h4><ul>${logins}</ul></details><div class="actions">${actions}</div>${quotaEditor}${tierEditor}${levelEditor}${renameEditor}</div>`;
+  }).join('');
+  if (viewMode === 'table') {
+    list.innerHTML = `<table class="admin-account-table"><thead><tr><th>选择</th><th>登录账号</th><th>名称</th><th>邮箱</th><th>IP（注册 / 最近）</th><th>状态</th><th>建房</th><th>操作</th></tr></thead><tbody>${list.innerHTML}</tbody></table>`;
+  }
+  updateAdminAccountBulkControls();
+}
+
+function toggleSuperAdminAccountFilter() {
+  state.accountAdminSuperOnly = !state.accountAdminSuperOnly;
+  renderAdminAccounts(state.adminSettings?.accounts || []);
+  const count = elements.accountAdminList?.querySelectorAll('[data-account]')?.length || 0;
+  toast(state.accountAdminSuperOnly ? `已筛选超级管理员（${count} 个）` : '已恢复显示全部注册账号', 'success', 3500);
+}
+
+function handleAdminAccountSelection(event) {
+  const input = event.target.closest('[data-admin-account-select]');
+  if (!input) return;
+  input.checked ? state.selectedAdminAccounts.add(input.value) : state.selectedAdminAccounts.delete(input.value);
+  updateAdminAccountBulkControls();
+}
+
+function toggleAllAdminAccounts() {
+  const boxes = [...(elements.accountAdminList?.querySelectorAll('[data-admin-account-select]') || [])];
+  if (elements.selectAllAdminAccounts.checked) boxes.forEach((box) => state.selectedAdminAccounts.add(box.value));
+  else boxes.forEach((box) => state.selectedAdminAccounts.delete(box.value));
+  boxes.forEach((box) => { box.checked = state.selectedAdminAccounts.has(box.value); });
+  updateAdminAccountBulkControls();
+}
+
+function updateAdminAccountBulkControls() {
+  const boxes = [...(elements.accountAdminList?.querySelectorAll('[data-admin-account-select]') || [])];
+  const checkedVisible = boxes.filter((box) => state.selectedAdminAccounts.has(box.value));
+  boxes.forEach((box) => { box.checked = state.selectedAdminAccounts.has(box.value); });
+  if (elements.selectAllAdminAccounts) {
+    elements.selectAllAdminAccounts.checked = Boolean(boxes.length && checkedVisible.length === boxes.length);
+    elements.selectAllAdminAccounts.indeterminate = Boolean(checkedVisible.length && checkedVisible.length < boxes.length);
+  }
+  const count = state.selectedAdminAccounts.size;
+  for (const button of [elements.batchResetAccountsBtn, elements.batchBlockRoomsBtn, elements.batchDeleteAccountsBtn]) if (button) button.disabled = !count;
+  if (elements.batchResetAccountsBtn) elements.batchResetAccountsBtn.textContent = count ? `批量重置密码（${count}）` : '批量重置密码';
+}
+
+async function batchAdminAccounts(batchAction) {
+  const usernames = [...state.selectedAdminAccounts];
+  if (!usernames.length) return toast('请先选择账号', 'error');
+  const descriptions = {
+    'reset-password': `将 ${usernames.length} 个账号重置为服务器默认密码，并让现有登录失效`,
+    'block-rooms': `禁止 ${usernames.length} 个账号继续创建房间`,
+    delete: `永久删除 ${usernames.length} 个账号（仍拥有房间的账号会自动跳过）`
+  };
+  if (!await showAppConfirm(`${descriptions[batchAction]}？`, { title: '批量账户管理', confirmText: '确认执行', danger: batchAction !== 'block-rooms' })) return;
+  const result = await adminAction('batch-account-action', { batchAction, usernames });
+  toast(result.message || result.error, result.success ? 'success' : 'error', 8000);
+  if (result.success) { state.selectedAdminAccounts.clear(); await loadAdminSettings(); }
+}
+
+async function saveDefaultAccountPassword() {
+  const newPassword = String(elements.defaultAccountPassword?.value || '');
+  if (newPassword.length < 6 || newPassword.length > 72) return toast('默认密码需为 6-72 位', 'error');
+  const result = await adminAction('set-default-account-password', { newPassword });
+  toast(result.message || result.error, result.success ? 'success' : 'error');
+  if (result.success) elements.defaultAccountPassword.value = '';
+}
+
+async function handleAdminAccountAction(event) {
+  const button = event.target.closest('[data-admin-account]'); if (!button) return;
+  if (!state.adminSettings?.serverAdmin) return toast('请先输入正确的服务器管理员密码并重新加载设置', 'error');
+  const row = button.closest('[data-account]');
+  const username = row?.dataset.account; if (!username) return;
+  const action = button.dataset.adminAccount;
+  const account = state.adminSettings.accounts?.find((entry) => entry.username === username);
+  if (action === 'rename') {
+    const editor = row.querySelector('[data-admin-rename-editor]');
+    const input = editor?.querySelector('[data-admin-rename-input]');
+    if (!editor || !input) return toast('改名输入框加载失败，请重新加载管理设置', 'error');
+    input.value = account?.displayName || username;
+    editor.classList.remove('is-hidden');
+    requestAnimationFrame(() => { input.focus(); input.select(); });
+    return;
+  }
+  if (action === 'rename-cancel') { row.querySelector('[data-admin-rename-editor]')?.classList.add('is-hidden'); return; }
+  let result;
+  button.disabled = true;
+  try {
+    if (action === 'rename-save') {
+      const input = row.querySelector('[data-admin-rename-input]');
+      const displayName = String(input?.value || '').trim();
+      if (!displayName) return toast('请输入新的账户名字', 'error');
+      result = await adminAction('force-display-name', { username, displayName });
+      if (result.success) updateDisplayNameLocally(username, result.displayName || displayName);
+    } else if (action === 'remark') {
+      const remark = await showAppInput({ title: '设置账号备注', description: '备注只显示在服务器管理中心，并且可以直接用于模糊搜索。', label: '管理员备注', initialValue: account?.adminRemark || '', maxLength: 80, confirmText: '保存备注' });
+      if (remark === null) return;
+      result = await adminAction('set-account-remark', { username, remark });
+    } else if (action === 'email-change') {
+      const email = await showAppInput({
+        title: `强制修改 ${username} 的邮箱`,
+        description: '保存后会立即替换该账号绑定邮箱，用户离线时将在下次登录收到变更通知。',
+        label: '新邮箱', inputType: 'email', initialValue: account?.email || '', maxLength: 120,
+        confirmText: '保存邮箱',
+        validate: (value) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value) ? '' : '请输入有效的邮箱地址'
+      });
+      if (email === null) return;
+      result = await adminAction('set-account-email', { username, email });
+    } else if (action === 'email-clear') {
+      if (!await showAppConfirm(`确定清除 ${username} 当前绑定的邮箱吗？清除后，该账号不能再使用邮箱找回密码，直到重新绑定。`, {
+        title: '清除邮箱绑定', confirmText: '确认清除', danger: true
+      })) return;
+      result = await adminAction('set-account-email', { username, email: '' });
+    } else if (action === 'location-request') {
+      if (!await showAppConfirm(`向 ${account?.displayName || username} 重新发送位置授权通知？对方可自行同意或拒绝。`, {
+        title: '重新申请位置授权', confirmText: '发送通知'
+      })) return;
+      result = await emitAck('member-location-request', { username, usernames: [username] }, 12000);
+    } else if (action === 'reset') {
+      if (!await showAppConfirm(`将 ${username} 重置为“账户与注册”中配置的默认密码，并让现有登录立即失效？`, { title: '重置为默认密码', confirmText: '确认重置', danger: true })) return;
+      result = await adminAction('reset-account-password', { username, useDefault: true });
+    } else if (action === 'level-save') {
+      result = await adminAction('set-account-level', {
+        username, experience: Number(row.querySelector('[data-account-experience]')?.value || 0),
+        levelOverride: Number(row.querySelector('[data-account-level]')?.value || 0),
+        registrationDays: Number(row.querySelector('[data-account-registration-days]')?.value || 0),
+        onlineSeconds: Number(row.querySelector('[data-account-online-seconds]')?.value || 0),
+        signature: row.querySelector('[data-account-signature]')?.value || ''
+      });
+    } else if (action === 'quota-save') {
+      result = await adminAction('set-account-room-quota', { username, roomQuota: Number(row.querySelector('[data-account-room-quota]')?.value || 1) });
+    } else if (action === 'tier-save') {
+      result = await adminAction('set-account-tier', { username, tierId: row.querySelector('[data-account-tier]')?.value || 'basic' });
+    } else if (action === 'super') {
+      if (state.adminSettings?.canManageSuperAdmins !== true) return toast('只有内置 admin 账号可以管理超级管理员', 'error');
+      const enabled = !Boolean(account?.superAdmin);
+      if (!await showAppConfirm(`${enabled ? '授予' : '撤销'} ${username} 的超级管理员权限？超级管理员可以进入并管理所有房间及服务器设置。`, { title: enabled ? '授予超级管理员' : '撤销超级管理员', confirmText: enabled ? '确认授予' : '确认撤销', danger: true })) return;
+      result = await adminAction('set-super-admin', { username, enabled, forcePasswordChange: enabled });
+    } else if (action === 'room-block') {
+      result = await adminAction('set-room-creation-block', { username, blocked: !Boolean(account?.roomCreationBlocked) });
+    } else if (action === 'delete') {
+      if (!await showAppConfirm(`确定删除账号 ${username}？上传文件会保留。`, { title: '删除账号', confirmText: '删除账号', danger: true })) return;
+      result = await adminAction('delete-account', { username });
+    } else return;
+    toast(result.message || result.error, result.success ? 'success' : 'error');
+    if (result.success) await loadAdminSettings();
+  } catch (error) { toast(`账号管理操作失败：${localizedError(error, '请稍后重试')}`, 'error'); }
+  finally { if (button.isConnected) button.disabled = false; }
+}
+
+function renderGlobalRooms(rooms = []) {
+  if (!elements.globalRoomList) return;
+  const roomIds = new Set(rooms.map((room) => room.id));
+  for (const roomId of [...state.selectedGlobalRooms]) if (!roomIds.has(roomId)) state.selectedGlobalRooms.delete(roomId);
+  for (const button of [elements.applyGlobalRoomStorageLimitBtn, elements.batchStopRoomsBtn, elements.batchRequireRoomPasswordsBtn, elements.batchBanRoomsBtn, elements.batchRenameRoomsBtn, elements.batchRenameRoomIdsBtn, elements.deleteSelectedRoomsBtn]) {
+    if (button) button.disabled = true;
+  }
+  if (!state.adminSettings?.serverAdmin) {
+    elements.globalRoomList.innerHTML = '<p class="muted">使用超级管理员身份，或输入服务器管理员密码后加载全部房间。</p>';
+    return;
+  }
+  const query = String(elements.globalRoomSearch?.value || '').trim().toLowerCase();
+  const filteredRooms = query ? rooms.filter((room) => [room.id, room.name, room.ownerName, room.ownerUsername, room.ownerRemark, room.remark].some((value) => String(value || '').toLowerCase().includes(query))) : rooms;
+  const visibleRooms = [...filteredRooms].sort((left, right) => Number(right.id === state.room?.id) - Number(left.id === state.room?.id));
+  elements.globalRoomList.innerHTML = visibleRooms.length ? visibleRooms.map((room) => {
+    const members = room.members?.length ? room.members.map((member) => { const location = member.location || {}; const place = [location.country, location.province, location.city, location.district, location.street].filter(Boolean).join(' · ') || location.status || '未授权位置'; return `<li><strong>${escapeHtml(member.displayName || member.username)}</strong><span>${member.isSuperAdmin ? '超级管理员' : member.isOwner ? '房主' : member.isAdmin ? '管理员' : '成员'} · ${escapeHtml(member.deviceName || '未知设备')} · ${escapeHtml(member.platform || '')} ${escapeHtml(member.browser || '')} · ${member.latency ?? '--'} 毫秒</span><details><summary>位置详情</summary><span>${escapeHtml(place)}</span></details></li>`; }).join('') : '<li><span>当前没有在线成员</span></li>';
+    const storage = room.storage || {};
+    const selected = state.selectedGlobalRooms.has(room.id) ? 'checked' : '';
+    const passwordState = room.passwordRequired ? '密码访问' : room.passwordEnforcementRequired ? '待房主设置密码' : '开放访问';
+    const diskFree = Number(storage.diskFreeBytes) > 0 ? formatSize(storage.diskFreeBytes) : '无限';
+    const diskTotal = Number(storage.diskTotalBytes) > 0 ? formatSize(storage.diskTotalBytes) : '无限';
+    return `<article class="global-room-item" data-global-room="${escapeHtml(room.id)}"><header><label class="global-room-select"><input data-global-room-select type="checkbox" value="${escapeHtml(room.id)}" ${selected}><span>选择</span></label><div><strong>${escapeHtml(room.name)} · ${escapeHtml(room.id)}</strong><small>${room.banned ? '已封禁' : room.closed ? '已关闭' : room.archived ? '已存档' : '运行中'} · ${room.online}/${room.maxUsers} 人 · 房主 ${escapeHtml(room.ownerName || room.ownerUsername || '未设置')}${room.ownerRemark ? ` · 备注 ${escapeHtml(room.ownerRemark)}` : ''}</small></div><span>${passwordState}</span></header><div class="global-room-metrics"><span><small>房间已使用</small><strong>${formatSize(storage.totalBytes || 0)}</strong></span><span><small>服务器剩余空间</small><strong>${diskFree}</strong></span><span><small>服务器总空间</small><strong>${diskTotal}</strong></span><span><small>文件 / 视频</small><strong>${Number(storage.fileCount) || 0} / ${Number(storage.videoCount) || 0}</strong></span></div><p>原始文件 ${formatSize(storage.originalBytes || 0)} · 兼容缓存 ${formatSize(storage.compatibilityBytes || 0)} · 当前影片：${escapeHtml(room.playback?.fileName || '未播放')} · ${formatTime(room.playback?.currentTime || 0)} · ${room.playback?.isPlaying ? '播放中' : '已暂停'} · 最后活动 ${formatDate(room.lastActivityAt)}</p><ul>${members}</ul><div class="actions global-room-actions"><button class="primary-button" data-global-room-action="enter" type="button">进入管理</button><button class="secondary-button" data-global-room-action="preview" type="button">预览影片库</button><button class="secondary-button" data-global-room-action="require-password" type="button">要求设置密码</button><button class="secondary-button" data-global-room-action="rename" type="button">强制改名</button><button class="secondary-button" data-global-room-action="rename-id" type="button">修改房间号</button><button class="warning-button" data-global-room-action="ban" type="button">${room.banned ? '解除封禁' : '封禁房间'}</button><button class="danger-button" data-global-room-action="delete" type="button">永久删除</button></div></article>`;
+  }).join('') : '<p class="muted">服务器上暂无房间</p>';
+  for (const item of elements.globalRoomList.querySelectorAll('[data-global-room]')) {
+    item.classList.toggle('is-current-room', item.dataset.globalRoom === state.room?.id);
+  }
+  updateBulkRoomSelection();
+}
+
+async function applyGlobalRoomStorageLimit() {
+  const roomIds = selectedGlobalRoomIds();
+  if (!roomIds.length) return toast('请先选择要调整空间的房间', 'error');
+  const megabytes = Number(elements.globalRoomStorageLimitMb?.value);
+  if (!Number.isFinite(megabytes) || megabytes < 0) return toast('请输入有效的房间空间上限，0 表示不限', 'error');
+  const rooms = roomIds.map((roomId) => state.adminSettings?.rooms?.find((room) => room.id === roomId)).filter(Boolean);
+  const targets = rooms.map((room) => `${room.name || room.id}（${room.id}，房主 ${room.ownerName || room.ownerUsername || '未设置'}）`).join('、');
+  const label = megabytes > 0 ? `${Math.floor(megabytes)} MB` : '不限';
+  if (!await showAppConfirm(`将把以下房间的空间上限设置为 ${label}：${targets}。保存后对应房间和房主都会收到通知。`, { title: '调整房间空间', confirmText: '确认应用' })) return;
+  const storageLimitBytes = Math.floor(megabytes * 1024 * 1024);
+  let completed = 0;
+  const errors = [];
+  for (const roomId of roomIds) {
+    const result = await adminAction('set-room-storage-limit', { roomId, storageLimitBytes });
+    if (result.success) completed += 1; else errors.push(`${roomId}：${result.error || '设置失败'}`);
+  }
+  toast(errors.length ? `已完成 ${completed}/${roomIds.length} 个房间；${errors.join('；')}` : `已完成 ${completed} 个房间的空间调整`, errors.length ? 'error' : 'success', 9000);
+  await loadAdminSettings({ silent: true });
+}
+
+function selectedGlobalRoomIds() {
+  return [...state.selectedGlobalRooms];
+}
+
+function updateBulkRoomSelection(event) {
+  const changed = event?.target?.matches?.('[data-global-room-select]') ? event.target : null;
+  if (changed) {
+    if (changed.checked) state.selectedGlobalRooms.add(changed.value);
+    else state.selectedGlobalRooms.delete(changed.value);
+  }
+  const all = [...elements.globalRoomList.querySelectorAll('[data-global-room-select]')];
+  const selected = all.filter((input) => input.checked);
+  const totalSelected = state.selectedGlobalRooms.size;
+  for (const button of [elements.batchStopRoomsBtn, elements.batchRequireRoomPasswordsBtn, elements.batchBanRoomsBtn, elements.batchRenameRoomsBtn, elements.batchRenameRoomIdsBtn, elements.deleteSelectedRoomsBtn]) {
+    if (button) button.disabled = !totalSelected;
+  }
+  elements.deleteSelectedRoomsBtn.textContent = totalSelected ? `批量永久删除（${totalSelected}）` : '批量永久删除';
+  elements.selectAllRooms.checked = Boolean(all.length && selected.length === all.length);
+  elements.selectAllRooms.indeterminate = Boolean(selected.length && selected.length < all.length);
+}
+
+async function batchRoomAction(operation) {
+  const roomIds = selectedGlobalRoomIds();
+  if (!roomIds.length) return toast('请先选择要操作的房间', 'error');
+  const payload = { action: 'batch-room-action', operation, roomIds };
+  if (operation === 'stop') {
+    if (!await showAppConfirm(`确定停止 ${roomIds.length} 个房间的播放吗？房间成员会收到通知。`, { title: '批量停止播放', confirmText: '停止播放' })) return;
+  } else if (operation === 'require-password') {
+    if (!await showAppConfirm(`将要求所选 ${roomIds.length} 个房间的房主设置访问密码。房主不在线时不会影响当前成员，下次房主进入时会持续提醒。`, { title: '要求设置房间密码', confirmText: '发送要求' })) return;
+  } else if (operation === 'ban') {
+    const reason = await showAppInput({
+      title: '批量封禁房间', description: `将封禁 ${roomIds.length} 个房间，普通成员会立即退出并收到原因。`,
+      label: '封禁原因', initialValue: '违反服务器房间规则', maxLength: 200, confirmText: '确认封禁', danger: true
+    });
+    if (reason === null) return;
+    payload.reason = reason;
+  } else if (operation === 'rename') {
+    payload.names = {};
+    for (const roomId of roomIds) {
+      const room = state.adminSettings?.rooms?.find((entry) => entry.id === roomId);
+      const name = await showAppInput({
+        title: '批量修改房间名称', description: `正在设置 ${roomId}，已选 ${roomIds.length} 个房间。`,
+        label: '新房间名称', initialValue: room?.name || '', maxLength: 40, confirmText: '保存并继续'
+      });
+      if (name === null) return;
+      payload.names[roomId] = name;
+    }
+  } else if (operation === 'rename-id') {
+    payload.roomIdsMap = {};
+    for (const roomId of roomIds) {
+      const newRoomId = await showAppInput({
+        title: '批量修改房间号', description: `当前房间号：${roomId}。系统会在提交前统一检查重复和冲突。`,
+        label: '新房间号', initialValue: roomId, maxLength: 32, confirmText: '保存并继续',
+        validate: (value) => /^[A-Z0-9]{4,32}$/.test(value.trim().toUpperCase()) ? '' : '请输入 4-32 位大写字母或数字'
+      });
+      if (newRoomId === null) return;
+      payload.roomIdsMap[roomId] = newRoomId.trim().toUpperCase();
+    }
+  }
+  const result = await adminAction('batch-room-action', payload);
+  toast(result.message || result.error, result.success ? 'success' : 'error', 8000);
+  if (result.success) await loadAdminSettings();
+}
+
+function toggleAllRoomSelections() {
+  elements.globalRoomList.querySelectorAll('[data-global-room-select]').forEach((input) => {
+    input.checked = elements.selectAllRooms.checked;
+    if (input.checked) state.selectedGlobalRooms.add(input.value); else state.selectedGlobalRooms.delete(input.value);
+  });
+  updateBulkRoomSelection();
+}
+
+async function deleteSelectedRooms() {
+  const roomIds = selectedGlobalRoomIds();
+  if (!roomIds.length) return toast('请先选择要删除的房间', 'error');
+  const confirmation = await showRiskConfirmation('批量永久删除房间', `将永久删除 ${roomIds.length} 个房间，以及其中的影片、聊天、队列和历史记录。此操作不可撤销。`);
+  if (confirmation === null) return;
+  const result = await adminAction('delete-rooms', { roomIds, confirmation });
+  toast(result.message || result.error, result.success ? 'success' : 'error', 8000);
+  if (result.success) await loadAdminSettings();
+}
+
+async function factoryResetServer() {
+  if (!state.adminSettings?.serverAdmin) return toast('请先验证服务器管理员身份', 'error');
+  const confirmation = await showRiskConfirmation('恢复出厂设置', '服务器上的全部账户、房间、媒体、聊天、联系方式、密码规则、缓存和软件配置都会被清空，并恢复到首次启动状态。');
+  if (confirmation === null) return;
+  const result = await adminAction('factory-reset', { confirmation });
+  if (!result.success) return toast(result.error, 'error', 8000);
+  toast(result.message, 'success', 10000);
+  state.intentionalLogout = true;
+  if (!result.restarting) setTimeout(() => { clearSession(); location.reload(); }, 900);
+}
+
+async function handleGlobalRoomAction(event) {
+  const button = event.target.closest('[data-global-room-action]'); if (!button) return;
+  const row = button.closest('[data-global-room]'); const roomId = row?.dataset.globalRoom; if (!roomId) return;
+  const room = state.adminSettings?.rooms?.find((entry) => entry.id === roomId);
+  const action = button.dataset.globalRoomAction;
+  if (action === 'enter') {
+    closeManagementHub(); openSwitchRoom(roomId); elements.switchRoomPassword.value = '';
+    return switchRoom(new Event('submit'));
+  }
+  if (action === 'preview') return openRoomMediaPreview(roomId, room?.name || roomId);
+  if (action === 'require-password') {
+    const result = await adminAction('batch-room-action', { operation: 'require-password', roomIds: [roomId] });
+    toast(result.message || result.error, result.success ? 'success' : 'error', 7000);
+    if (result.success) await loadAdminSettings();
+    return;
+  }
+  if (action === 'rename') {
+    const name = await showAppInput({ title: '强制修改房间名称', description: `将修改 ${roomId} 的显示名称，房主和所有在线成员会立即看到新名称。`, label: '房间名称', initialValue: room?.name || '', maxLength: 40, confirmText: '保存名称' });
+    if (name === null) return;
+    const result = await adminAction('rename-room', { roomId, name });
+    toast(result.message || result.error, result.success ? 'success' : 'error');
+    if (result.success) await loadAdminSettings();
+    return;
+  }
+  if (action === 'rename-id') {
+    const newRoomId = await showAppInput({ title: '修改房间号', description: `当前房间号：${roomId}。修改后会同步迁移影片、聊天、记录和在线成员会话。`, label: '新的房间号', initialValue: roomId, maxLength: 32, confirmText: '保存房间号', validate: (value) => /^[A-Z0-9]{4,32}$/.test(value.trim().toUpperCase()) ? '' : '请输入 4-32 位大写字母或数字' });
+    if (newRoomId === null) return;
+    const result = await adminAction('rename-room-id', { roomId, newRoomId: newRoomId.trim().toUpperCase() });
+    toast(result.message || result.error, result.success ? 'success' : 'error', 7000);
+    if (result.success) await loadAdminSettings();
+    return;
+  }
+  if (action === 'ban') {
+    let reason = '';
+    const banned = !Boolean(room?.banned);
+    if (banned) {
+      reason = await showAppInput({ title: '封禁房间', description: `封禁 ${room?.name || roomId} 后普通成员会立即退出。`, label: '封禁原因', initialValue: '违反服务器房间规则', maxLength: 200, confirmText: '确认封禁', danger: true });
+      if (reason === null) return;
+    }
+    const result = await adminAction('set-room-ban', { roomId, banned, reason });
+    toast(result.message || result.error, result.success ? 'success' : 'error'); if (result.success) await loadAdminSettings();
+    return;
+  }
+  if (action === 'delete') {
+    if (!await showAppConfirm(`确定永久删除房间 ${roomId}？该房间影片、聊天、队列和记录都会删除。`, { title: '删除房间', confirmText: '永久删除', danger: true })) return;
+    const result = await adminAction('delete-room', { roomId });
+    toast(result.message || result.error, result.success ? 'success' : 'error', 7000); if (result.success) await loadAdminSettings();
+  }
+}
+
+async function openRoomMediaPreview(roomId, roomName = roomId) {
+  elements.roomMediaPreviewTitle.textContent = `${roomName} · ${roomId}`;
+  elements.roomMediaPreviewList.innerHTML = '<p class="muted">正在读取房间影片库…</p>';
+  state.roomMediaPreviewRoomId = roomId;
+  state.roomMediaPreviewFiles = [];
+  state.selectedRoomMediaPreviewFiles.clear();
+  elements.roomMediaPreviewModal.classList.remove('is-hidden');
+  try {
+    const response = await fetchWithTimeout(`/api/host/rooms/${encodeURIComponent(roomId)}/files`, { headers: authHeaders() }, 20000);
+    const result = await response.json();
+    if (!response.ok || !result.success) throw new Error(result.error || `读取失败（${response.status}）`);
+    state.roomMediaPreviewFiles = Array.isArray(result.files) ? result.files : [];
+    renderRoomMediaPreviewFiles();
+  } catch (error) {
+    elements.roomMediaPreviewList.innerHTML = `<p class="form-status">${escapeHtml(localizedError(error, '房间影片读取失败'))}</p>`;
+  }
+}
+
+function renderRoomMediaPreviewFiles() {
+  const files = state.roomMediaPreviewFiles || [];
+  state.selectedRoomMediaPreviewFiles = new Set([...state.selectedRoomMediaPreviewFiles].filter((id) => files.some((file) => file.id === id)));
+  elements.roomMediaPreviewList.innerHTML = files.length ? files.map((file) => `<article class="media-selection-row" data-room-media-row="${escapeHtml(file.id)}"><label class="global-room-select"><input data-room-media-select type="checkbox" value="${escapeHtml(file.id)}" ${state.selectedRoomMediaPreviewFiles.has(file.id) ? 'checked' : ''}><span>选择</span></label><div><strong>${escapeHtml(file.originalName)}</strong><small>${escapeHtml(file.collection || '未分类')} · ${formatSize(file.size || 0)}${file.duration ? ` · ${formatTime(file.duration)}` : ''}</small></div><button class="secondary-button" data-room-media-preview="${escapeHtml(file.id)}" data-preview-url="${escapeHtml(file.previewUrl || '')}" type="button" ${file.playable ? '' : 'disabled'}>${file.playable ? '预览播放' : '不可播放'}</button><button class="danger-text-button" data-room-media-action="delete" data-file-id="${escapeHtml(file.id)}" type="button">删除影片</button><button class="warning-button" data-room-media-action="ban" data-file-id="${escapeHtml(file.id)}" type="button">禁止再上传</button></article>`).join('') : '<p class="muted">该房间暂无可预览影片</p>';
+  const allSelected = Boolean(files.length) && files.every((file) => state.selectedRoomMediaPreviewFiles.has(file.id));
+  if (elements.roomMediaPreviewSelectAll) {
+    elements.roomMediaPreviewSelectAll.checked = allSelected;
+    elements.roomMediaPreviewSelectAll.indeterminate = state.selectedRoomMediaPreviewFiles.size > 0 && !allSelected;
+  }
+  for (const button of [elements.roomMediaPreviewBatchDeleteBtn, elements.roomMediaPreviewBanUploadBtn]) if (button) button.disabled = state.selectedRoomMediaPreviewFiles.size === 0;
+}
+
+function handleRoomMediaPreviewAction(event) {
+  const actionButton = event.target.closest('[data-room-media-action]');
+  if (actionButton) {
+    state.selectedRoomMediaPreviewFiles = new Set([actionButton.dataset.fileId]);
+    renderRoomMediaPreviewFiles();
+    if (actionButton.dataset.roomMediaAction === 'delete') void deleteSelectedRoomMediaPreviewFiles();
+    else if (actionButton.dataset.roomMediaAction === 'ban') void banSelectedRoomMediaPreviewUploads();
+    return;
+  }
+  const button = event.target.closest('[data-room-media-preview]'); if (!button || !button.dataset.previewUrl) return;
+  elements.roomMediaPreviewPlayer.src = button.dataset.previewUrl;
+  elements.roomMediaPreviewPlayer.play().catch(() => toast('预览已加载，请点击播放器中的播放按钮', 'success'));
+}
+
+function handleRoomMediaPreviewSelection(event) {
+  const input = event.target.closest('[data-room-media-select]'); if (!input) return;
+  if (input.checked) state.selectedRoomMediaPreviewFiles.add(input.value); else state.selectedRoomMediaPreviewFiles.delete(input.value);
+  renderRoomMediaPreviewFiles();
+}
+
+function toggleAllRoomMediaPreviewFiles() {
+  if (elements.roomMediaPreviewSelectAll?.checked) state.roomMediaPreviewFiles.forEach((file) => state.selectedRoomMediaPreviewFiles.add(file.id));
+  else state.selectedRoomMediaPreviewFiles.clear();
+  renderRoomMediaPreviewFiles();
+}
+
+function roomMediaPreviewTargetDescription() {
+  const room = state.adminSettings?.rooms?.find((entry) => entry.id === state.roomMediaPreviewRoomId);
+  return `${room?.name || state.roomMediaPreviewRoomId}（房间 ${state.roomMediaPreviewRoomId}，房主 ${room?.ownerName || room?.ownerUsername || '未设置'}）`;
+}
+
+async function deleteSelectedRoomMediaPreviewFiles() {
+  const fileIds = [...state.selectedRoomMediaPreviewFiles];
+  if (!fileIds.length) return;
+  const names = state.roomMediaPreviewFiles.filter((file) => fileIds.includes(file.id)).map((file) => file.originalName);
+  if (!await showAppConfirm(`将从 ${roomMediaPreviewTargetDescription()} 删除：${names.join('、')}。房间成员和房主会收到通知。`, { title: '删除房间影片', confirmText: '确认删除', danger: true })) return;
+  const result = await adminAction('delete-room-files', { roomId: state.roomMediaPreviewRoomId, fileIds });
+  if (!result.success) return toast(result.error || '删除房间影片失败', 'error');
+  state.roomMediaPreviewFiles = state.roomMediaPreviewFiles.filter((file) => !fileIds.includes(file.id));
+  state.selectedRoomMediaPreviewFiles.clear(); renderRoomMediaPreviewFiles();
+  if (elements.roomMediaPreviewActionStatus) elements.roomMediaPreviewActionStatus.textContent = result.message || '影片已删除并通知房间与房主';
+  toast(result.message || `已删除 ${fileIds.length} 个影片`, 'success', 7000);
+  await loadAdminSettings({ silent: true });
+}
+
+async function banSelectedRoomMediaPreviewUploads() {
+  const files = state.roomMediaPreviewFiles.filter((file) => state.selectedRoomMediaPreviewFiles.has(file.id));
+  if (!files.length) return;
+  if (!await showAppConfirm(`将在 ${roomMediaPreviewTargetDescription()} 禁止再次上传同名影片：${files.map((file) => file.originalName).join('、')}。房间成员和房主会收到通知。`, { title: '禁止影片再次上传', confirmText: '确认禁止', danger: true })) return;
+  let completed = 0;
+  const errors = [];
+  for (const file of files) {
+    const result = await adminAction('set-media-upload-ban', { roomId: state.roomMediaPreviewRoomId, originalName: file.originalName, banned: true });
+    if (result.success) completed += 1; else errors.push(`${file.originalName}：${result.error || '设置失败'}`);
+  }
+  const message = errors.length ? `已完成 ${completed}/${files.length} 项；${errors.join('；')}` : `已禁止 ${completed} 个同名影片再次上传`;
+  if (elements.roomMediaPreviewActionStatus) elements.roomMediaPreviewActionStatus.textContent = message;
+  toast(message, errors.length ? 'error' : 'success', 8000);
+}
+
+function closeRoomMediaPreview() {
+  elements.roomMediaPreviewModal.classList.add('is-hidden');
+  elements.roomMediaPreviewPlayer.pause(); elements.roomMediaPreviewPlayer.removeAttribute('src'); elements.roomMediaPreviewPlayer.load();
+  state.roomMediaPreviewRoomId = ''; state.roomMediaPreviewFiles = []; state.selectedRoomMediaPreviewFiles.clear();
+}
+
+function updateTunnelMode() { const named = elements.tunnelMode.value === 'named'; elements.tunnelToken.classList.toggle('is-hidden', !named); elements.tunnelPublicUrl.classList.toggle('is-hidden', !named); }
+
+function openTunnelTutorial() {
+  if (!elements.tunnelTutorialModal) return;
+  const mountRoot = document.fullscreenElement || document.body;
+  if (elements.tunnelTutorialModal.parentElement !== mountRoot) mountRoot.appendChild(elements.tunnelTutorialModal);
+  elements.tunnelTutorialModal.classList.remove('is-hidden');
+}
+
+function openUploadLimitTutorial() {
+  if (!elements.uploadLimitTutorialModal) return;
+  const mountRoot = document.fullscreenElement || document.body;
+  if (elements.uploadLimitTutorialModal.parentElement !== mountRoot) mountRoot.appendChild(elements.uploadLimitTutorialModal);
+  elements.uploadLimitTutorialModal.classList.remove('is-hidden');
+  if (mountRoot === document.body) bringModalToFront(elements.uploadLimitTutorialModal, 500);
+}
+
+function closeUploadLimitTutorial() {
+  elements.uploadLimitTutorialModal?.classList.add('is-hidden');
+  if (elements.uploadLimitTutorialModal?.parentElement !== document.body) document.body.appendChild(elements.uploadLimitTutorialModal);
+}
+
+async function loadTunnelStartupSettings({ silent = false } = {}) {
+  if (!state.authenticated || !(state.capabilities.serverHost || state.capabilities.superAdmin)) return null;
+  try {
+    const response = await fetchWithTimeout('/api/host/tunnel/startup', { headers: authHeaders() }, 10000);
+    let result; try { result = await response.json(); } catch (_) { result = {}; }
+    if (!response.ok || !result.success) throw new Error(result.error || `服务器返回错误 ${response.status}`);
+    const settings = result.settings || {};
+    if (elements.tunnelMode) elements.tunnelMode.value = settings.mode === 'named' ? 'named' : 'quick';
+    if (elements.tunnelPublicUrl) elements.tunnelPublicUrl.value = settings.publicUrl || '';
+    if (elements.tunnelToken) elements.tunnelToken.value = '';
+    if (elements.tunnelAutoStart) elements.tunnelAutoStart.checked = settings.autoStartTunnel === true;
+    if (elements.tunnelBypassProxy) elements.tunnelBypassProxy.checked = settings.bypassProxy !== false;
+    if (elements.tunnelAutoDiagnose) elements.tunnelAutoDiagnose.checked = settings.autoDiagnose !== false;
+    updateTunnelMode();
+    if (elements.tunnelStartupStatus) {
+      elements.tunnelStartupStatus.textContent = settings.autoStartTunnel
+        ? `已启用开机自动开启公网访问${settings.tokenConfigured ? '（令牌已保存）' : ''}`
+        : '未启用开机自动开启公网访问';
+    }
+    return settings;
+  } catch (error) {
+    if (!silent) toast(localizedError(error, '公网自动启动设置读取失败'), 'error');
+    return null;
+  }
+}
+
+async function saveTunnelStartupSettings() {
+  if (!state.adminSettings?.serverAdmin) return toast('请先验证服务器管理员密码并加载设置', 'error');
+  const autoStartTunnel = Boolean(elements.tunnelAutoStart?.checked);
+  if (autoStartTunnel) {
+    const unprotectedRooms = (state.adminSettings.rooms || []).filter((room) => !room.passwordRequired && !room.archived && !room.banned);
+    if (unprotectedRooms.length) {
+      const labels = unprotectedRooms.slice(0, 8).map((room) => `${room.name || room.id}（${room.id}）`).join('、');
+      const confirmed = await showAppConfirm(`以下房间未设置访问密码：${labels}。开启开机自动公网访问后，知道公网地址的人可以尝试进入这些房间。是否继续？`, {
+        title: '确认自动开启公网访问', confirmText: '了解风险并继续', cancelText: '暂不启用', danger: true
+      });
+      if (!confirmed) {
+        elements.tunnelAutoStart.checked = false;
+        return;
+      }
+    }
+  }
+  if (elements.saveTunnelStartupBtn) elements.saveTunnelStartupBtn.disabled = true;
+  try {
+    const response = await fetchWithTimeout('/api/host/tunnel/startup', {
+      method: 'POST', headers: authHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify({
+        autoStartTunnel,
+        mode: elements.tunnelMode?.value === 'named' ? 'named' : 'quick',
+        token: elements.tunnelToken?.value || '', bypassProxy: elements.tunnelBypassProxy?.checked === true,
+        autoDiagnose: elements.tunnelAutoDiagnose?.checked !== false, publicUrl: elements.tunnelPublicUrl?.value || ''
+      })
+    }, 15000);
+    let result; try { result = await response.json(); } catch (_) { result = {}; }
+    if (!response.ok || !result.success) throw new Error(result.error || `保存失败（${response.status}）`);
+    if (elements.tunnelToken) elements.tunnelToken.value = '';
+    const settings = result.settings || {};
+    if (elements.tunnelAutoStart) elements.tunnelAutoStart.checked = settings.autoStartTunnel === true;
+    if (elements.tunnelStartupStatus) elements.tunnelStartupStatus.textContent = result.message || (settings.autoStartTunnel ? '已启用开机自动开启公网访问' : '已关闭公网自动启动');
+    toast(result.message || '公网自动启动设置已保存', 'success');
+    return result;
+  } catch (error) {
+    const message = localizedError(error, '公网自动启动设置保存失败');
+    if (elements.tunnelStartupStatus) elements.tunnelStartupStatus.textContent = message;
+    toast(message, 'error');
+    return null;
+  } finally {
+    if (elements.saveTunnelStartupBtn) elements.saveTunnelStartupBtn.disabled = false;
+  }
+}
+
+async function savePublicPasswordPolicy() {
+  if (!state.adminSettings?.serverAdmin) return toast('请先验证服务器管理员密码并加载设置', 'error');
+  if (elements.requirePublicRoomPassword.checked) {
+    const affected = (state.adminSettings?.rooms || []).filter((room) => !room.passwordRequired);
+    const ownerOfflineActive = affected.filter((room) => Number(room.online) > 0 && !(room.members || []).some((member) => member.username === room.ownerUsername));
+    if (ownerOfflineActive.length) {
+      const names = ownerOfflineActive.slice(0, 8).map((room) => `${room.name}（${room.id}）`).join('、');
+      const confirmed = await showAppConfirm(`以下正在使用的房间房主当前不在线：${names}${ownerOfflineActive.length > 8 ? ` 等 ${ownerOfflineActive.length} 个房间` : ''}。继续后不会打断现有成员，但房主下次进入会被要求先设置密码。`, { title: '确认启用房间密码要求', confirmText: '确认继续', cancelText: '暂不启用' });
+      if (!confirmed) { elements.requirePublicRoomPassword.checked = false; return; }
+    }
+  }
+  elements.savePublicPasswordPolicyBtn.disabled = true;
+  try {
+    const result = await adminAction('set-public-password-policy', { enabled: elements.requirePublicRoomPassword.checked });
+    if (!result.success) return toast(result.error, 'error', 7000);
+    state.adminSettings.requireRoomPasswordForPublicAccess = result.enabled;
+    elements.requirePublicRoomPassword.checked = Boolean(result.enabled);
+    elements.publicPasswordPolicyStatus.textContent = result.message;
+    toast(result.message, 'success');
+  } finally { elements.savePublicPasswordPolicyBtn.disabled = false; }
+}
+
+function renderLanAccessSetting(enabled) {
+  const allowed = enabled !== false;
+  if (elements.lanAccessEnabled) elements.lanAccessEnabled.checked = allowed;
+  if (elements.lanAccessStatus) elements.lanAccessStatus.textContent = allowed
+    ? '当前允许局域网地址访问'
+    : '局域网地址访问已关闭，仅本机与公网地址可连接';
+}
+
+async function saveLanAccessSetting() {
+  if (!state.adminSettings?.serverAdmin) return toast('请先验证服务器管理员密码并加载设置', 'error');
+  const enabled = elements.lanAccessEnabled?.checked !== false;
+  const previous = state.adminSettings.lanAccessEnabled !== false;
+  if (!enabled) {
+    const confirmed = await showAppConfirm('关闭后，所有通过局域网 IP 和端口连接的设备会立即断开；如果当前页面也是通过内网地址打开，它也可能断线。公网访问与服务器本机不受影响。', {
+      title: '关闭局域网端口访问', confirmText: '确认关闭', cancelText: '保持开启', danger: true
+    });
+    if (!confirmed) { renderLanAccessSetting(previous); return; }
+  }
+  elements.saveLanAccessBtn.disabled = true;
+  if (elements.lanAccessStatus) elements.lanAccessStatus.textContent = enabled ? '正在开启局域网访问…' : '正在关闭并断开局域网会话…';
+  try {
+    const result = await adminAction('set-lan-access', { enabled });
+    if (!result.success) {
+      renderLanAccessSetting(previous);
+      return toast(result.error || '局域网访问设置保存失败', 'error');
+    }
+    state.adminSettings.lanAccessEnabled = result.enabled !== false;
+    state.publicConfig.lanAccessEnabled = result.enabled !== false;
+    renderLanAccessSetting(result.enabled !== false);
+    toast(result.message || '局域网访问设置已保存', 'success', 7000);
+  } catch (error) {
+    if (!enabled && !state.socket?.connected) {
+      state.adminSettings.lanAccessEnabled = false;
+      renderLanAccessSetting(false);
+      return toast('局域网访问已关闭，当前内网连接已按设置断开。请改用服务器本机或公网地址重新连接。', 'success', 9000);
+    }
+    renderLanAccessSetting(previous);
+    toast(localizedError(error, '局域网访问设置保存失败'), 'error');
+  } finally {
+    elements.saveLanAccessBtn.disabled = false;
+  }
+}
+
+function renderTunnelStatus(status = {}, { notifyUnexpected = true } = {}) {
+  const previous = state.tunnelLastStatus; const next = { ...status, state: String(status.state || 'stopped') };
+  const tunnelError = next.error ? localizedError(next.error, '公网隧道运行异常，请检查网络和设置') : '';
+  const labels = {
+    downloading: '正在下载并验证 cloudflared…', diagnosing: '正在检查公网网络与出口…', starting: '正在启动公网隧道…',
+    reconnecting: tunnelError || '公网连接器正在自动恢复…', verifying: '正在验证公网地址可访问性…',
+    stopped: '未开启', unavailable: tunnelError || '当前环境不支持公网隧道'
+  };
+  if (next.state === 'running' && next.verified === true && String(next.publicUrl || '').trim()) {
+    const latency = Number.isFinite(Number(next.latencyMs)) ? ` · 延迟 ${Math.max(0, Math.round(Number(next.latencyMs)))}ms` : '';
+    const direct = next.bypassProxy ? ` · 已绕过代理${next.bindAddress ? `（绑定 ${next.bindAddress}）` : ''}` : '';
+    const health = next.health === 'degraded' ? ' · 公网探测波动，连接器仍在运行' : '';
+    elements.tunnelStatus.textContent = `已开启：${next.publicUrl}${latency}${direct}${health}`;
+  }
+  else if (next.state === 'error') elements.tunnelStatus.textContent = `运行异常：${tunnelError || 'cloudflared 已意外退出'}`;
+  else if (next.state === 'running') elements.tunnelStatus.textContent = tunnelError ? `公网地址暂不可用：${tunnelError}` : '公网地址正在验证，验证成功后才会显示可分享地址…';
+  else {
+    if (!labels[next.state]) console.debug('未识别的公网隧道状态（仅日志）：', next.state);
+    elements.tunnelStatus.textContent = labels[next.state] || '状态未知';
+  }
+  const busy = ['downloading', 'diagnosing', 'starting', 'verifying', 'reconnecting'].includes(next.state);
+  elements.startTunnelBtn.disabled = busy;
+  elements.stopTunnelBtn.disabled = next.state === 'stopped' || next.state === 'unavailable';
+  if (elements.stopTunnelBtn) elements.stopTunnelBtn.textContent = next.state === 'running' || busy ? '强制停止公网访问' : '停止公网访问';
+  const publicAddressReady = next.state === 'running' && next.verified === true && Boolean(String(next.publicUrl || '').trim());
+  if (state.publicConfig) state.publicConfig.publicAddress = publicAddressReady ? String(next.publicUrl).trim() : '';
+  if (elements.copyTunnelUrlBtn) elements.copyTunnelUrlBtn.disabled = !publicAddressReady;
+  if (elements.openTunnelUrlBtn) elements.openTunnelUrlBtn.disabled = !publicAddressReady;
+  if (publicAddressReady && elements.roomShareUrl && !elements.roomShareUrl.dataset.customBase) elements.roomShareUrl.value = shareAddressForBase(next.publicUrl);
+  if (notifyUnexpected && !state.tunnelStopRequested && previous?.state === 'running' && next.state !== 'running') {
+    toast(next.state === 'error' ? `公网隧道意外退出：${tunnelError || '未知原因'}` : '公网隧道已意外停止', 'error', 9000);
+  }
+  state.tunnelLastStatus = next;
+}
+
+async function pollTunnelStatus(generation = state.tunnelPollGeneration) {
+  if (state.tunnelPollInFlight || generation !== state.tunnelPollGeneration || !state.authenticated || !(state.capabilities.serverHost || state.capabilities.superAdmin)) return;
+  state.tunnelPollInFlight = true;
+  try {
+    const response = await fetchWithTimeout('/api/host/tunnel/status', { headers: authHeaders() }, 8000);
+    let result; try { result = await response.json(); } catch (_) { result = {}; }
+    if (generation !== state.tunnelPollGeneration) return;
+    if (!response.ok || !result.success) throw new Error(result.error || `服务器返回 ${response.status}`);
+    renderTunnelStatus(result.status || {});
+  } catch (error) {
+    if (generation === state.tunnelPollGeneration && state.tunnelLastStatus?.state !== 'running') elements.tunnelStatus.textContent = `状态读取失败：${localizedError(error, '请检查网络连接')}`;
+  } finally { if (generation === state.tunnelPollGeneration) state.tunnelPollInFlight = false; }
+}
+
+function startTunnelPolling() {
+  stopTunnelPolling();
+  if (!state.authenticated || !(state.capabilities.serverHost || state.capabilities.superAdmin)) return;
+  const generation = state.tunnelPollGeneration;
+  void pollTunnelStatus(generation);
+  state.tunnelPollTimer = setInterval(() => void pollTunnelStatus(generation), 5000);
+}
+
+function stopTunnelPolling() {
+  clearInterval(state.tunnelPollTimer); state.tunnelPollTimer = null;
+  state.tunnelPollGeneration += 1; state.tunnelPollInFlight = false; state.tunnelLastStatus = null; state.tunnelStopRequested = false;
+}
+
+async function startTunnel(confirmUnprotectedRooms = false) {
+  if (typeof confirmUnprotectedRooms !== 'boolean') confirmUnprotectedRooms = false;
+  renderTunnelStatus({ state: 'starting' }, { notifyUnexpected: false });
+  try {
+    const response = await fetchWithTimeout('/api/host/tunnel/start', {
+      method: 'POST', headers: authHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify({ mode: elements.tunnelMode.value, token: elements.tunnelToken.value, publicUrl: elements.tunnelPublicUrl.value, bypassProxy: elements.tunnelBypassProxy?.checked === true, autoDiagnose: elements.tunnelAutoDiagnose?.checked !== false, confirmUnprotectedRooms })
+    }, 120000);
+    const result = await response.json();
+    if (!response.ok && result.code === 'PUBLIC_ROOMS_UNPROTECTED' && result.requiresConfirmation && !confirmUnprotectedRooms) {
+      renderTunnelStatus({ state: 'stopped' }, { notifyUnexpected: false });
+      const rooms = (result.rooms || []).slice(0, 8).map((room) => `${room.name}（${room.id}）`).join('、');
+      const confirmed = await showAppConfirm(`以下房间没有访问密码：${rooms || '存在未加密房间'}。继续开启后，知道公网地址的人可以打开登录页并尝试加入这些房间。`, {
+        title: '确认开启公网访问', confirmText: '了解风险并继续', cancelText: '暂不开启', danger: true
+      });
+      if (confirmed) return startTunnel(true);
+      return;
+    }
+    if (!response.ok) throw new Error(result.error);
+    renderTunnelStatus(result.status || { state: 'running' }, { notifyUnexpected: false }); elements.tunnelToken.value = ''; startTunnelPolling();
+    const passwordHint = state.adminSettings?.requireRoomPasswordForPublicAccess ? '，房间密码强制策略已启用' : '';
+    toast(`公网访问已开启${passwordHint}。`, 'success', 7000);
+  } catch (error) { const message = localizedError(error, '公网服务启动失败，请检查令牌和网络'); renderTunnelStatus({ state: 'error', error: message }, { notifyUnexpected: false }); toast(message, 'error'); }
+}
+async function repairTunnelNetwork() {
+  if (!state.adminSettings?.serverAdmin) return toast('请先验证服务器管理员密码并加载设置', 'error');
+  const bypassProxy = elements.tunnelBypassProxy?.checked === true;
+  if (elements.tunnelNetworkRepairBtn) elements.tunnelNetworkRepairBtn.disabled = true;
+  try {
+    const diagnosticResponse = await fetchWithTimeout(`/api/host/tunnel/diagnostics?bypassProxy=${bypassProxy ? '1' : '0'}`, { headers: authHeaders() }, 15000);
+    const diagnosticResult = await diagnosticResponse.json();
+    if (diagnosticResult.success && diagnosticResult.diagnostics) {
+      const d = diagnosticResult.diagnostics;
+      elements.tunnelStatus.textContent = `${d.message || '网络诊断完成'}${d.publicProbe?.latencyMs ? ` · 公网延迟 ${d.publicProbe.latencyMs}ms` : ''}`;
+    }
+    const response = await fetchWithTimeout('/api/host/tunnel/repair', { method: 'POST', headers: authHeaders({ 'Content-Type': 'application/json' }), body: JSON.stringify({ bypassProxy }) }, 120000);
+    const result = await response.json();
+    if (!response.ok || !result.success) throw new Error(result.error || `网络修复失败（${response.status}）`);
+    renderTunnelStatus(result.status || {}, { notifyUnexpected: false }); startTunnelPolling();
+    toast(result.message || '公网网络修复完成', 'success', 8000);
+  } catch (error) {
+    const message = localizedError(error, '公网网络诊断或修复失败，请检查 VPN、代理和防火墙设置');
+    elements.tunnelStatus.textContent = message; toast(message, 'error', 9000);
+  } finally { if (elements.tunnelNetworkRepairBtn) elements.tunnelNetworkRepairBtn.disabled = false; }
+}
+async function stopTunnel() {
+  state.tunnelStopRequested = true;
+  try {
+    const response = await fetchWithTimeout('/api/host/tunnel/stop', { method: 'POST', headers: authHeaders() }, 12000); const result = await response.json();
+    if (!response.ok || !result.success) throw new Error(result.error || `停止失败（${response.status}）`);
+    renderTunnelStatus(result.status || { state: 'stopped' }, { notifyUnexpected: false });
+  } catch (error) { elements.tunnelStatus.textContent = `停止失败：${localizedError(error, '请稍后重试')}`; toast(elements.tunnelStatus.textContent, 'error'); }
+  finally { state.tunnelStopRequested = false; }
+}
+
+async function openAccountOverview() {
+  if (!elements.accountOverviewModal || !state.authenticated) return;
+  elements.accountOverviewModal.classList.remove('is-hidden');
+  if (elements.accountOverviewList) elements.accountOverviewList.innerHTML = '<p class="muted">正在同步账号状态...</p>';
+  if (state.capabilities.superAdmin || state.capabilities.serverHost) await loadAdminSettings({ silent: true });
+  renderAccountOverview();
+}
+
+function renderAccountOverview() {
+  if (!elements.accountOverviewList) return;
+  if (elements.accountOverviewPresence) elements.accountOverviewPresence.value = state.accountOverviewPresence || 'all';
+  if (elements.accountOverviewSort) elements.accountOverviewSort.value = state.accountOverviewSort || 'name-asc';
+  const accounts = filterAndSortAccounts(state.adminSettings?.accounts || [], {
+    query: state.accountOverviewQuery, presence: state.accountOverviewPresence, sort: state.accountOverviewSort
+  });
+  if (elements.accountOverviewCount) elements.accountOverviewCount.textContent = String(accounts.length);
+  elements.accountOverviewList.innerHTML = accounts.length ? accounts.map((account) => { const online = isAccountOnline(account); return `<button class="account-overview-row" data-account-overview="${escapeHtml(account.username)}" type="button"><span class="online-indicator ${online ? 'is-online' : ''}"></span><span><strong>${escapeHtml(account.displayName || account.username)}</strong><small>${escapeHtml(account.username)} · ${online ? '在线' : '离线'} · Lv.${Math.max(1, Number(account.level) || 1)}</small></span></button>`; }).join('') : '<p class="muted">没有匹配的账号，或当前账号没有查看账号总览的权限。</p>';
+}
+
+function isAccountOnline(account = {}) {
+  const sessions = account.onlineSessions;
+  return account.online === true || (Array.isArray(sessions) ? sessions.length > 0 : Number(sessions) > 0);
+}
+
+function updateAccountRecord(update = {}) {
+  const username = String(update.username || update.profile?.username || '').trim();
+  if (!username) return;
+  const patch = update.profile && typeof update.profile === 'object' ? update.profile : update;
+  const account = state.adminSettings?.accounts?.find((item) => item.username === username);
+  if (account) Object.assign(account, patch);
+  if (state.profile?.username === username) Object.assign(state.profile, patch);
+  if (state.user?.username === username) Object.assign(state.user, patch);
+  if (state.user?.username === username && patch.displayName) elements.accountName.textContent = patch.displayName;
+  renderAccountOverview();
+  if (!elements.accountModal?.classList.contains('is-hidden') && state.profile?.username === username) renderAccountPage(document.querySelector('#accountNav .active')?.dataset.accountPage || 'home');
+}
+
+function handleAccountProfileUpdated(update = {}) {
+  updateAccountRecord(update);
+  if (update.message) toast(update.message, 'success', 7000);
+}
+
+function handleAccountLevelUpdated(profile = {}) {
+  const username = String(profile.username || '').trim();
+  if (!username) return;
+  const previousLevel = Number(profile.previousLevel ?? (state.profile?.username === username ? state.profile.level : 0)) || 0;
+  const nextLevel = Math.max(1, Number(profile.level) || 1);
+  const increased = profile.levelIncreased === true || nextLevel > previousLevel;
+  updateAccountRecord({ username, profile });
+  state.users = state.users.map((user) => user.username === username ? { ...user, level: nextLevel, levelName: profile.levelName, experience: profile.experience } : user);
+  if (state.profile?.username === username) {
+    state.profile = { ...state.profile, ...profile };
+    if (increased) state.accountLevelHighlightUntil = Date.now() + 5000;
+    if (!elements.accountModal?.classList.contains('is-hidden') && elements.accountNav?.querySelector('[data-account-page="home"].active')) renderAccountPage('home');
+  }
+  if (state.memberProfileUsername === username && !elements.memberProfileModal?.classList.contains('is-hidden')) {
+    state.memberProfileSnapshot = { ...(state.memberProfileSnapshot || {}), ...profile };
+    if (increased) state.memberProfileHighlightUntil = Date.now() + 5000;
+    elements.memberProfileContent.innerHTML = renderMemberProfileContent(state.memberProfileSnapshot);
+    decorateLevelRuleHelp(elements.memberProfileContent); bringMemberProfileToFront();
+  }
+  renderUsers();
+  toast(profile.message || `观影等级已更新：Lv.${nextLevel} ${profile.levelName || ''}`, 'success', increased ? 9000 : 7000);
+}
+
+function handleAccountPresenceChanged(update = {}) {
+  updateAccountRecord(update);
+  const username = String(update.username || '').trim();
+  if (!username || username === state.user?.username) return;
+  const isFriend = Boolean(state.profile?.friends?.some((friend) => friend.username === username));
+  if (isFriend) return;
+  toast(`${update.displayName || username} ${isAccountOnline(update) ? '已上线' : '已离线'}`, isAccountOnline(update) ? 'success' : '', 3500);
+}
+
+function handleFriendOnline(update = {}) {
+  const username = String(update.username || update.friend?.username || '').trim();
+  const online = Boolean(update.online ?? update.friend?.online);
+  if (!username) return;
+  state.friendPresence.set(username, online);
+  if (state.profile?.friends) {
+    const friend = state.profile.friends.find((item) => item.username === username);
+    if (friend) friend.online = online;
+  }
+  if (!elements.accountModal?.classList.contains('is-hidden') && document.querySelector('#accountNav .active')?.dataset.accountPage === 'friends') renderAccountPage('friends');
+  toast(`${update.displayName || update.friend?.displayName || username} ${online ? '上线了' : '离线了'}`, online ? 'success' : '', 3500);
+}
+
+function handleAccountOverviewAction(event) {
+  const row = event.target.closest('[data-account-overview]');
+  if (!row) return;
+  const username = row.dataset.accountOverview;
+  elements.accountOverviewModal?.classList.add('is-hidden');
+  if (elements.managementHubModal && state.adminSettings) {
+    elements.managementHubModal.classList.remove('is-hidden');
+    showManagementSection('accounts');
+    const search = elements.accountAdminSearch;
+    if (search) { search.value = username; renderAdminAccounts(state.adminSettings.accounts || []); }
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      const target = [...(elements.accountAdminList?.querySelectorAll('[data-account]') || [])]
+        .find((entry) => entry.dataset.account === username);
+      if (!target) return toast('账号明细已变化，请刷新后重试', 'error');
+      target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      target.classList.add('account-admin-focus');
+      target.querySelector('button, input, select')?.focus({ preventScroll: true });
+      setTimeout(() => target.classList.remove('account-admin-focus'), 2600);
+    }));
+  }
+}
+
+function openAccountAuditLogs() {
+  if (!state.authenticated || !state.capabilities.superAdmin) {
+    toast('账户日志只允许已登录的超级管理员查看', 'error', 7000);
+    return;
+  }
+  if (!elements.accountAuditLogModal) return;
+  const mountRoot = document.fullscreenElement || document.body;
+  if (elements.accountAuditLogModal.parentElement !== mountRoot) mountRoot.appendChild(elements.accountAuditLogModal);
+  elements.accountAuditLogModal.classList.remove('is-hidden');
+  if (mountRoot === document.body) bringModalToFront(elements.accountAuditLogModal, 500);
+  state.accountAuditLogQuery = elements.accountAuditLogSearch?.value || '';
+  state.accountAuditLogType = elements.accountAuditLogType?.value || '';
+  void loadAccountAuditLogs(false);
+}
+
+function closeAccountAuditLogs() {
+  elements.accountAuditLogModal?.classList.add('is-hidden');
+  if (elements.accountAuditLogModal?.parentElement !== document.body) document.body.appendChild(elements.accountAuditLogModal);
+}
+
+async function loadAccountAuditLogs(silent = false) {
+  if (!state.authenticated || !state.capabilities.superAdmin) {
+    if (!silent) toast('请先登录超级管理员账号', 'error');
+    return;
+  }
+  if (state.accountAuditLogLoading) return;
+  state.accountAuditLogLoading = true;
+  if (elements.accountAuditLogList && !silent) elements.accountAuditLogList.innerHTML = '<p class="muted">正在读取账户日志...</p>';
+  try {
+    const result = await adminAction('get-account-audit-logs', {
+      query: String(state.accountAuditLogQuery || '').trim(),
+      category: state.accountAuditLogType || '',
+      limit: 500
+    });
+    if (!result.success) throw new Error(result.error || '账户日志读取失败');
+    state.accountAuditLogs = Array.isArray(result.logs) ? result.logs : [];
+    state.selectedAccountAuditLogs.clear();
+    renderAccountAuditLogs();
+  } catch (error) {
+    if (elements.accountAuditLogList) elements.accountAuditLogList.innerHTML = `<p class="muted">${escapeHtml(localizedError(error, '账户日志读取失败'))}</p>`;
+    if (!silent) toast(localizedError(error, '账户日志读取失败'), 'error', 7000);
+  } finally {
+    state.accountAuditLogLoading = false;
+  }
+}
+
+function renderAccountAuditLogs() {
+  if (!elements.accountAuditLogList) return;
+  const query = String(state.accountAuditLogQuery || '').trim().toLowerCase();
+  const category = String(state.accountAuditLogType || '').trim().toLowerCase();
+  const categoryLabels = { register: '注册', login: '登录', logout: '注销', 'account-delete': '账号注销' };
+  const resultLabels = { success: '成功', failure: '失败' };
+  const logs = (Array.isArray(state.accountAuditLogs) ? state.accountAuditLogs : []).filter((entry) => {
+    if (category && String(entry.category || '').toLowerCase() !== category) return false;
+    if (!query) return true;
+    return [entry.username, entry.displayName, entry.ipAddress, entry.deviceName, entry.platform, entry.browser, entry.message]
+      .some((value) => String(value || '').toLowerCase().includes(query));
+  });
+  const visibleIds = new Set(logs.map((entry) => String(entry.id || '')).filter(Boolean));
+  for (const id of [...state.selectedAccountAuditLogs]) if (!visibleIds.has(id)) state.selectedAccountAuditLogs.delete(id);
+  elements.accountAuditLogList.innerHTML = logs.length ? logs.map((entry) => {
+    const id = String(entry.id || '');
+    const eventCategory = String(entry.category || 'unknown');
+    const eventLabel = categoryLabels[eventCategory] || eventCategory || '其他';
+    const result = String(entry.result || 'success');
+    const checked = state.selectedAccountAuditLogs.has(id) ? 'checked' : '';
+    const identity = entry.displayName && entry.displayName !== entry.username
+      ? `${entry.displayName}（${entry.username || '未知账号'}）`
+      : entry.username || entry.displayName || '未知账号';
+    const client = [entry.deviceName, entry.platform, entry.browser].filter(Boolean).join(' · ') || '未知设备';
+    return `<article class="account-audit-log-row" data-account-audit-log="${escapeHtml(id)}"><label class="account-audit-log-select"><input data-account-audit-log-select type="checkbox" value="${escapeHtml(id)}" ${checked} ${id ? '' : 'disabled'}><span class="visually-hidden">选择日志</span></label><span class="audit-event audit-event-${escapeHtml(eventCategory)}">${escapeHtml(eventLabel)}</span><div><strong>${escapeHtml(identity)}</strong><p>${escapeHtml(entry.message || `${eventLabel}${resultLabels[result] || result}`)}</p><small>${escapeHtml(entry.ipAddress || '未知 IP')} · ${escapeHtml(client)} · ${formatDate(entry.timestamp || entry.createdAt || entry.time)}</small></div><span class="audit-result ${result === 'failure' ? 'is-failure' : 'is-success'}">${escapeHtml(resultLabels[result] || result)}</span></article>`;
+  }).join('') : '<p class="muted">没有匹配的账户日志</p>';
+  updateAccountAuditLogSelectionControls(logs);
+}
+
+function updateAccountAuditLogSelectionControls(logs = null) {
+  const rows = Array.isArray(logs)
+    ? logs
+    : [...(elements.accountAuditLogList?.querySelectorAll('[data-account-audit-log-select]') || [])].map((input) => ({ id: input.value }));
+  const ids = rows.map((entry) => String(entry.id || '')).filter(Boolean);
+  const selectedCount = ids.filter((id) => state.selectedAccountAuditLogs.has(id)).length;
+  if (elements.accountAuditLogSelectAll) {
+    elements.accountAuditLogSelectAll.checked = Boolean(ids.length && selectedCount === ids.length);
+    elements.accountAuditLogSelectAll.indeterminate = Boolean(selectedCount && selectedCount < ids.length);
+  }
+  if (elements.deleteSelectedAccountAuditLogsBtn) {
+    elements.deleteSelectedAccountAuditLogsBtn.disabled = state.selectedAccountAuditLogs.size === 0;
+    elements.deleteSelectedAccountAuditLogsBtn.textContent = state.selectedAccountAuditLogs.size
+      ? `删除所选（${state.selectedAccountAuditLogs.size}）`
+      : '删除所选';
+  }
+}
+
+function toggleAllAccountAuditLogSelections() {
+  const inputs = [...(elements.accountAuditLogList?.querySelectorAll('[data-account-audit-log-select]:not(:disabled)') || [])];
+  if (elements.accountAuditLogSelectAll?.checked) inputs.forEach((input) => state.selectedAccountAuditLogs.add(input.value));
+  else inputs.forEach((input) => state.selectedAccountAuditLogs.delete(input.value));
+  inputs.forEach((input) => { input.checked = state.selectedAccountAuditLogs.has(input.value); });
+  updateAccountAuditLogSelectionControls();
+}
+
+function handleAccountAuditLogSelection(event) {
+  const input = event.target.closest('[data-account-audit-log-select]');
+  if (!input) return;
+  if (input.checked) state.selectedAccountAuditLogs.add(input.value);
+  else state.selectedAccountAuditLogs.delete(input.value);
+  updateAccountAuditLogSelectionControls();
+}
+
+async function deleteSelectedAccountAuditLogs() {
+  const ids = [...state.selectedAccountAuditLogs];
+  if (!ids.length) return toast('请先选择要删除的账户日志', 'error');
+  if (!await showAppConfirm(`确定删除所选 ${ids.length} 条账户日志吗？此操作不会删除账号。`, {
+    title: '删除账户日志', confirmText: '确认删除', danger: true
+  })) return;
+  const result = await adminAction('delete-account-audit-logs', { ids });
+  toast(result.message || result.error, result.success ? 'success' : 'error', 7000);
+  if (!result.success) return;
+  state.selectedAccountAuditLogs.clear();
+  await loadAccountAuditLogs(true);
+}
+
+async function handleAccountMenu(event) { if (['logoutBtn', 'logoutKeepCredentialsBtn', 'androidApkBtn', 'downloadClientMainBtn', 'downloadMacServerMainBtn', 'downloadMacClientMainBtn'].includes(event.target.id)) return; const button = event.target.closest('[data-account-page]'); if (!button) return; elements.accountDropdown.classList.add('is-hidden'); await openAccount(button.dataset.accountPage); }
+async function openAccount(page = 'home') { const result = await emitAck('account-action', { action: 'get-profile' }); if (!result.success) return toast(result.error, 'error'); state.profile = result.profile; updateAccountAvatar(result.profile?.avatar); elements.accountModal.classList.remove('is-hidden'); renderAccountPage(page); }
+
+async function refreshProfile() {
+  if (!state.socketAuthenticated) return null;
+  const result = await emitAck('account-action', { action: 'get-profile' });
+  if (!result.success || !result.profile) return null;
+  state.profile = result.profile; updateAccountAvatar(result.profile.avatar); return result.profile;
+}
+
+function updateDisplayNameLocally(username, displayName) {
+  const accountName = String(username || '').trim(); const nextName = String(displayName || '').trim();
+  if (!accountName || !nextName) return;
+  if (state.user?.username === accountName) { state.user.displayName = nextName; elements.accountName.textContent = nextName; }
+  if (state.profile?.username === accountName) state.profile.displayName = nextName;
+  for (const user of state.users) if (user.username === accountName) user.displayName = nextName;
+  for (const message of state.messages) {
+    if (message.from === accountName) message.fromName = nextName;
+    if (message.to === accountName) message.toName = nextName;
+  }
+  const adminAccount = state.adminSettings?.accounts?.find((account) => account.username === accountName);
+  if (adminAccount) adminAccount.displayName = nextName;
+  if (state.authenticated) renderUsers();
+  renderChat();
+  if (!elements.chatManageModal?.classList.contains('is-hidden')) renderChatManager();
+}
+
+function renderDevicesPage() {
+  const devices = Array.isArray(state.profile?.devices) ? state.profile.devices : [];
+  const availableIds = new Set(devices.map((device) => device.id));
+  state.selectedDevices = new Set([...state.selectedDevices].filter((id) => availableIds.has(id)));
+  const allSelected = Boolean(devices.length && devices.every((device) => state.selectedDevices.has(device.id)));
+  elements.accountContent.innerHTML = `<div class="settings-title"><div><h2>设备与自动登录</h2><p>取消授权后，该设备下次登录必须重新输入账号密码。</p></div></div>${devices.length ? `<div class="device-management-toolbar"><label class="check-line"><input data-device-select-all type="checkbox" ${allSelected ? 'checked' : ''}> 全选 ${devices.length} 台设备</label><button data-profile-action="revoke-selected-devices" class="danger-button" type="button" ${state.selectedDevices.size ? '' : 'disabled'}>取消所选自动登录${state.selectedDevices.size ? `（${state.selectedDevices.size}）` : ''}</button></div>` : ''}<div class="profile-list">${devices.length ? devices.map((device) => `<div class="profile-item" data-device-id="${escapeHtml(device.id)}"><label class="device-select" title="选择设备"><input data-device-select type="checkbox" value="${escapeHtml(device.id)}" ${state.selectedDevices.has(device.id) ? 'checked' : ''}></label><span>${/Android|安卓|iOS|苹果手机/.test(device.platform) ? '📱' : '🖥️'}</span><div><strong>${escapeHtml(device.name)}</strong><p>${escapeHtml(localizedDeviceLabel(device.browser, 'browser'))} · ${escapeHtml(localizedDeviceLabel(device.platform, 'platform'))}</p><small>${device.current ? '当前设备 · 已记住登录' : `${formatDate(device.lastSeen)} · 历史授权`}</small></div><button data-profile-action="revoke-device">取消自动登录</button></div>`).join('') : '<p class="muted">没有已授权设备</p>'}</div>`;
+}
+
+function renderAccountPage(page) {
+  if (!state.profile) return;
+  document.querySelectorAll('#accountNav [data-account-page]').forEach((button) => button.classList.toggle('active', button.dataset.accountPage === page));
+  const p = state.profile;
+  if (page === 'home') elements.accountContent.innerHTML = `<div class="profile-hero"><span class="profile-avatar">${p.avatar ? `<img src="${escapeHtml(p.avatar)}" alt="">` : '👤'}</span><div><h2>${escapeHtml(p.displayName || p.username)}</h2><p>Lv.${p.level} ${escapeHtml(p.levelName || '初映小星')}${p.superAdmin ? ' · 超级管理员' : ''} · ${escapeHtml(p.id)}</p><small>登录账号：${escapeHtml(p.username)} · ${escapeHtml(p.email || '未绑定邮箱')}</small></div></div><div class="level-progress-card${Date.now() < Number(state.accountLevelHighlightUntil || 0) ? ' level-up-highlight' : ''}"><div><strong>${Math.max(0, Number(p.experience) || 0)} 经验</strong><small>${p.nextLevelExperience === null ? '已经到达最高观看等级' : `距离下一等级还差 ${Math.max(0, Number(p.experienceToNext) || 0)} 经验`}</small></div><progress max="100" value="${Math.max(0, Math.min(100, Number(p.progressPercent) || 0))}"></progress></div><div class="stats-grid"><div class="stat"><strong>${p.stats.joinedRooms || 0}</strong><small>加入房间</small></div><div class="stat"><strong>${p.stats.createdRooms || (state.capabilities.owner ? 1 : 0)}</strong><small>创建房间</small></div><div class="stat"><strong>${Math.round((p.stats.watchSeconds || 0) / 3600)}</strong><small>观看小时</small></div></div><div class="settings-card"><h3>账户名字</h3><p>可修改对其他成员显示的名字，登录账号保持不变。</p><label>显示名称<input id="profileDisplayName" maxlength="24" autocomplete="nickname" value="${escapeHtml(p.displayName || p.username)}"></label><button data-profile-action="change-display-name" class="secondary-button">修改账户名字</button></div><div class="settings-card"><h3>资料设置</h3><label>绑定邮箱<input id="profileEmail" type="email" value="${escapeHtml(p.email || '')}"></label><small class="form-hint">更换绑定邮箱时，系统会向新邮箱发送 6 位验证码；已绑定邮箱也可验证码确认后安全清除。</small><label>头像图片地址（选填）<input id="profileAvatarInput" value="${escapeHtml(p.avatar || '')}"></label><label>或上传头像文件<input id="profileAvatarFile" type="file" accept="image/jpeg,image/png,image/webp,image/gif"></label><label>个性签名<input id="profileSignature" maxlength="160" value="${escapeHtml(p.signature || '')}"></label><div class="manage-actions"><button data-profile-action="upload-avatar" class="secondary-button">上传头像</button>${p.email ? '<button data-profile-action="unbind-email" class="secondary-button" type="button">验证码清除邮箱</button>' : ''}<button data-profile-action="save-profile" class="primary-button">保存资料</button></div></div><div class="settings-card danger-zone profile-danger-zone"><h3>注销账号</h3><p>注销会删除账户资料、历史记录和好友关系。此操作不可撤销，服务器会按策略处理您拥有的房间和上传文件。</p><button data-profile-action="delete-own-account" class="danger-button" type="button">永久注销我的账号</button></div>`;
+  else if (page === 'room') renderProfileRooms();
+  else if (page === 'media') renderProfileMedia('media');
+  else if (page === 'favorites') renderProfileMedia('favorites');
+  else if (page === 'history') renderProfileHistory();
+  else if (page === 'devices') renderDevicesPage();
+  else if (page === 'friends') {
+    renderFriendsPage(state.friendDirectory);
+    if (!state.friendDirectoryLoaded && !state.friendDirectoryLoading) void loadFriendDirectory('');
+  }
+  else if (page === 'security') elements.accountContent.innerHTML = `<h2>账号安全</h2><div class="settings-card"><p>密码只保存不可逆哈希，管理员也无法查看。</p><label>当前密码<input id="currentAccountPassword" type="password"></label><label>新密码<input id="newAccountPassword" type="password"></label><button data-profile-action="change-password" class="secondary-button">修改登录密码</button></div><div class="settings-card"><h3>位置授权提示</h3><p>${state.locationPromptDisabled ? '您已选择永久不再显示位置授权提示。重新开启后，可立即再次向浏览器申请位置权限。' : '位置授权提示当前已开启；拒绝后仍可随时重新授权。'}</p><div class="manage-actions"><button data-profile-action="enable-location-prompt" class="secondary-button" ${state.locationPromptDisabled ? '' : 'disabled'}>重新开启提示</button><button data-profile-action="request-location" class="primary-button">立即重新授权</button><button data-profile-action="revoke-location" class="danger-text-button" type="button">取消位置授权数据</button></div><small class="form-hint">浏览器权限需在地址栏中关闭；此按钮会立即清除服务器保存的位置并停止本次位置共享。</small></div><div class="settings-card"><h3>房间成员定位</h3><p>本人会排在房主和超级管理员之后，开启高亮后可在长列表中快速找到自己。</p><label class="check-line"><input data-profile-setting="self-member-highlight" type="checkbox" ${state.selfMemberHighlight ? 'checked' : ''}> 持续高亮闪烁我的成员卡片</label></div><div class="settings-card"><h3>成员位置状态通知</h3><p>${state.locationStatusNoticeNever ? '已永久关闭成员位置状态通知。' : state.locationStatusNoticeMuteUntil > Date.now() ? `通知已暂停至 ${formatDate(new Date(state.locationStatusNoticeMuteUntil).toISOString())}。` : '成员同意或拒绝位置授权时，管理员会收到状态通知。'}</p><div class="manage-actions"><button data-profile-action="configure-location-status-notices" class="secondary-button">设置免打扰</button><button data-profile-action="restore-location-status-notices" class="primary-button" ${state.locationStatusNoticeNever || state.locationStatusNoticeMuteUntil > Date.now() ? '' : 'disabled'}>恢复通知</button></div></div><div class="settings-card"><h3>已关闭提示管理</h3><p>这里可以恢复曾经选择“永久不再提示”或“本房间不再提示”的提醒。</p><div class="manage-actions"><button data-profile-action="restore-f11-prompt" class="secondary-button">恢复全屏提示</button><button data-profile-action="restore-playback-rate-prompt" class="secondary-button">恢复倍速提示</button><button data-profile-action="restore-control-prompts" class="secondary-button">恢复控制申请提示</button><button data-profile-action="restore-all-prompts" class="primary-button">恢复全部提示</button></div></div><div class="settings-card"><h3>登录状态</h3><p>可在“设备管理”中取消任意设备的记住密码授权。</p></div>`;
+  if (page === 'security') {
+    const preferences = state.profile.notificationPreferences || state.profile.notificationSettings || { registrationNotices: true, allNotifications: true };
+    elements.accountContent.insertAdjacentHTML('afterbegin', `<div class="settings-card notification-preferences-card"><h3>通知偏好</h3><p>普通通知可以关闭；申请、好友消息和安全提示仍会保留。关闭全部通知需要输入文字确认。</p><div class="manage-actions"><button data-profile-action="save-notification-preferences" data-registration-notices="0" class="secondary-button" type="button" ${preferences.registrationNotices === false ? 'disabled' : ''}>关闭新账号注册提醒</button><button data-profile-action="save-notification-preferences" data-registration-notices="1" class="secondary-button" type="button" ${preferences.registrationNotices === false ? '' : 'disabled'}>开启新账号注册提醒</button><button data-profile-action="save-notification-preferences" data-disable-all="1" class="danger-button" type="button" ${preferences.allNotifications === false ? 'disabled' : ''}>关闭全部普通通知</button><button data-profile-action="save-notification-preferences" data-disable-all="0" class="primary-button" type="button" ${preferences.allNotifications !== false ? 'disabled' : ''}>恢复普通通知</button></div></div>`);
+  }
+  decorateLevelRuleHelp(elements.accountContent);
+}
+
+function profileToolbar(kind, count, selected, { categories = true, deleteLabel = '删除所选' } = {}) {
+  const categoryOptions = profileCategories(kind);
+  return `<div class="profile-management-toolbar"><label>搜索<input data-profile-query="${kind}" type="search" value="${escapeHtml(state.profileQueries[kind] || '')}" placeholder="模糊搜索名称、备注或分类"></label>${categories ? `<label>分类<select data-profile-category-filter="${kind}"><option value="">全部分类</option>${categoryOptions.map((category) => `<option value="${escapeHtml(category)}" ${state.profileCategoryFilters[kind] === category ? 'selected' : ''}>${escapeHtml(category)}</option>`).join('')}</select></label>` : ''}<label class="check-line"><input data-profile-select-all="${kind}" type="checkbox" ${count > 0 && selected.size === count ? 'checked' : ''}> 全选</label>${categories ? `<button data-profile-action="batch-category" data-kind="${kind}" type="button">批量分类</button><button data-profile-action="batch-note" data-kind="${kind}" type="button">批量备注</button>` : ''}<button data-profile-action="profile-export" data-kind="${kind}" type="button">导出</button><button data-profile-action="profile-import" data-kind="${kind}" type="button">导入</button><input class="visually-hidden" data-profile-import-input="${kind}" type="file" accept="application/json"><button data-profile-action="profile-delete-selected" data-kind="${kind}" class="danger-button" type="button" ${selected.size ? '' : 'disabled'}>${deleteLabel}</button></div>`;
+}
+
+function profileCategories(kind) {
+  const p = state.profile || {}; const values = new Set(['未分类']);
+  if (kind === 'room') (p.recentRooms || []).forEach((item) => values.add(item.category || '未分类'));
+  else if (kind === 'favorites') Object.values(p.favoriteMeta || {}).forEach((item) => values.add(item.category || '未分类'));
+  else (p.myFiles || []).forEach((item) => values.add(item.collection || '未分类'));
+  return [...values].filter(Boolean).sort((a, b) => a.localeCompare(b, 'zh-CN'));
+}
+
+function renderProfileRooms() {
+  const p = state.profile; const query = String(state.profileQueries.room || '').toLocaleLowerCase();
+  const rooms = (p.recentRooms || []).filter((room) => (!state.profileCategoryFilters.room || (room.category || '未分类') === state.profileCategoryFilters.room) && (!query || [room.id, room.name, room.note, room.category, room.ownerUsername].join(' ').toLocaleLowerCase().includes(query)));
+  state.selectedProfileRooms = new Set([...state.selectedProfileRooms].filter((id) => (p.recentRooms || []).some((room) => room.id === id)));
+  const roomCards = rooms.map((room) => {
+    const passwordText = room.passwordRequired ? room.accessRemembered ? '密码已记住' : '首次进入需密码' : '无需密码';
+    return `<article class="profile-item profile-room-item room-directory-card ${room.pinned ? 'pinned' : ''}" data-profile-room-id="${escapeHtml(room.id)}"><header><label class="profile-room-select"><input data-profile-item-select="room" type="checkbox" value="${escapeHtml(room.id)}" ${state.selectedProfileRooms.has(room.id) ? 'checked' : ''}><span>选择</span></label><div><strong>${room.pinned ? '置顶 · ' : ''}${escapeHtml(room.name || '私人影院')} · ${escapeHtml(room.id)}</strong><small>${escapeHtml(roomDirectoryStateText(room, state.room?.id))} · ${room.online}/${room.maxUsers} 人 · ${room.owned ? '我拥有' : `房主 ${escapeHtml(room.ownerName || room.ownerUsername || '未知')}`} · ${passwordText} · ${escapeHtml(room.category || '未分类')}</small></div><span>${escapeHtml(room.note || '暂无备注')}</span></header>${renderRoomDirectoryDetails(room)}<div class="profile-room-actions actions"><button data-profile-action="pin-room" data-room-id="${escapeHtml(room.id)}" data-pinned="${room.pinned ? '1' : '0'}" type="button">${room.pinned ? '取消置顶' : '置顶'}</button>${room.owned ? `<button data-profile-action="rename-room" data-room-id="${escapeHtml(room.id)}" type="button">重命名</button>` : ''}<button data-profile-action="enter-room" data-room-id="${escapeHtml(room.id)}" type="button" ${room.banned ? 'disabled' : ''}>进入</button></div></article>`;
+  }).join('');
+  elements.accountContent.innerHTML = `<div class="settings-title"><div><h2>我的房间</h2><p>已拥有 ${Number(p.ownedRoomCount) || 0}/${Number(p.roomQuota) >= 9999 ? '不限' : Number(p.roomQuota) || 1} 个房间</p></div><button data-profile-action="request-room-quota" class="secondary-button" type="button">申请更多房间</button></div>${profileToolbar('room', rooms.length, state.selectedProfileRooms)}<div class="profile-list">${roomCards || '<div class="room-directory-empty"><p class="muted">暂无符合条件的房间</p><button data-profile-action="create-room" class="primary-button" type="button">创建正式房间</button></div>'}</div>`;
+}
+
+function renderProfileMedia(kind) {
+  const p = state.profile; const source = kind === 'favorites' ? (p.favoriteFiles || []) : (p.myFiles || []); const selected = kind === 'favorites' ? state.selectedProfileFavorites : state.selectedProfileMedia;
+  const query = String(state.profileQueries[kind] || '').toLocaleLowerCase();
+  const files = source.filter((file) => {
+    const meta = kind === 'favorites' ? p.favoriteMeta?.[file.id] || {} : { note: file.note, category: file.collection };
+    return (!state.profileCategoryFilters[kind] || (meta.category || file.collection || '未分类') === state.profileCategoryFilters[kind]) && (!query || [file.originalName, file.collection, file.uploadedBy, meta.note, meta.category].join(' ').toLocaleLowerCase().includes(query));
+  });
+  const title = kind === 'favorites' ? '我的收藏' : '我的影片';
+  const conversionFiles = source.filter((file) => file.category === 'video');
+  const conversionCounts = conversionFiles.reduce((counts, file) => {
+    const compatibility = file.compatibility || {};
+    if (compatibility.required && (compatibility.ready || compatibility.status === 'ready')) counts.completed += 1;
+    else if (compatibility.status === 'converting') counts.converting += 1;
+    else if (compatibility.required && compatibility.status === 'queued') counts.queued += 1;
+    return counts;
+  }, { converting: 0, queued: 0, completed: 0 });
+  const summary = kind === 'media'
+    ? `<div class="profile-processing-summary" aria-live="polite"><span><small>正在转换</small><strong>${conversionCounts.converting}</strong></span><span><small>等待转换</small><strong>${conversionCounts.queued}</strong></span><span><small>已转换完成</small><strong>${conversionCounts.completed}</strong></span></div>`
+    : '';
+  elements.accountContent.innerHTML = `<div class="settings-title"><div><h2>${title}</h2><p>${files.length} 个项目，支持分类、备注、筛选和批量管理</p></div>${kind === 'media' ? '<button data-profile-action="manage-media" class="primary-button" type="button">打开视频管理系统</button>' : ''}</div>${summary}${profileToolbar(kind, files.length, selected, { deleteLabel: kind === 'favorites' ? '取消收藏' : '删除所选' })}<div class="profile-list">${files.length ? files.map((file) => { const meta = kind === 'favorites' ? p.favoriteMeta?.[file.id] || {} : { note: file.note, category: file.collection }; const compatibility = file.compatibility || {}; const processing = kind === 'media' && compatibility.required && !compatibility.ready && ['queued', 'converting'].includes(compatibility.status); const progress = Math.max(0, Math.min(100, Number(compatibility.progress) || 0)); const processingStatus = processing ? `<div class="profile-file-progress" role="status"><div><span style="width:${progress}%"></span></div><small>${compatibility.status === 'converting' ? `正在转换 ${Math.round(progress)}%` : '等待转换'} · 点击查看完整处理进度</small></div>` : ''; return `<div class="profile-item profile-file-item ${processing ? 'processing' : ''}" data-profile-file-id="${escapeHtml(file.id)}"><label class="profile-room-select"><input data-profile-item-select="${kind}" type="checkbox" value="${escapeHtml(file.id)}" ${selected.has(file.id) ? 'checked' : ''} ${processing ? 'disabled' : ''}><span>选择</span></label><span>${fileIcon(file.category)}</span><div><strong>${escapeHtml(file.originalName)}</strong><p>${formatSize(file.size)} · ${escapeHtml(meta.category || file.collection || '未分类')}</p><small>${escapeHtml(meta.note || file.note || '暂无备注')}</small>${processingStatus}</div><button data-profile-action="${processing ? 'processing-progress' : isTimedFile(file) ? 'continue' : 'view-file'}" data-file-id="${escapeHtml(file.id)}">${processing ? '查看处理进度' : isTimedFile(file) ? '播放' : '查看'}</button></div>`; }).join('') : '<p class="muted">暂无符合条件的项目</p>'}</div>`;
+}
+
+function renderProfileHistory() {
+  const p = state.profile; const query = String(state.profileQueries.history || '').toLocaleLowerCase();
+  const items = (p.history || []).filter((item) => !query || [item.file?.originalName, item.file?.collection, formatDate(item.lastWatchTime)].join(' ').toLocaleLowerCase().includes(query));
+  elements.accountContent.innerHTML = `<div class="settings-title"><div><h2>观影记录</h2><p>支持搜索、批量删除以及导入导出</p></div></div>${profileToolbar('history', items.length, state.selectedProfileHistory, { categories: false })}<div class="profile-list">${items.length ? items.map((item) => `<div class="profile-item"><label class="profile-room-select"><input data-profile-item-select="history" type="checkbox" value="${escapeHtml(item.id)}" ${state.selectedProfileHistory.has(item.id) ? 'checked' : ''}><span>选择</span></label><span>🎞️</span><div><strong>${escapeHtml(item.file?.originalName || '影片已删除')}</strong><p>观看进度 ${item.duration ? Math.min(100, Math.round(item.progress / item.duration * 100)) : 0}% · ${formatTime(item.progress)}</p><small>上次 ${formatDate(item.lastWatchTime)}</small></div>${item.file ? `<button data-profile-action="continue" data-file-id="${escapeHtml(item.fileId)}">继续观看</button>` : ''}</div>`).join('') : '<p class="muted">暂无符合条件的观影记录</p>'}</div>`;
+}
+
+function renderFriendsPage(searchResults = state.friendDirectory) {
+  const p = state.profile; const requests = (p.friendRequests || []).filter((request) => request.status === 'pending');
+  const roomRequests = (p.friendRoomRequests || []).filter((request) => request.status === 'pending');
+  state.friendSettings = { ...state.friendSettings, ...(p.friendSettings || {}) };
+  requests.forEach((request) => addPersistentRequest({ ...request, kind: 'friend', own: false, username: request.from, displayName: request.displayName }));
+  roomRequests.forEach((request) => {
+    if (!request.snoozedUntil || Date.parse(request.snoozedUntil) <= Date.now()) addPersistentRequest({ ...request, requestType: request.kind, kind: 'friend-room', own: false });
+  });
+  for (const notice of p.friendNotifications || []) addPersistentRequest({ ...notice, kind: 'friend-message', own: false });
+  const friendRows = [...(p.friends || [])].sort((left, right) => Number(Boolean(right.pinned)) - Number(Boolean(left.pinned))
+    || Number(Boolean(right.online)) - Number(Boolean(left.online))
+    || String(left.remark || left.displayName || left.username).localeCompare(String(right.remark || right.displayName || right.username), 'zh-CN')).map((friend) => {
+    const room = friend.room;
+    const roomText = room ? `正在${room.ownedByFriend ? '自己的' : `${room.ownerName || room.ownerUsername} 的`}房间“${room.name}”（${room.id}）` : friend.online ? '在线，暂未进入房间' : '离线，可留言';
+    const joinAction = room && !room.viewerAlreadyInside
+      ? `<button data-profile-action="${room.directJoinAllowed ? 'friend-direct-join' : 'friend-request-join'}" data-username="${escapeHtml(friend.username)}">${room.directJoinAllowed ? '免密加入' : '申请加入'}</button>` : '';
+    const muted = friend.muteUntil && Date.parse(friend.muteUntil) > Date.now();
+    return `<div class="profile-item friend-profile-item ${friend.pinned ? 'is-pinned' : ''}"><span class="profile-avatar small">${friend.avatar ? `<img src="${escapeHtml(friend.avatar)}" alt="">` : '👤'}</span><div><strong>${friend.pinned ? '<span class="friend-pin-mark">置顶</span>' : ''}${escapeHtml(friend.remark ? `${friend.displayName}（${friend.remark}）` : friend.displayName)}${friend.unread ? ` · ${friend.unread} 条未读` : ''}</strong><p>${escapeHtml(friend.username)} · ${escapeHtml(friend.group || '我的好友')}</p><small>${escapeHtml(roomText)}${muted ? ` · 提醒关闭至 ${formatDate(friend.muteUntil)}` : ''}</small></div><div class="friend-row-actions"><button data-profile-action="friend-chat" data-username="${escapeHtml(friend.username)}">私聊</button>${joinAction}<button data-profile-action="friend-invite-room" data-username="${escapeHtml(friend.username)}" ${friend.online ? '' : 'disabled'}>邀请进房</button><button data-profile-action="friend-pin" data-username="${escapeHtml(friend.username)}" data-pinned="${friend.pinned ? '1' : '0'}" aria-pressed="${friend.pinned ? 'true' : 'false'}">${friend.pinned ? '取消置顶' : '置顶'}</button><button data-profile-action="friend-group" data-username="${escapeHtml(friend.username)}">分组</button><button data-profile-action="friend-edit" data-username="${escapeHtml(friend.username)}">备注</button><button data-profile-action="friend-mute" data-username="${escapeHtml(friend.username)}" data-muted="${muted ? '1' : '0'}">${muted ? '恢复提醒' : '免打扰'}</button><button data-profile-action="friend-voice" data-username="${escapeHtml(friend.username)}" ${friend.online ? '' : 'disabled'}>语音</button><button data-profile-action="friend-remove" data-username="${escapeHtml(friend.username)}" class="danger-text-button">删除</button></div></div>`;
+  }).join('');
+  const directoryStatus = state.friendDirectoryLoading
+    ? '正在读取服务器账号…'
+    : state.friendDirectoryLoaded
+      ? `共 ${searchResults.length} 个可添加账号，在线账号优先显示`
+      : '打开好友页后会自动显示服务器中的在线与离线账号';
+  const directoryRows = searchResults.map((item) => {
+    const requestId = item.pendingRequestId || item.requestId || item.pendingRequest?.id || '';
+    const pendingMessage = item.pendingRequestMessage || item.pendingMessage || item.pendingRequest?.message || '';
+    const action = item.friend
+      ? '<button type="button" disabled>已是好友</button>'
+      : item.pending && requestId
+        ? `<div class="friend-pending-actions"><button data-profile-action="friend-request-edit" data-username="${escapeHtml(item.username)}" data-request-id="${escapeHtml(requestId)}" data-request-message="${escapeHtml(pendingMessage)}" type="button">修改申请</button><button data-profile-action="friend-request-withdraw" data-username="${escapeHtml(item.username)}" data-request-id="${escapeHtml(requestId)}" class="danger-text-button" type="button">撤回</button></div>`
+        : `<button data-profile-action="friend-request" data-username="${escapeHtml(item.username)}" ${item.pending ? 'disabled' : ''}>${item.pending ? '等待处理' : '添加好友'}</button>`;
+    return `<div class="profile-item friend-directory-row" data-friend-directory-profile="${escapeHtml(item.username)}" title="双击查看个人名片"><span class="profile-avatar small">${item.avatar ? `<img src="${escapeHtml(item.avatar)}" alt="">` : '👤'}</span><div><strong>${escapeHtml(item.displayName || item.username)}</strong><small>账号：${escapeHtml(item.username)} · ${item.online ? '在线' : '离线'}${item.id ? ` · ${escapeHtml(item.id)}` : ''}</small></div>${action}</div>`;
+  }).join('');
+  elements.accountContent.innerHTML = `
+    <div class="settings-title"><div><h2>好友</h2><p>好友申请、房间邀请和未读消息会一直保留，直到您处理或关闭。</p></div></div>
+    <section class="settings-card friend-settings-card"><h3>接收与隐私</h3><label class="check-line"><input data-friend-setting="messageNotifications" type="checkbox" ${state.friendSettings.messageNotifications !== false ? 'checked' : ''}> 接收好友消息提醒</label><label class="check-line"><input data-friend-setting="allowFriendRequests" type="checkbox" ${state.friendSettings.allowFriendRequests !== false ? 'checked' : ''}> 允许别人申请添加我为好友</label><label class="check-line"><input data-friend-setting="allowPasswordlessOwnRoomJoin" type="checkbox" ${state.friendSettings.allowPasswordlessOwnRoomJoin ? 'checked' : ''}> 允许好友免密加入我拥有且当前所在的房间</label><button data-profile-action="friend-save-settings" class="secondary-button" type="button">保存好友设置</button></section>
+    ${requests.length ? `<section class="settings-card"><h3>好友申请（${requests.length}）</h3>${requests.map((request) => `<div class="profile-item"><span>➕</span><div><strong>${escapeHtml(request.displayName || request.from)}</strong><small>${escapeHtml(request.message || '请求添加您为好友')} · ${formatDate(request.createdAt)}</small></div><button data-profile-action="friend-respond" data-request-id="${escapeHtml(request.id)}" data-accepted="1">同意</button><button data-profile-action="friend-respond" data-request-id="${escapeHtml(request.id)}" data-accepted="0">拒绝</button></div>`).join('')}</section>` : ''}
+    <section class="settings-card friend-list-card"><div class="settings-title"><div><h3>我的好友（${p.friends?.length || 0}）</h3><p>置顶好友会排在最前，分组和备注仅供自己整理辨认。</p></div></div><div class="profile-list">${friendRows || '<p class="muted">还没有好友，可以从下方“发现账号”搜索添加。</p>'}</div></section>
+    <section class="settings-card friend-directory-card ${state.friendDirectoryCollapsed ? 'is-collapsed' : ''}"><div class="settings-title"><div><h3>发现账号</h3><p data-friend-directory-status>${directoryStatus}</p></div><div class="settings-title-actions"><button data-profile-action="friend-browse-all" class="secondary-button" type="button">刷新全部</button><button data-profile-action="friend-directory-toggle" class="secondary-button" type="button" aria-expanded="${state.friendDirectoryCollapsed ? 'false' : 'true'}">${state.friendDirectoryCollapsed ? '展开' : '收起'}</button><button data-profile-action="friend-directory-clear" class="text-button" type="button">清空结果</button></div></div><div data-friend-directory-body class="friend-directory-body ${state.friendDirectoryCollapsed ? 'is-hidden' : ''}"><form class="friend-search-form" data-friend-search-form><input data-friend-search type="search" value="${escapeHtml(state.friendSearch || '')}" placeholder="搜索账号、名字或账户编号"><button class="primary-button" type="submit">搜索用户</button></form><div data-friend-search-results class="profile-list">${directoryRows || (state.friendDirectoryLoading ? '<p class="muted">正在加载账号…</p>' : '<p class="muted">没有匹配的账号</p>')}</div></div></section>`;
+  elements.accountContent.querySelector('[data-friend-search-form]')?.addEventListener('submit', searchFriends);
+}
+
+async function loadFriendDirectory(query = state.friendSearch) {
+  if (state.friendDirectoryLoading) return;
+  state.friendDirectoryLoading = true;
+  const normalizedQuery = String(query || '').trim(); state.friendSearch = normalizedQuery;
+  if (!elements.accountModal?.classList.contains('is-hidden')) renderFriendsPage(state.friendDirectory);
+  try {
+    const result = await emitAck('account-action', { action: 'friend-search', query: normalizedQuery });
+    if (!result.success) throw new Error(result.error || '账号列表加载失败');
+    state.friendDirectory = Array.isArray(result.accounts) ? result.accounts : [];
+    state.friendDirectoryLoaded = true;
+  } catch (error) {
+    state.friendDirectoryLoaded = false;
+    toast(localizedError(error, '账号列表加载失败'), 'error');
+  } finally {
+    state.friendDirectoryLoading = false;
+    if (!elements.accountModal?.classList.contains('is-hidden') && elements.accountNav?.querySelector('[data-account-page="friends"].active')) renderFriendsPage(state.friendDirectory);
+  }
+}
+
+async function searchFriends(event) {
+  event.preventDefault(); const query = String(elements.accountContent.querySelector('[data-friend-search]')?.value || '').trim(); state.friendSearch = query;
+  await loadFriendDirectory(query);
+}
+
+function handleAccountDoubleClick(event) {
+  const row = event.target.closest('[data-friend-directory-profile]');
+  if (!row || event.target.closest('button, input, select, a')) return;
+  event.preventDefault();
+  openMemberProfile(row.dataset.friendDirectoryProfile);
+}
+
+function handleFriendRequestMutation(result = {}) {
+  const requestId = result.requestId || result.request?.id;
+  if (requestId) removePersistentRequest(requestId);
+  const targetUsername = result.request?.to || result.username || '';
+  const target = state.friendDirectory.find((item) => item.username === targetUsername);
+  if (target) {
+    if (result.withdrawn) {
+      target.pending = false; delete target.pendingRequestId; delete target.pendingRequestMessage; delete target.pendingMessage;
+    } else if (result.edited && result.request) {
+      target.pending = true; target.pendingRequestId = result.request.id;
+      target.pendingRequestMessage = result.request.message || ''; target.pendingMessage = target.pendingRequestMessage;
+    }
+  }
+  toast(result.message || (result.withdrawn ? '好友申请已撤回' : '好友申请已更新'), result.withdrawn ? '' : 'success', 6000);
+  if (!elements.accountModal?.classList.contains('is-hidden') && elements.accountNav?.querySelector('[data-account-page="friends"].active')) void loadFriendDirectory(state.friendSearch);
+}
+
+async function openFriendChat(username) {
+  const friend = state.profile?.friends?.find((item) => item.username === username); if (!friend) return toast('好友资料已变化，请刷新好友列表', 'error');
+  state.friendChatUser = username; state.friendChatManage = false; state.friendChatSelection.clear(); clearFriendReply();
+  elements.friendChatTitle.textContent = friend.remark ? `${friend.displayName}（${friend.remark}）` : friend.displayName;
+  renderFriendChatFloatingButton(friend);
+  elements.friendChatModal.classList.remove('is-hidden');
+  window.SyncWatchFriendAccountUi?.dismissVideoNotice(elements.friendVideoNoticeLayer, username);
+  const result = await emitAck('account-action', { action: 'friend-history', username });
+  if (result.success) {
+    state.friendMessages.set(username, result.messages || []);
+    friend.unread = 0;
+    for (const [id, request] of state.persistentRequests) if (request.kind === 'friend-message' && request.username === username) state.persistentRequests.delete(id);
+    renderPersistentRequests(); renderFriendChatHistory();
+  } else toast(result.error || '好友聊天记录加载失败', 'error');
+}
+
+function renderFriendChatFloatingButton(friend = state.profile?.friends?.find((item) => item.username === state.friendChatUser)) {
+  if (!elements.friendChatFloatingBtn) return;
+  const enabled = friend?.floatingNotice !== false;
+  elements.friendChatFloatingBtn.setAttribute('aria-pressed', String(enabled));
+  elements.friendChatFloatingBtn.textContent = enabled ? '关闭悬浮提示' : '开启悬浮提示';
+  elements.friendChatFloatingBtn.title = enabled ? '关闭该好友消息在播放画面上的私聊弹幕和悬浮条' : '重新显示该好友的画面悬浮提示';
+}
+
+async function toggleFriendChatFloatingNotice() {
+  const username = state.friendChatUser;
+  const friend = state.profile?.friends?.find((item) => item.username === username);
+  if (!username || !friend || elements.friendChatFloatingBtn?.disabled) return;
+  const enabled = friend.floatingNotice === false;
+  elements.friendChatFloatingBtn.disabled = true;
+  try {
+    const result = await emitAck('account-action', { action: 'friend-update', username, floatingNotice: enabled });
+    if (!result.success) return toast(result.error || '保存悬浮提示设置失败', 'error');
+    state.profile = result.profile || state.profile;
+    const updated = state.profile?.friends?.find((item) => item.username === username);
+    if (!enabled) window.SyncWatchFriendAccountUi?.dismissVideoNotice(elements.friendVideoNoticeLayer, username);
+    renderFriendChatFloatingButton(updated);
+    toast(enabled ? '已开启该好友的画面悬浮提示' : '已关闭该好友的画面悬浮提示', 'success');
+  } finally {
+    elements.friendChatFloatingBtn.disabled = false;
+  }
+}
+
+function closeFriendChat() {
+  elements.friendChatModal?.classList.add('is-hidden');
+  state.friendChatUser = ''; state.friendChatManage = false; state.friendChatSelection.clear();
+  state.friendChatContextMessageId = ''; clearFriendReply();
+}
+
+function renderFriendChatHistory() {
+  const messages = state.friendMessages.get(state.friendChatUser) || [];
+  elements.friendChatBatchBar?.classList.toggle('is-hidden', !state.friendChatManage);
+  if (elements.manageFriendChatBtn) elements.manageFriendChatBtn.textContent = state.friendChatManage ? '完成管理' : '管理记录';
+  if (elements.friendChatSelectAll) elements.friendChatSelectAll.checked = Boolean(messages.length && messages.every((message) => state.friendChatSelection.has(message.id)));
+  if (elements.deleteFriendChatSelectedBtn) elements.deleteFriendChatSelectedBtn.disabled = !state.friendChatSelection.size;
+  elements.friendChatHistory.innerHTML = messages.length ? messages.map((message) => {
+    const mine = message.from === state.profile?.username;
+    const status = mine ? message.readAt ? '已读' : message.deliveredAt ? '已送达' : '已发送' : '';
+    const quote = message.replyTo ? `<blockquote><strong>${escapeHtml(message.replyTo.fromName || message.replyTo.from)}</strong><span>${escapeHtml(message.replyTo.text || (message.replyTo.type === 'image' ? '[图片]' : '消息'))}</span></blockquote>` : '';
+    const body = message.type === 'image' && message.imageUrl
+      ? `<a class="friend-chat-image" href="${escapeHtml(message.imageUrl)}" target="_blank" rel="noopener"><img src="${escapeHtml(message.imageUrl)}" alt="${escapeHtml(message.imageName || '好友图片')}"></a>${message.text ? `<p>${escapeHtml(message.text)}</p>` : ''}`
+      : `<p>${escapeHtml(message.text)}</p>`;
+    const selection = state.friendChatManage ? `<label class="friend-message-select"><input type="checkbox" data-friend-message-select value="${escapeHtml(message.id)}" ${state.friendChatSelection.has(message.id) ? 'checked' : ''}><span>选择</span></label>` : '';
+    return `<article class="friend-chat-message ${mine ? 'mine' : ''}" data-friend-message-id="${escapeHtml(message.id)}">${selection}<strong>${escapeHtml(message.fromName || message.from)}</strong>${quote}${body}<small>${formatDate(message.timestamp)}${status ? ` · ${status}` : ''}</small></article>`;
+  }).join('') : '<p class="muted">还没有聊天记录，发一条消息开始对话吧。</p>';
+  elements.friendChatHistory.scrollTop = elements.friendChatHistory.scrollHeight;
+}
+
+async function sendFriendChatMessage(event) {
+  event.preventDefault(); const text = String(elements.friendChatInput.value || '').trim(); if (!text || !state.friendChatUser) return;
+  const result = await emitAck('account-action', { action: 'friend-message', username: state.friendChatUser, text, replyToId: state.friendReplyTo?.id || '' });
+  if (!result.success) return toast(result.error || '消息发送失败', 'error');
+  const messages = state.friendMessages.get(state.friendChatUser) || []; messages.push(result.message); state.friendMessages.set(state.friendChatUser, messages.slice(-500)); elements.friendChatInput.value = ''; clearFriendReply(); renderFriendChatHistory();
+}
+
+async function clearFriendChatHistory() {
+  if (!state.friendChatUser || !await showAppConfirm('只会清空您这一侧的好友聊天记录，对方的记录不会被删除。', { title: '清空好友聊天', confirmText: '清空记录', danger: true })) return;
+  const result = await emitAck('account-action', { action: 'friend-clear', username: state.friendChatUser }); toast(result.message || result.error, result.success ? 'success' : 'error');
+  if (result.success) { state.friendMessages.set(state.friendChatUser, []); renderFriendChatHistory(); }
+}
+
+async function markFriendChatRead(username = state.friendChatUser) {
+  if (!username || !state.socketAuthenticated) return;
+  const result = await emitAck('account-action', { action: 'friend-read', username });
+  if (!result.success) return;
+  const ids = new Set(result.receipt?.ids || []);
+  for (const message of state.friendMessages.get(username) || []) if (ids.has(message.id)) message.readAt = result.receipt.readAt;
+  const friend = state.profile?.friends?.find((item) => item.username === username); if (friend) friend.unread = 0;
+}
+
+function toggleFriendChatManagement() {
+  state.friendChatManage = !state.friendChatManage;
+  if (!state.friendChatManage) state.friendChatSelection.clear();
+  renderFriendChatHistory();
+}
+
+function handleFriendMessageSelection(event) {
+  const input = event.target.closest('[data-friend-message-select]'); if (!input) return;
+  if (input.checked) state.friendChatSelection.add(input.value); else state.friendChatSelection.delete(input.value);
+  renderFriendChatHistory();
+}
+
+function toggleAllFriendChatMessages() {
+  const messages = state.friendMessages.get(state.friendChatUser) || [];
+  if (elements.friendChatSelectAll.checked) for (const message of messages) state.friendChatSelection.add(message.id);
+  else state.friendChatSelection.clear();
+  renderFriendChatHistory();
+}
+
+async function deleteFriendMessages(messageIds) {
+  const ids = [...new Set(messageIds)].filter(Boolean); if (!ids.length || !state.friendChatUser) return;
+  const result = await emitAck('account-action', { action: 'friend-delete-messages', username: state.friendChatUser, messageIds: ids });
+  toast(result.message || result.error, result.success ? 'success' : 'error');
+  if (!result.success) return;
+  const removed = new Set(result.messageIds || ids);
+  state.friendMessages.set(state.friendChatUser, (state.friendMessages.get(state.friendChatUser) || []).filter((message) => !removed.has(message.id)));
+  state.friendChatSelection.clear(); renderFriendChatHistory();
+}
+
+async function deleteSelectedFriendMessages() {
+  if (!state.friendChatSelection.size) return;
+  if (!await showAppConfirm(`确定从您这一侧删除所选 ${state.friendChatSelection.size} 条好友消息吗？`, { title: '批量删除好友消息', confirmText: '删除所选', danger: true })) return;
+  await deleteFriendMessages([...state.friendChatSelection]);
+}
+
+function openFriendMessageContextMenu(event) {
+  const row = event.target.closest('[data-friend-message-id]'); if (!row || state.friendChatManage) return;
+  event.preventDefault(); state.friendChatContextMessageId = row.dataset.friendMessageId;
+  const menu = elements.friendChatContextMenu; if (!menu) return;
+  menu.style.left = `${Math.min(event.clientX, window.innerWidth - 180)}px`; menu.style.top = `${Math.min(event.clientY, window.innerHeight - 110)}px`;
+  menu.classList.remove('is-hidden');
+}
+
+async function handleFriendMessageContextAction(event) {
+  const button = event.target.closest('[data-friend-message-action]'); if (!button) return;
+  const message = (state.friendMessages.get(state.friendChatUser) || []).find((item) => item.id === state.friendChatContextMessageId);
+  elements.friendChatContextMenu?.classList.add('is-hidden'); if (!message) return;
+  if (button.dataset.friendMessageAction === 'reply') {
+    state.friendReplyTo = message;
+    elements.friendChatReplyText.textContent = `${message.fromName || message.from}：${message.text || (message.type === 'image' ? '[图片]' : '消息')}`;
+    elements.friendChatReplyPreview.classList.remove('is-hidden'); elements.friendChatInput.focus(); return;
+  }
+  if (button.dataset.friendMessageAction === 'delete' && await showAppConfirm('只会从您这一侧删除这条消息。', { title: '删除好友消息', confirmText: '删除', danger: true })) await deleteFriendMessages([message.id]);
+}
+
+function clearFriendReply() {
+  state.friendReplyTo = null; elements.friendChatReplyPreview?.classList.add('is-hidden'); if (elements.friendChatReplyText) elements.friendChatReplyText.textContent = '';
+}
+
+async function uploadFriendChatImage(file) {
+  if (!file || !state.friendChatUser) return;
+  const form = new FormData(); form.append('image', file, file.name); form.append('to', state.friendChatUser);
+  if (state.friendReplyTo?.id) form.append('replyToId', state.friendReplyTo.id);
+  try {
+    const response = await fetchWithTimeout('/api/friend-image', { method: 'POST', headers: authHeaders(), body: form }, 30000);
+    const result = await response.json(); if (!response.ok || !result.success) return toast(result.error || '好友图片发送失败', 'error');
+    const messages = state.friendMessages.get(state.friendChatUser) || []; messages.push(result.message); state.friendMessages.set(state.friendChatUser, messages.slice(-500));
+    clearFriendReply(); renderFriendChatHistory();
+  } catch (error) { toast(localizedError(error, '好友图片发送失败'), 'error'); }
+  finally { if (elements.friendChatImageInput) elements.friendChatImageInput.value = ''; }
+}
+function profileFiles(files) {
+  return files?.length ? files.map((file) => {
+    const compatibility = file.compatibility || {};
+    const processing = compatibility.required && !compatibility.ready && ['queued', 'converting'].includes(compatibility.status);
+    const progress = Math.max(0, Math.min(100, Number(compatibility.progress) || 0));
+    const status = processing
+      ? `<div class="profile-file-progress" role="status"><div><span style="width:${progress}%"></span></div><small>${compatibility.status === 'converting' ? `正在转换 ${Math.round(progress)}%` : '等待转换'} · 完成前暂不可操作</small></div>`
+      : `<small>${formatDate(file.uploadedAt)}</small>`;
+    return `<div class="profile-item profile-file-item ${processing ? 'processing' : ''}" data-profile-file-id="${escapeHtml(file.id)}"><span>${fileIcon(file.category)}</span><div><strong>${escapeHtml(file.originalName)}</strong><p>${formatSize(file.size)} · 上传者 ${escapeHtml(file.uploadedBy)}</p>${status}</div><button data-profile-action="${processing ? 'processing-progress' : isTimedFile(file) ? 'continue' : 'view-file'}" data-file-id="${escapeHtml(file.id)}">${processing ? '查看处理进度' : isTimedFile(file) ? '播放' : '查看'}</button></div>`;
+  }).join('') : '<p class="muted">暂无影片</p>';
+}
+
+async function saveProfileWithEmailVerification(fields = {}) {
+  let result = await emitAck('account-action', { action: 'update-profile', ...fields });
+  if (result?.success || result?.code !== 'EMAIL_VERIFICATION_REQUIRED') return result;
+  const requestedEmail = String(result.requestedEmail || fields.email || '').trim().toLowerCase();
+  if (!requestedEmail || result.bindingAvailable === false) return result;
+
+  const requested = await emitAck('email-bind-request', { email: requestedEmail }, 35000);
+  if (!requested.success) return requested;
+  const destination = verificationDestination(requested, state.profile?.username || '', requestedEmail);
+  const code = await showAppInput({
+    title: '验证新邮箱',
+    description: `${destination}\n验证码 10 分钟内有效，仅可使用一次。`,
+    label: '6 位邮箱验证码', inputType: 'text', autocomplete: 'one-time-code', spellcheck: false,
+    minLength: 6, maxLength: 6, selectOnOpen: true,
+    validate: (value) => /^\d{6}$/.test(value) ? '' : '请输入邮件中的 6 位数字验证码',
+    confirmText: '验证并绑定'
+  });
+  if (code === null) return { success: false, cancelled: true, error: '已取消邮箱绑定验证' };
+
+  const verified = await emitAck('email-bind-verify', { email: requestedEmail, code }, 15000);
+  if (!verified.success) return verified;
+  // The verification endpoint commits only the email. Submit the rest of the
+  // profile once more so avatar, signature and demographic fields are not lost.
+  result = await emitAck('account-action', { action: 'update-profile', ...fields, email: requestedEmail });
+  if (!result.success && verified.profile) return { ...result, profile: verified.profile };
+  return result;
+}
+
+async function unbindProfileEmail() {
+  const email = String(state.profile?.email || '').trim().toLowerCase();
+  if (!email) return toast('当前账号还没有绑定邮箱', 'error');
+  if (!state.publicConfig.emailBindingAvailable) return toast('服务器尚未启用邮箱验证码，请联系服务器管理员', 'error', 7000);
+  const maskedEmail = maskEmailAddress(email);
+  const confirmed = await showAppConfirm(`账号：${state.profile?.username || '当前账号'}\n验证码将发送到 ${SYNCWATCH_SUPPORT_EMAIL}，验证通过后会清除邮箱绑定。`, {
+    title: '安全清除邮箱', confirmText: '发送验证码'
+  });
+  if (!confirmed) return;
+  const requested = await emitAck('email-unbind-request', { email }, 35000);
+  if (!requested.success) return toast(requested.error || '邮箱验证码发送失败', 'error', 7000);
+  const destination = verificationDestination(requested, state.profile?.username || '', email);
+  const code = await showAppInput({
+    title: '验证当前绑定邮箱',
+    description: `${destination}\n验证码 10 分钟内有效。`,
+    label: '邮箱验证码', inputType: 'text', autocomplete: 'one-time-code', maxLength: 6,
+    validate: (value) => /^\d{6}$/.test(value) ? '' : '请输入邮件中的 6 位数字验证码',
+    confirmText: '验证并清除', danger: true
+  });
+  if (code === null) return;
+  const result = await emitAck('email-unbind-verify', { email, code }, 15000);
+  toast(result.message || result.error || '邮箱解绑操作完成', result.success ? 'success' : 'error', 7000);
+  if (!result.success) return;
+  state.profile = result.profile || { ...state.profile, email: '', emailVerified: false };
+  if (state.user) state.user = { ...state.user, email: '' };
+  renderAccountPage('home');
+}
+
+async function renameOwnedRoom(roomId, currentName = '') {
+  const normalizedRoomId = String(roomId || '').trim().toUpperCase();
+  if (!normalizedRoomId) return toast('当前没有可重命名的房间', 'error');
+  const roomRecord = state.profile?.recentRooms?.find((room) => room.id === normalizedRoomId);
+  const isCurrentRoom = String(state.room?.id || '').toUpperCase() === normalizedRoomId;
+  const owned = roomRecord?.owned || (isCurrentRoom && state.capabilities.owner);
+  if (!owned && !state.capabilities.superAdmin && !state.capabilities.serverHost) return toast('只有房主或超级管理员可以修改房间名称', 'error');
+  const name = await showAppInput({
+    title: '重命名房间', description: `房间号 ${normalizedRoomId} 保持不变。保存后，在线成员和“我的房间”会立即同步新名称。`,
+    label: '新的房间名称', initialValue: currentName || roomRecord?.name || state.room?.name || '私人影院', maxLength: 40,
+    validate: (value) => value.trim() ? '' : '房间名称不能为空', confirmText: '保存新名称'
+  });
+  if (name === null) return;
+  const payload = { roomId: normalizedRoomId, roomName: name.trim(), name: name.trim() };
+  const result = isCurrentRoom
+    ? await adminAction('set-room', { ...payload, maxUsers: state.room?.maxUsers || 8, requireUploadApproval: Boolean(state.room?.requireUploadApproval) })
+    : await emitAck('account-action', { action: 'rename-room', ...payload }, 30000);
+  toast(result.message || result.error || '房间重命名操作完成', result.success ? 'success' : 'error', 7000);
+  if (!result.success) return;
+  if (result.profile) state.profile = result.profile;
+  else if (roomRecord) roomRecord.name = name.trim();
+  if (isCurrentRoom && state.room) { state.room.name = name.trim(); updateRoomHeader(); }
+  if (!elements.accountModal?.classList.contains('is-hidden')) renderProfileRooms();
+}
+
+async function handleAccountAction(event) {
+  const button = event.target.closest('[data-profile-action]'); if (!button) return; const action = button.dataset.profileAction;
+  if (action === 'close') return elements.accountModal.classList.add('is-hidden');
+  if (action === 'delete-own-account') {
+    const username = String(state.profile?.username || state.user?.username || '').trim();
+    if (!username) return toast('当前没有可注销的登录账号', 'error');
+    const confirmationText = `注销账号 ${username}`;
+    const confirmation = await showAppInput({
+      title: '注销账号',
+      description: `此操作不可撤销。请输入“${confirmationText}”确认，也可以点击一键填入。注销后账户资料、历史记录和好友关系将被删除。`,
+      label: '确认文字', maxLength: 80, fillValue: confirmationText, confirmText: '永久注销', danger: true,
+      validate: (value) => value === confirmationText ? '' : `请输入完整确认文字：${confirmationText}`
+    });
+    if (confirmation === null) return;
+    const result = await emitAck('account-action', { action: 'delete-own-account', confirmation }, 30000);
+    toast(result.message || result.error, result.success ? 'success' : 'error', 8000);
+    if (!result.success) return;
+    elements.accountModal?.classList.add('is-hidden');
+    clearSession();
+    setTimeout(() => location.reload(), 500);
+    return;
+  }
+  if (action === 'create-room') { elements.accountModal.classList.add('is-hidden'); return openCreateRoom(); }
+  if (action === 'enter-room') { elements.accountModal.classList.add('is-hidden'); return switchToRoomDirect(button.dataset.roomId, { source: '我的房间' }); }
+  if (action === 'request-room-quota') return requestMoreRooms();
+  if (action === 'pin-room') {
+    const result = await emitAck('account-action', { action: 'pin-room', roomId: button.dataset.roomId, pinned: button.dataset.pinned !== '1' });
+    toast(result.message || result.error, result.success ? 'success' : 'error');
+    if (result.success) { state.profile = result.profile; renderAccountPage('room'); }
+    return;
+  }
+  if (action === 'rename-room') {
+    const roomId = String(button.dataset.roomId || '').toUpperCase();
+    const room = state.profile?.recentRooms?.find((item) => item.id === roomId);
+    return renameOwnedRoom(roomId, room?.name || '');
+  }
+  if (action === 'delete-selected-rooms') {
+    const roomIds = [...state.selectedProfileRooms];
+    if (!roomIds.length) return toast('请先选择房间', 'error');
+    const rooms = state.profile?.recentRooms || [];
+    const ownedCount = roomIds.filter((id) => rooms.find((room) => room.id === id)?.owned).length;
+    const description = ownedCount
+      ? `所选项目中有 ${ownedCount} 个您拥有的房间，将永久删除其中的影片、聊天和记录；其他项目只会从列表移除。`
+      : `将从“我的房间”列表移除 ${roomIds.length} 条访问记录。`;
+    if (!await showAppConfirm(description, { title: '删除所选房间', confirmText: ownedCount ? '确认永久删除' : '确认移除', danger: ownedCount > 0 })) return;
+    const result = await emitAck('account-action', { action: 'remove-rooms', roomIds, confirmOwnedDeletion: ownedCount > 0 }, 60000);
+    toast(result.message || result.error, result.success ? 'success' : 'error', 7000);
+    if (result.success) { state.selectedProfileRooms.clear(); state.profile = result.profile; renderAccountPage('room'); }
+    return;
+  }
+  if (action === 'processing-progress') {
+    const file = state.files.get(button.dataset.fileId) || state.profile?.myFiles?.find((item) => item.id === button.dataset.fileId);
+    state.mediaProcessingSearch = file?.originalName || '';
+    if (elements.mediaProcessingSearch) elements.mediaProcessingSearch.value = state.mediaProcessingSearch;
+    elements.accountModal.classList.add('is-hidden'); return openConversionProgress();
+  }
+  if (action === 'continue') { elements.accountModal.classList.add('is-hidden'); return selectFile(button.dataset.fileId); }
+  if (action === 'view-file') { elements.accountModal.classList.add('is-hidden'); return viewStaticFile(state.files.get(button.dataset.fileId)); }
+  if (action === 'manage-media') { elements.accountModal.classList.add('is-hidden'); return openVideoManagement(); }
+  if (action === 'upload-avatar') {
+    const file = document.getElementById('profileAvatarFile')?.files?.[0]; if (!file) return toast('请选择头像图片文件', 'error');
+    const form = new FormData(); form.append('avatar', file, file.name);
+    const response = await fetchWithTimeout('/api/avatar', { method: 'POST', headers: authHeaders(), body: form }, 30000); const upload = await response.json();
+    if (!response.ok || !upload.success) return toast(upload.error || '头像上传失败', 'error');
+    state.profile = upload.profile || state.profile; updateAccountAvatar(state.profile.avatar); renderAccountPage('home'); toast('头像已更新，房间成员会立即看到', 'success'); return;
+  }
+  if (action === 'unbind-email') return unbindProfileEmail();
+  if (action === 'enable-location-prompt') { enableLocationPrompt(); renderAccountPage('security'); return; }
+  if (action === 'request-location') { enableLocationPrompt(); await reportMemberLocation({ interactive: true }); renderAccountPage('security'); return; }
+  if (action === 'revoke-location') { await revokeMemberLocation(); renderAccountPage('security'); return; }
+  if (action === 'save-notification-preferences') {
+    const disableAll = button.dataset.disableAll === '1';
+    let confirmation = '';
+    if (disableAll) {
+      const value = await showAppInput({ title: '关闭普通通知', description: '关闭后将不再收到普通提醒，仅保留需要确认的申请、好友消息和安全通知。请输入“关闭全部通知”确认。', label: '确认文字', initialValue: '', fillValue: '关闭全部通知', confirmText: '保存设置', allowBack: true });
+      if (value === null || value === APP_DIALOG_BACK) return;
+      confirmation = value;
+    }
+    const result = await emitAck('account-action', { action: 'set-notification-preferences', registrationNotices: button.dataset.registrationNotices !== '0', allNotifications: !disableAll, confirmation });
+    toast(result.message || result.error, result.success ? 'success' : 'error', 7000);
+    if (result.success) { state.profile = result.profile || state.profile; renderAccountPage('security'); }
+    return;
+  }
+  if (action === 'configure-location-status-notices') { await configureLocationStatusNotices(); renderAccountPage('security'); return; }
+  if (action === 'restore-location-status-notices') { restoreLocationStatusNotices(); renderAccountPage('security'); return; }
+  if (action === 'restore-f11-prompt') { localStorage.removeItem('syncwatchF11Prompt'); toast('已恢复进入房间时的全屏提示', 'success'); return; }
+  if (action === 'restore-playback-rate-prompt') { localStorage.removeItem(PLAYBACK_RATE_PROMPT_KEY); toast('已恢复倍速调整提示', 'success'); return; }
+  if (action === 'restore-control-prompts') { state.controlSuppressions = {}; localStorage.removeItem('syncwatchControlSuppressions'); toast('已恢复所有成员的控制申请提示', 'success'); return; }
+  if (action === 'restore-all-prompts') {
+    enableLocationPrompt(); restoreLocationStatusNotices(false); state.controlSuppressions = {};
+    localStorage.removeItem('syncwatchControlSuppressions'); localStorage.removeItem('syncwatchF11Prompt'); localStorage.removeItem(PLAYBACK_RATE_PROMPT_KEY);
+    for (let index = localStorage.length - 1; index >= 0; index -= 1) {
+      const key = localStorage.key(index);
+      if (key?.startsWith('syncwatchIgnoreTemporary:') || key?.startsWith('syncwatchRoomEntryNotice:')) localStorage.removeItem(key);
+    }
+    toast('已恢复所有可以关闭的提示', 'success'); renderAccountPage('security'); return;
+  }
+  if (action === 'friend-browse-all') {
+    state.friendSearch = '';
+    state.friendDirectoryCollapsed = false;
+    try { localStorage.setItem('syncwatchFriendDirectoryCollapsed', '0'); } catch (_) {}
+    return loadFriendDirectory('');
+  }
+  if (action === 'friend-directory-toggle') {
+    state.friendDirectoryCollapsed = !state.friendDirectoryCollapsed;
+    try { localStorage.setItem('syncwatchFriendDirectoryCollapsed', state.friendDirectoryCollapsed ? '1' : '0'); } catch (_) {}
+    renderFriendsPage(state.friendDirectory);
+    return;
+  }
+  if (action === 'friend-directory-clear') {
+    state.friendDirectory = []; state.friendDirectoryLoaded = false; state.friendSearch = '';
+    renderFriendsPage([]);
+    return;
+  }
+  if (action === 'friend-request') {
+    const target = state.friendDirectory.find((item) => item.username === button.dataset.username);
+    const message = await showAppInput({
+      title: `添加 ${target?.displayName || button.dataset.username} 为好友`,
+      description: '附言可以留空，系统会随机选择一句轻松的默认问候。',
+      label: '好友申请附言（选填）', required: false, maxLength: 160,
+      placeholder: '例如：周末一起看电影吧', confirmText: '发送申请'
+    });
+    if (message === null) return;
+    const result = await emitAck('account-action', { action: 'friend-request', username: button.dataset.username, message });
+    toast(result.message || result.error, result.success ? 'success' : 'error');
+    if (result.success) { await refreshProfile(); await loadFriendDirectory(state.friendSearch); }
+    return;
+  }
+  if (action === 'friend-request-edit') {
+    const message = await showAppInput({
+      title: '修改好友申请', description: `修改发给 ${button.dataset.username} 的申请说明。`, label: '好友申请附言',
+      initialValue: button.dataset.requestMessage || '', required: false, maxLength: 160, confirmText: '保存并发送'
+    });
+    if (message === null) return;
+    const result = await emitAck('account-action', { action: 'friend-request-edit', username: button.dataset.username, requestId: button.dataset.requestId, message });
+    toast(result.message || result.error, result.success ? 'success' : 'error');
+    if (result.success) await loadFriendDirectory(state.friendSearch);
+    return;
+  }
+  if (action === 'friend-request-withdraw') {
+    if (!await showAppConfirm(`确定撤回发给 ${button.dataset.username} 的好友申请吗？`, { title: '撤回好友申请', confirmText: '确认撤回', danger: true })) return;
+    const result = await emitAck('account-action', { action: 'friend-request-withdraw', username: button.dataset.username, requestId: button.dataset.requestId });
+    toast(result.message || result.error, result.success ? 'success' : 'error');
+    if (result.success) await loadFriendDirectory(state.friendSearch);
+    return;
+  }
+  if (action === 'friend-respond') {
+    const result = await emitAck('account-action', { action: 'friend-respond', requestId: button.dataset.requestId, accepted: button.dataset.accepted === '1' });
+    toast(result.message || result.error, result.success ? 'success' : 'error'); if (result.success && result.profile) { state.profile = result.profile; renderAccountPage('friends'); } return;
+  }
+  if (action === 'friend-save-settings') {
+    const settings = {};
+    elements.accountContent.querySelectorAll('[data-friend-setting]').forEach((input) => { settings[input.dataset.friendSetting] = input.checked; });
+    const result = await emitAck('account-action', { action: 'friend-settings', ...settings });
+    toast(result.message || result.error, result.success ? 'success' : 'error');
+    if (result.success && result.profile) { state.profile = result.profile; state.friendSettings = result.friendSettings || settings; renderAccountPage('friends'); }
+    return;
+  }
+  if (action === 'friend-pin') {
+    const pinned = button.dataset.pinned !== '1';
+    const result = await emitAck('account-action', { action: 'friend-update', username: button.dataset.username, pinned });
+    toast(result.message || result.error, result.success ? 'success' : 'error');
+    if (result.success && result.profile) { state.profile = result.profile; renderAccountPage('friends'); }
+    return;
+  }
+  if (action === 'friend-group') {
+    const friend = state.profile?.friends?.find((item) => item.username === button.dataset.username);
+    if (!friend) return toast('好友资料已变化，请刷新后重试', 'error');
+    const groups = [...new Set(['我的好友', ...(state.profile?.friends || []).map((item) => String(item.group || '').trim()).filter(Boolean)])];
+    let group = await showAppSelect({
+      title: '设置好友分组', description: `为 ${friend.remark || friend.displayName || friend.username} 选择一个分组。分组只对您自己可见。`, label: '好友分组',
+      options: [...groups.map((value) => ({ value, label: value })), { value: '__new__', label: '新建分组…' }],
+      initialValue: groups.includes(friend.group) ? friend.group : '我的好友', confirmText: '下一步', allowBack: true
+    });
+    if (group === null) return;
+    if (group === '__new__') {
+      group = await showAppInput({ title: '新建好友分组', label: '分组名称', maxLength: 40, confirmText: '保存分组', allowBack: true });
+      if (group === APP_DIALOG_BACK) return handleAccountAction({ target: button });
+      if (group === null) return;
+    }
+    const result = await emitAck('account-action', { action: 'friend-update', username: friend.username, group });
+    toast(result.message || result.error, result.success ? 'success' : 'error');
+    if (result.success && result.profile) { state.profile = result.profile; renderAccountPage('friends'); }
+    return;
+  }
+  if (action === 'friend-chat') return openFriendChat(button.dataset.username);
+  if (action === 'friend-invite-room' || action === 'friend-request-join' || action === 'friend-direct-join') {
+    const socketAction = action === 'friend-invite-room' ? 'friend-room-invite' : action === 'friend-request-join' ? 'friend-room-join-request' : 'friend-room-direct-join';
+    const result = await emitAck('account-action', { action: socketAction, username: button.dataset.username }, 30000);
+    if (result.success && result.auth?.success) await finishAuthentication(result.auth, state.rememberSession, true);
+    toast(result.message || result.error, result.success ? 'success' : 'error', result.success ? 7000 : 9000);
+    if (result.success && !result.auth && !elements.accountModal.classList.contains('is-hidden')) await openAccount('friends');
+    return;
+  }
+  if (action === 'friend-voice') return callFriendVoice(button.dataset.username);
+  if (action === 'friend-mute') {
+    const durationMs = button.dataset.muted === '1' ? 0 : 24 * 60 * 60 * 1000;
+    const result = await emitAck('account-action', { action: 'friend-notification-mute', username: button.dataset.username, durationMs });
+    toast(result.message || result.error, result.success ? 'success' : 'error');
+    if (result.success && result.profile) { state.profile = result.profile; renderAccountPage('friends'); }
+    return;
+  }
+  if (action === 'friend-edit') {
+    const friend = state.profile?.friends?.find((item) => item.username === button.dataset.username); const remark = await showAppInput({ title: '好友备注', label: '备注名', initialValue: friend?.remark || '', maxLength: 40, confirmText: '保存备注' });
+    if (remark === null) return; const result = await emitAck('account-action', { action: 'friend-update', username: button.dataset.username, remark }); toast(result.message || result.error, result.success ? 'success' : 'error'); if (result.success) { state.profile = result.profile; renderAccountPage('friends'); } return;
+  }
+  if (action === 'friend-remove') {
+    if (!await showAppConfirm('删除好友后，双方好友关系会解除，但各自保存的历史聊天仍会保留。', { title: '删除好友', confirmText: '删除好友', danger: true })) return;
+    const result = await emitAck('account-action', { action: 'friend-remove', username: button.dataset.username }); toast(result.message || result.error, result.success ? 'success' : 'error'); if (result.success) { state.profile = result.profile; renderAccountPage('friends'); } return;
+  }
+  if (action === 'revoke-device') {
+    const result = await emitAck('account-action', { action: 'revoke-device', deviceId: button.closest('[data-device-id]').dataset.deviceId });
+    toast(result.message || result.error, result.success ? 'success' : 'error');
+    if (result.success && result.current) { localStorage.removeItem('syncwatchToken'); state.token = ''; await logout(); return; }
+    if (result.success) { state.profile = result.profile; renderAccountPage('devices'); } return;
+  }
+  if (action === 'revoke-selected-devices') {
+    const deviceIds = [...state.selectedDevices];
+    if (!deviceIds.length) return toast('请先选择要取消自动登录的设备', 'error');
+    if (!await showAppConfirm(`将取消所选 ${deviceIds.length} 台设备的自动登录授权。被取消的设备下次登录必须重新输入密码。`, {
+      title: '批量取消自动登录', confirmText: '取消所选授权', danger: true
+    })) return;
+    const result = await emitAck('account-action', { action: 'revoke-devices', deviceIds });
+    toast(result.message || result.error, result.success ? 'success' : 'error');
+    if (!result.success) return;
+    state.selectedDevices.clear();
+    if (result.current) { localStorage.removeItem('syncwatchToken'); state.token = ''; await logout(); return; }
+    state.profile = result.profile; renderAccountPage('devices'); return;
+  }
+  if (action === 'profile-delete-selected') return profileDeleteSelected(button.dataset.kind);
+  if (action === 'batch-category') return profileBatchEdit(button.dataset.kind, 'category');
+  if (action === 'batch-note') return profileBatchEdit(button.dataset.kind, 'note');
+  if (action === 'profile-export') return exportProfileCollection(button.dataset.kind);
+  if (action === 'profile-import') return elements.accountContent.querySelector(`[data-profile-import-input="${button.dataset.kind}"]`)?.click();
+  let result;
+  if (action === 'save-profile') {
+    const profileFields = {
+      email: document.getElementById('profileEmail')?.value || '',
+      avatar: document.getElementById('profileAvatarInput')?.value || '',
+      signature: document.getElementById('profileSignature')?.value || state.profile.signature || '',
+      gender: state.profile.gender, age: state.profile.age
+    };
+    result = await saveProfileWithEmailVerification(profileFields);
+  }
+  else if (action === 'change-display-name') result = await emitAck('account-action', { action: 'change-display-name', displayName: document.getElementById('profileDisplayName').value.trim() });
+  else if (action === 'change-password') result = await emitAck('account-action', { action: 'change-password', currentPassword: document.getElementById('currentAccountPassword').value, newPassword: document.getElementById('newAccountPassword').value });
+  else if (action === 'remove-device') result = await emitAck('account-action', { action: 'remove-device', deviceId: button.closest('[data-device-id]').dataset.deviceId });
+  else return;
+  if (result?.success && result.token) await adoptSessionToken(result.token);
+  if (result?.success && result.profile) {
+    state.profile = result.profile; updateAccountAvatar(result.profile.avatar);
+    if (action === 'change-display-name') updateDisplayNameLocally(result.profile.username, result.profile.displayName);
+    renderAccountPage(action === 'remove-device' ? 'devices' : 'home');
+  }
+  toast(result?.message || result?.error, result?.success ? 'success' : 'error');
+}
+
+function handleAccountSelectionChange(event) {
+  const profileSetting = event.target.closest('[data-profile-setting="self-member-highlight"]');
+  if (profileSetting) {
+    state.selfMemberHighlight = profileSetting.checked;
+    localStorage.setItem('syncwatchSelfMemberHighlight', state.selfMemberHighlight ? '1' : '0');
+    renderUsers();
+    toast(state.selfMemberHighlight ? '已开启本人成员卡片高亮' : '已关闭本人成员卡片高亮', 'success');
+    return;
+  }
+  const selectAllDevices = event.target.closest('[data-device-select-all]');
+  if (selectAllDevices) {
+    const devices = Array.isArray(state.profile?.devices) ? state.profile.devices : [];
+    if (selectAllDevices.checked) devices.forEach((device) => state.selectedDevices.add(device.id)); else state.selectedDevices.clear();
+    renderDevicesPage(); return;
+  }
+  const selectedDevice = event.target.closest('[data-device-select]');
+  if (selectedDevice) {
+    if (selectedDevice.checked) state.selectedDevices.add(selectedDevice.value); else state.selectedDevices.delete(selectedDevice.value);
+    renderDevicesPage(); return;
+  }
+  const categoryFilter = event.target.closest('[data-profile-category-filter]');
+  if (categoryFilter) { state.profileCategoryFilters[categoryFilter.dataset.profileCategoryFilter] = categoryFilter.value; return renderAccountPage(categoryFilter.dataset.profileCategoryFilter === 'room' ? 'room' : categoryFilter.dataset.profileCategoryFilter); }
+  const importInput = event.target.closest('[data-profile-import-input]');
+  if (importInput?.files?.[0]) return void importProfileCollection(importInput.dataset.profileImportInput, importInput.files[0]);
+  const selectAll = event.target.closest('[data-profile-select-all]');
+  if (selectAll) {
+    const kind = selectAll.dataset.profileSelectAll; const ids = visibleProfileItemIds(kind); const selected = profileSelection(kind);
+    if (selectAll.checked) ids.forEach((id) => selected.add(id)); else ids.forEach((id) => selected.delete(id));
+    return renderAccountPage(kind === 'room' ? 'room' : kind);
+  }
+  const item = event.target.closest('[data-profile-item-select]'); if (!item) return;
+  const selected = profileSelection(item.dataset.profileItemSelect); if (item.checked) selected.add(item.value); else selected.delete(item.value);
+  const deleteButton = elements.accountContent.querySelector('[data-profile-action="profile-delete-selected"]'); if (deleteButton) deleteButton.disabled = !selected.size;
+}
+
+function handleAccountFilterInput(event) {
+  const input = event.target.closest('[data-profile-query]'); if (!input) return;
+  const kind = input.dataset.profileQuery; state.profileQueries[kind] = input.value;
+  clearTimeout(state.profileFilterTimer); state.profileFilterTimer = setTimeout(() => renderAccountPage(kind === 'room' ? 'room' : kind), 180);
+}
+
+function profileSelection(kind) {
+  if (kind === 'room') return state.selectedProfileRooms;
+  if (kind === 'favorites') return state.selectedProfileFavorites;
+  if (kind === 'history') return state.selectedProfileHistory;
+  return state.selectedProfileMedia;
+}
+
+function visibleProfileItemIds(kind) {
+  const query = String(state.profileQueries[kind] || '').toLocaleLowerCase(); const p = state.profile || {};
+  if (kind === 'room') return (p.recentRooms || []).filter((item) => (!state.profileCategoryFilters.room || (item.category || '未分类') === state.profileCategoryFilters.room) && (!query || [item.id, item.name, item.note, item.category].join(' ').toLocaleLowerCase().includes(query))).map((item) => item.id);
+  if (kind === 'history') return (p.history || []).filter((item) => !query || [item.file?.originalName, item.file?.collection].join(' ').toLocaleLowerCase().includes(query)).map((item) => item.id);
+  const source = kind === 'favorites' ? (p.favoriteFiles || []) : (p.myFiles || []);
+  return source.filter((item) => (!state.profileCategoryFilters[kind] || (item.collection || '未分类') === state.profileCategoryFilters[kind]) && (!query || [item.originalName, item.collection, item.note].join(' ').toLocaleLowerCase().includes(query))).map((item) => item.id);
+}
+
+async function profileBatchEdit(kind, field) {
+  const selected = profileSelection(kind); if (!selected.size) return toast('请先选择项目', 'error');
+  const value = field === 'category'
+    ? await showAppInput({ title: '批量设置分类', label: '分类名称', maxLength: 80, confirmText: '保存分类' })
+    : await showAppInput({ title: '批量设置备注', label: '备注内容', maxLength: 500, confirmText: '保存备注' });
+  if (value === null) return;
+  if (kind === 'media') {
+    state.selectedManagementFiles = new Set(selected); await patchManagedVideos({ [field === 'category' ? 'collection' : 'note']: value }); state.selectedManagementFiles.clear(); await openAccount('media'); return;
+  }
+  const result = await emitAck('account-action', { action: 'organize-items', kind, ids: [...selected], [field]: value });
+  toast(result.message || result.error, result.success ? 'success' : 'error'); if (result.success) { state.profile = result.profile; renderAccountPage(kind === 'room' ? 'room' : kind); }
+}
+
+async function profileDeleteSelected(kind) {
+  const selected = profileSelection(kind); const ids = [...selected]; if (!ids.length) return toast('请先选择项目', 'error');
+  if (!await showAppConfirm(`确定处理所选的 ${ids.length} 个项目吗？`, { title: kind === 'favorites' ? '批量取消收藏' : '批量删除', confirmText: '确认', danger: kind !== 'favorites' })) return;
+  let result;
+  if (kind === 'room') {
+    const rooms = state.profile?.recentRooms || []; const ownedCount = ids.filter((id) => rooms.find((room) => room.id === id)?.owned).length;
+    result = await emitAck('account-action', { action: 'remove-rooms', roomIds: ids, confirmOwnedDeletion: ownedCount > 0 }, 60000);
+  } else if (kind === 'favorites') result = await emitAck('account-action', { action: 'organize-items', kind, ids, remove: true });
+  else if (kind === 'history') result = await emitAck('account-action', { action: 'history-delete', ids });
+  else {
+    state.selectedManagementFiles = new Set(ids); await batchDeleteManagedVideos(); state.selectedManagementFiles.clear(); return openAccount('media');
+  }
+  toast(result.message || result.error, result.success ? 'success' : 'error');
+  if (result.success) { selected.clear(); state.profile = result.profile; renderAccountPage(kind === 'room' ? 'room' : kind); }
+}
+
+function exportProfileCollection(kind) {
+  const p = state.profile || {}; const data = kind === 'room' ? p.recentRooms : kind === 'favorites' ? p.favoriteFiles : kind === 'history' ? p.history : p.myFiles;
+  downloadJsonFile(`SyncWatch-${kind}-${new Date().toISOString().slice(0, 10)}.json`, { type: `syncwatch-profile-${kind}`, version: '2.1.5', data, meta: { favoriteMeta: p.favoriteMeta, roomMeta: p.roomMeta } });
+}
+
+async function importProfileCollection(kind, file) {
+  try {
+    const parsed = JSON.parse(await file.text()); if (parsed?.type !== `syncwatch-profile-${kind}` || !Array.isArray(parsed.data)) throw new Error('导入文件类型不匹配');
+    if (kind === 'history') return toast('观影记录导入需要对应影片仍存在；当前已完成文件校验，没有写入无效记录。', 'success');
+    let updated = 0;
+    for (const item of parsed.data.slice(0, 500)) {
+      const id = String(item.id || item.fileId || ''); if (!id) continue;
+      const note = item.note || parsed.meta?.favoriteMeta?.[id]?.note || parsed.meta?.roomMeta?.[id]?.note || '';
+      const category = item.category || item.collection || parsed.meta?.favoriteMeta?.[id]?.category || parsed.meta?.roomMeta?.[id]?.category || '未分类';
+      if (kind === 'media') { state.selectedManagementFiles = new Set([id]); await patchManagedVideos({ note, collection: category }); }
+      else { const result = await emitAck('account-action', { action: 'organize-items', kind, ids: [id], note, category }); if (result.success) updated += 1; }
+    }
+    state.selectedManagementFiles.clear(); await openAccount(kind === 'room' ? 'room' : kind); toast(`已导入 ${updated || parsed.data.length} 条管理数据`, 'success');
+  } catch (error) { toast(`导入失败：${localizedError(error)}`, 'error'); }
+}
+
+async function adoptSessionToken(token) {
+  if (!token) return; state.token = token;
+  if (state.rememberSession) localStorage.setItem('syncwatchToken', token); else localStorage.removeItem('syncwatchToken');
+  let lastError = null;
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    if (attempt) await new Promise((resolve) => setTimeout(resolve, attempt === 1 ? 500 : 1200));
+    try {
+      const response = await fetchWithTimeout('/api/session', { method: 'POST', headers: authHeaders({}, token) }, 10000);
+      if (!response.ok) throw new Error(`服务器返回 ${response.status}`);
+      return true;
+    } catch (error) { lastError = error; }
+  }
+  toast(`登录凭据已更新，但媒体会话刷新失败：${localizedError(lastError, '请检查网络后重试')}`, 'error');
+  return false;
+}
+
+async function refreshAccountAvatar() {
+  if (!state.socketAuthenticated) return;
+  const result = await emitAck('account-action', { action: 'get-profile' });
+  if (!result.success || !result.profile) return; state.profile = result.profile; updateAccountAvatar(result.profile.avatar);
+}
+
+function updateAccountAvatar(avatar) {
+  elements.accountAvatar.replaceChildren();
+  if (!avatar) { elements.accountAvatar.textContent = '👤'; return; }
+  const image = document.createElement('img'); image.alt = ''; image.src = avatar;
+  image.addEventListener('error', () => { if (image.isConnected) { elements.accountAvatar.replaceChildren(); elements.accountAvatar.textContent = '👤'; } }, { once: true });
+  elements.accountAvatar.appendChild(image);
+}
+
+function fileIcon(category) { return ({ video: '🎬', audio: '🎵', image: '🖼️', pdf: '📕', text: '📝', document: '📄' })[category] || '📦'; }
+function formatSize(bytes) { const value = Number(bytes) || 0; if (value < 1024) return `${value} B`; const units = ['KB', 'MB', 'GB', 'TB']; let size = value / 1024; let unit = units[0]; for (let i = 1; i < units.length && size >= 1024; i += 1) { size /= 1024; unit = units[i]; } return `${size.toFixed(size >= 100 ? 0 : size >= 10 ? 1 : 2)} ${unit}`; }
+function formatTime(seconds) { const value = Math.max(0, Number(seconds) || 0); const h = Math.floor(value / 3600); const m = Math.floor(value % 3600 / 60); const s = Math.floor(value % 60); return h ? `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}` : `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`; }
+function formatEta(seconds) { const value = Math.max(0, Math.ceil(Number(seconds) || 0)); return value < 60 ? `${value} 秒` : value < 3600 ? `${Math.ceil(value / 60)} 分钟` : `${Math.floor(value / 3600)} 小时 ${Math.ceil(value % 3600 / 60)} 分钟`; }
+function formatDate(value) { if (!value) return '从未'; const date = new Date(value); return Number.isNaN(date.getTime()) ? '' : date.toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }); }
+function stripExtension(name) { return String(name).replace(/\.[^.]+$/, '').toLocaleLowerCase(); }
+function localizedMediaLanguage(value) {
+  const raw = String(value || '').trim();
+  if (!raw) return '';
+  if (/[\u3400-\u9fff]/.test(raw)) return raw;
+  const normalized = raw.toLowerCase().replace(/_/g, '-');
+  const language = normalized.split('-')[0];
+  const labels = {
+    zh: '中文', zho: '中文', chi: '中文', cmn: '中文', yue: '粤语', en: '英语', eng: '英语',
+    ja: '日语', jpn: '日语', ko: '韩语', kor: '韩语', fr: '法语', fra: '法语', fre: '法语',
+    de: '德语', deu: '德语', ger: '德语', es: '西班牙语', spa: '西班牙语', it: '意大利语', ita: '意大利语',
+    ru: '俄语', rus: '俄语', pt: '葡萄牙语', por: '葡萄牙语', ar: '阿拉伯语', ara: '阿拉伯语',
+    hi: '印地语', hin: '印地语', th: '泰语', tha: '泰语', vi: '越南语', vie: '越南语',
+    id: '印度尼西亚语', ind: '印度尼西亚语', ms: '马来语', msa: '马来语', may: '马来语',
+    tr: '土耳其语', tur: '土耳其语', und: '语言未标注', english: '英语', japanese: '日语',
+    korean: '韩语', chinese: '中文', french: '法语', german: '德语', spanish: '西班牙语'
+  };
+  if (labels[normalized] || labels[language]) return labels[normalized] || labels[language];
+  console.debug('未识别的媒体语言代码（仅日志）：', raw);
+  return '其他语言';
+}
+function localizedError(error, fallback = '操作失败，请稍后重试') {
+  const message = String(error?.message || error || '').trim();
+  if (!message) return fallback;
+  let localized = '';
+  if (/eaddrinuse/i.test(message)) localized = '服务器端口已被其他程序占用';
+  else if (/enospc|no space left|quota exceeded/i.test(message)) localized = '存储空间不足，请清理空间后重试';
+  else if (/failed to fetch|networkerror|load failed|connection|socket|econn|enotfound|eai_again|err_(?:connection|internet|address)/i.test(message)) localized = '网络连接失败，请检查服务器地址和网络设置';
+  else if (/timeout|timed out|etimedout/i.test(message)) localized = '操作超时，请稍后重试';
+  else if (/abort|cancel/i.test(message) || error?.name === 'AbortError') localized = '操作已取消';
+  else if (/notallowed|permission|denied|eacces|eperm/i.test(message) || error?.name === 'NotAllowedError') localized = '未授予所需权限';
+  else if (/notfound|enoent/i.test(message) || error?.name === 'NotFoundError') localized = '未找到所需的设备、文件或组件';
+  else if (/notsupported|unsupported/i.test(message) || error?.name === 'NotSupportedError') localized = '当前设备不支持此功能';
+  else if (/epipe|broken pipe/i.test(message)) localized = '程序通信已中断，请重新连接后重试';
+  if (localized) {
+    console.debug('界面已隐藏原始错误（仅日志）：', error);
+    return localized;
+  }
+  const looksLikeRawTechnicalError = /\b(?:Error|Exception|TypeError|RangeError|ReferenceError|SyntaxError|DOMException|ERR_[A-Z_]+|E[A-Z]{3,})\b|\bspawn\b|\bfailed\b|\binvalid\b|unexpected token|\bat\s+\S+\s*\(/i.test(message);
+  if (/[\u3400-\u9fff]/.test(message) && !looksLikeRawTechnicalError) return message;
+  console.debug('界面已隐藏原始错误（仅日志）：', error);
+  return fallback;
+}
+function localizedDeviceLabel(value, kind = 'device') {
+  const raw = String(value || '').trim();
+  if (!raw) return kind === 'browser' ? '未知浏览器' : kind === 'platform' ? '未知系统' : '未知设备';
+  if (/[\u3400-\u9fff]/.test(raw)) return raw;
+  if (/edge|edg\//i.test(raw)) return '微软 Edge 浏览器';
+  if (/chrome|chromium|crios/i.test(raw)) return '谷歌 Chrome 浏览器';
+  if (/firefox|fxios/i.test(raw)) return '火狐浏览器';
+  if (/safari/i.test(raw)) return '苹果 Safari 浏览器';
+  if (/webview|; wv\)/i.test(raw)) return '安卓网页组件';
+  if (/harmonyos|hongmeng/i.test(raw)) return '鸿蒙系统';
+  if (/android/i.test(raw)) return '安卓系统';
+  if (/iphone|ipad|ios/i.test(raw)) return '苹果手机系统';
+  if (/mac\s*os|macos/i.test(raw)) return '苹果电脑系统';
+  if (/windows/i.test(raw)) return 'Windows 系统';
+  if (/linux/i.test(raw)) return 'Linux 系统';
+  console.debug('未识别的设备信息（仅日志）：', raw);
+  return kind === 'browser' ? '其他浏览器' : kind === 'platform' ? '其他系统' : '其他设备';
+}
+function escapeHtml(value) { return String(value ?? '').replace(/[&<>'"]/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' })[char]); }
+function debounce(fn, delay = 200) { let timer = 0; return (...args) => { clearTimeout(timer); timer = setTimeout(() => fn(...args), delay); }; }
+function findMatchingToast(message, variant = '') {
+  const text = String(message || '操作完成');
+  return [...(elements.toastRegion?.querySelectorAll('.toast') || [])].find((item) => item.dataset.message === text && item.dataset.variant === String(variant || '')) || null;
+}
+
+function dismissToast(item) {
+  if (!item) return;
+  clearTimeout(item._syncWatchDismissTimer);
+  item.remove();
+  updateClearAllToastsVisibility();
+}
+
+function updateClearAllToastsVisibility() {
+  const count = elements.toastRegion?.querySelectorAll('.toast').length || 0;
+  elements.clearAllToastsBtn?.classList.toggle('is-hidden', count === 0);
+  if (elements.clearAllToastsBtn) elements.clearAllToastsBtn.disabled = count === 0;
+}
+
+function clearAllToasts() {
+  for (const item of elements.toastRegion?.querySelectorAll('.toast') || []) dismissToast(item);
+  updateClearAllToastsVisibility();
+}
+
+function scheduleToastDismiss(item, duration) {
+  clearTimeout(item?._syncWatchDismissTimer);
+  if (item && duration > 0) item._syncWatchDismissTimer = setTimeout(() => dismissToast(item), duration);
+}
+
+function toast(message, type = '', duration = 4200) {
+  const textValue = String(message || '操作完成');
+  const existing = findMatchingToast(textValue, type);
+  if (existing) { scheduleToastDismiss(existing, duration); return existing; }
+  const item = document.createElement('div'); item.className = `toast with-close ${type}`; item.dataset.message = textValue; item.dataset.variant = type;
+  item.setAttribute('role', type === 'error' ? 'alert' : 'status');
+  const text = document.createElement('span'); text.textContent = textValue;
+  const close = document.createElement('button'); close.type = 'button'; close.className = 'toast-close'; close.textContent = '×'; close.title = '关闭提示'; close.setAttribute('aria-label', '关闭提示');
+  close.addEventListener('click', () => dismissToast(item));
+  item.append(text, close); elements.toastRegion.appendChild(item); updateClearAllToastsVisibility(); scheduleToastDismiss(item, duration); return item;
+}
+function toastWithAction(message, label, callback, duration = 8000) {
+  const textValue = String(message || '操作完成');
+  const variant = `action:${String(label || '')}`;
+  const existing = findMatchingToast(textValue, variant);
+  if (existing) { scheduleToastDismiss(existing, duration); return existing; }
+  const item = document.createElement('div'); item.className = 'toast with-action';
+  item.dataset.message = textValue; item.dataset.variant = variant; item.setAttribute('role', 'status');
+  const text = document.createElement('span'); text.textContent = textValue;
+  const action = document.createElement('button'); action.type = 'button'; action.textContent = label;
+  action.addEventListener('click', () => { callback(); dismissToast(item); });
+  const close = document.createElement('button'); close.type = 'button'; close.className = 'toast-close'; close.textContent = '×'; close.title = '关闭提示'; close.setAttribute('aria-label', '关闭提示');
+  close.addEventListener('click', () => dismissToast(item));
+  item.append(text, action, close); elements.toastRegion.appendChild(item); updateClearAllToastsVisibility();
+  scheduleToastDismiss(item, duration); return item;
+}
+
+function toastWithActions(message, actions = [], duration = 8000, type = '') {
+  const textValue = String(message || '操作完成');
+  const item = document.createElement('div'); item.className = `toast with-action ${type}`.trim();
+  item.dataset.message = textValue; item.dataset.variant = `actions:${Date.now()}`; item.setAttribute('role', type === 'error' ? 'alert' : 'status');
+  const text = document.createElement('span'); text.textContent = textValue; item.appendChild(text);
+  for (const entry of actions) {
+    const action = document.createElement('button'); action.type = 'button'; action.textContent = String(entry?.label || '操作');
+    action.addEventListener('click', () => { Promise.resolve(entry?.callback?.()).catch(() => {}); dismissToast(item); });
+    item.appendChild(action);
+  }
+  const close = document.createElement('button'); close.type = 'button'; close.className = 'toast-close'; close.textContent = '×'; close.title = '关闭提示'; close.setAttribute('aria-label', '关闭提示');
+  close.addEventListener('click', () => dismissToast(item)); item.appendChild(close); elements.toastRegion.appendChild(item); updateClearAllToastsVisibility();
+  scheduleToastDismiss(item, duration); return item;
+}
+

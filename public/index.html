@@ -1,0 +1,682 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#111418">
+  <title>SyncWatch</title>
+  <script src="/js/first-paint-theme.js"></script>
+  <link rel="stylesheet" href="/css/style.css">
+  <link rel="stylesheet" href="/css/avatar-tools.css">
+  <link rel="stylesheet" href="/css/ai-workbench.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand"><span class="brand-mark">▶</span><div><strong>SyncWatch</strong><small>多人观影空间</small></div></div>
+    <button id="mobileMenuBtn" class="mobile-menu-button" type="button" aria-label="打开功能菜单" aria-expanded="false"><span aria-hidden="true">☰</span></button>
+    <div id="roomHeader" class="room-header is-hidden">
+      <span><small>房间</small><strong id="headerRoomName">私人影院</strong></span>
+      <span class="header-online-stat"><small>在线</small><strong class="header-online-value"><b id="headerOnline">0</b><i aria-hidden="true">/</i><b id="headerMax">8</b></strong></span>
+      <span><small>状态</small><strong id="headerStatus" class="healthy">同步正常</strong></span>
+      <span><small>界面</small><strong id="headerThemeStatus">00 原版界面</strong></span>
+      <span id="headerServerPortGroup" class="is-hidden"><small>服务端口</small><strong id="headerServerPort">--</strong></span>
+    </div>
+    <div class="topbar-actions">
+      <div class="topbar-scroll-actions" aria-label="房间功能">
+      <button id="aiWorkbenchBtn" class="ghost-button header-feature-button is-hidden" type="button" title="打开 AI 对话、生图与视频工作台"><span class="ai-button-mark" aria-hidden="true">AI</span><span class="button-label">AI聊天</span></button>
+      <button id="masterMuteBtn" class="ghost-button header-feature-button" type="button" title="一键静音当前客户端的全部声音" aria-pressed="false"><span aria-hidden="true">🔊</span><span class="button-label">全部静音</span></button>
+      <button id="quickDissolveRoomBtn" class="danger-button header-feature-button is-hidden" type="button" title="解散当前房间"><span aria-hidden="true">×</span><span class="button-label">解散房间</span></button>
+      <button id="newRoomBtn" class="ghost-button header-feature-button is-hidden" type="button" title="新建房间"><span aria-hidden="true">＋</span><span class="button-label">新建房间</span></button>
+      <button id="switchRoomBtn" class="ghost-button header-feature-button is-hidden" type="button" title="更换房间"><span aria-hidden="true">⇄</span><span class="button-label">更换房间</span></button>
+      <button id="lanScanBtn" class="ghost-button header-feature-button" type="button" title="扫描所有公开房间"><span aria-hidden="true">⌁</span><span class="button-label">扫描房间</span></button>
+      <button id="conversionProgressBtn" class="ghost-button header-feature-button is-hidden" type="button" title="查看媒体处理进度"><span aria-hidden="true">↻</span><span class="button-label">处理进度</span></button>
+      <button id="webShareBtn" class="ghost-button header-feature-button is-hidden" type="button" title="打开网页并共享"><span aria-hidden="true">▣</span><span class="button-label">网页共享</span></button>
+      <button id="noticeCenterBtn" class="ghost-button header-feature-button is-hidden" type="button" title="发送屏幕公告与管理权限"><span aria-hidden="true">!</span><span class="button-label">通知与权限</span></button>
+      <button id="themeBtn" class="ghost-button header-feature-button topbar-context-action" type="button" title="切换界面风格"><span aria-hidden="true">◐</span><span class="button-label">界面风格</span></button>
+      <button id="adminContactBtn" class="ghost-button header-feature-button topbar-context-action" type="button" title="联系服务器管理员"><span aria-hidden="true">☎</span><span class="button-label">联系管理员</span></button>
+      <button id="copyrightBtn" class="ghost-button header-feature-button topbar-context-action" type="button" title="关于 SyncWatch"><span aria-hidden="true">ⓘ</span><span class="button-label">关于</span></button>
+      </div>
+      <div class="topbar-fixed-actions" aria-label="连接与账户">
+      <button id="serverSettingsLoginBtn" class="ghost-button header-feature-button topbar-context-action is-hidden" type="button" title="服务器设置"><span aria-hidden="true">⚙</span><span class="button-label">服务器设置</span></button>
+      <button id="copyAddressBtn" class="link-button share-link-button header-feature-button" type="button" title="分享当前房间"><span aria-hidden="true">↗</span><span class="button-label">分享房间</span></button>
+      <span id="connectionBadge" class="status-badge offline"><i></i><span>正在连接</span></span>
+      <button id="guestConvertBtn" class="guest-convert-button is-hidden" type="button" title="把当前游客资料、房间与记录迁移到正式账号"><span aria-hidden="true">↗</span><span>转为正式成员</span></button>
+      <button id="accountMenuBtn" class="account-button is-hidden" type="button"><span id="accountAvatar">👤</span><span><b id="accountName">用户</b><small>🟢 在线</small></span><i>⌄</i></button>
+      <div id="accountDropdown" class="account-dropdown is-hidden"><button data-account-page="home" type="button">我的资料</button><button data-account-page="room" type="button">我的房间</button><button data-account-page="media" type="button">我的影片</button><button data-account-page="history" type="button">观影记录</button><button data-account-page="devices" type="button">设备管理</button><button data-account-page="security" type="button">安全设置</button><button id="topbarDisplayModeBtn" type="button" title="切换精简/文字模式">切换工具栏模式</button><button id="downloadClientMainBtn" class="is-hidden" type="button">下载服务器客户端</button><button id="androidApkBtn" class="is-hidden" type="button">下载安卓客户端</button><button id="downloadMacServerMainBtn" type="button">下载苹果服务器</button><button id="downloadMacClientMainBtn" type="button">下载苹果客户端</button><button id="operationHistoryBtn" class="is-hidden" type="button">操作历史</button><button id="chatManageBtn" class="is-hidden" type="button">聊天记录管理</button><button id="managementHubBtn" class="is-hidden" type="button">管理中心</button><button id="logoutKeepCredentialsBtn" type="button">退出登录，保留账号密码</button><button id="logoutBtn" type="button">退出登录</button></div>
+      </div>
+    </div>
+    <button id="mobileMenuBackdrop" class="mobile-menu-backdrop" type="button" aria-label="关闭功能菜单" tabindex="-1"></button>
+  </header>
+
+  <div id="uploadProgress" class="progress-wrap global-upload-progress is-hidden" role="status" aria-live="polite">
+    <div class="global-upload-heading"><strong id="uploadProgressTitle">文件上传任务</strong><span><small>切换页面或收起片库不会中断</small><button id="backgroundUploadBtn" class="text-button" type="button" aria-expanded="true">后台处理</button></span></div>
+    <div class="progress-track"><span id="uploadProgressBar"></span></div>
+    <div class="progress-meta"><small id="uploadProgressText">正在上传 0%</small><button id="cancelUploadBtn" class="danger-text-button" type="button">中止上传</button></div>
+  </div>
+  <aside id="persistentRequestCenter" class="persistent-request-center is-hidden" aria-live="polite" aria-label="待处理申请"></aside>
+
+  <main>
+    <section id="loginPage" class="login-page">
+      <video id="loginBackgroundVideo" class="login-background-video is-hidden" muted loop playsinline preload="metadata" aria-hidden="true"></video>
+      <div class="login-visual" aria-hidden="true">
+        <div id="loginCubeScene" class="login-cube-scene">
+          <canvas id="loginCubeModel" class="login-cube-model" aria-hidden="true"></canvas>
+          <div id="loginCube" class="login-cube">
+            <section class="login-cube-face login-cube-front" data-login-cube-face="front"><i class="sync-scan-line"></i><span class="login-cube-face-icon">🎬</span><strong class="login-cube-face-title">同一帧，共此刻</strong><small class="login-cube-face-text">局域网 / 公网 · 智能同步 · SyncWatch 为您带来极致的观影体验</small><div class="sync-frame-meter"><b></b><b></b><b></b><b></b><b></b></div></section>
+            <section class="login-cube-face login-cube-back" data-login-cube-face="back"><span class="login-cube-face-icon">📺</span><strong class="login-cube-face-title">稳定同步</strong><small class="login-cube-face-text">播放、暂停、进度与倍速保持一致</small></section>
+            <section class="login-cube-face login-cube-right" data-login-cube-face="right"><span class="login-cube-face-icon">💬</span><strong class="login-cube-face-title">一起交流</strong><small class="login-cube-face-text">聊天、私聊、弹幕与表情实时送达</small></section>
+            <section class="login-cube-face login-cube-left" data-login-cube-face="left"><span class="login-cube-face-icon">🎙️</span><strong class="login-cube-face-title">实时语音</strong><small class="login-cube-face-text">观影时也能自然地说说话</small></section>
+            <section class="login-cube-face login-cube-top" data-login-cube-face="top"><span class="login-cube-face-icon">☁️</span><strong class="login-cube-face-title">多端连接</strong><small class="login-cube-face-text">电脑、网页与手机保持同步</small></section>
+            <section class="login-cube-face login-cube-bottom" data-login-cube-face="bottom"><span class="login-cube-face-icon">✨</span><strong class="login-cube-face-title">SyncWatch</strong><small class="login-cube-face-text">多端设备，随时连接</small></section>
+          </div>
+        </div>
+      </div>
+      <section id="loginMusicNowPlaying" class="login-now-playing is-hidden" aria-label="登录页背景音乐" aria-live="polite">
+        <button id="loginMusicProgressShell" class="login-now-playing-summary" type="button" aria-expanded="false" aria-controls="loginMusicProgressPopover">
+          <span class="login-now-playing-pulse" aria-hidden="true"><i></i><i></i><i></i></span>
+          <span><small>正在播放</small><strong id="loginMusicNowPlayingTitle">背景音乐</strong></span>
+          <span aria-hidden="true">⌃</span>
+        </button>
+        <div id="loginMusicProgressPopover" class="login-music-progress-popover">
+          <input id="loginMusicProgress" type="range" min="0" max="0" step="0.1" value="0" aria-label="拖动登录音乐播放进度">
+          <output id="loginMusicTime" for="loginMusicProgress">0:00 / 0:00</output>
+        </div>
+      </section>
+      <audio id="loginMusicAudio" preload="metadata" aria-hidden="true"></audio>
+      <div id="authCard" class="auth-card">
+        <p class="eyebrow">欢迎使用SyncWatch同步观影系统</p><h1 id="authTitle">加入观影房间</h1>
+        <div id="loginStatusWrap" class="login-status-banner is-hidden" role="status" aria-live="polite">
+          <p id="loginStatus" class="form-status"></p>
+          <button id="closeLoginStatusBtn" type="button" aria-label="关闭提示" title="关闭提示">×</button>
+        </div>
+        <p id="authHint" class="muted">一个账号同一时间只能在一台设备登录哦~</p><p id="defaultAdminLoginHint" class="warning is-hidden">首次服务器登录默认账号：admin，默认密码：admin888。登录后请立即设置新密码。</p>
+        <div class="device-ip-row"><span><small>当前设备 IP</small><strong id="currentDeviceIp">正在检测…</strong></span><button id="copyDeviceIpBtn" class="secondary-button" type="button">复制</button></div>
+        <form id="loginForm" novalidate>
+          <label>账号或邮箱<input id="username" autocomplete="username" maxlength="120" placeholder="请输入账号或已绑定邮箱"></label>
+          <label>密码<span class="password-field"><input id="password" type="password" autocomplete="current-password" maxlength="72" placeholder="请输入密码"><button id="togglePasswordBtn" class="password-toggle" type="button" aria-label="显示密码" aria-pressed="false">显示</button></span></label>
+          <div class="room-join-fields">
+            <label>房间号<input id="roomIdInput" inputmode="text" autocomplete="off" maxlength="12" placeholder="请输入房间号，如 ABC123"></label>
+            <label>房间密码（选填）<input id="loginRoomPassword" type="password" autocomplete="off" maxlength="72" placeholder="没有密码可留空"></label>
+          </div>
+          <div class="online-room-picker-row"><label class="online-room-picker">当前服务器在线房间<select id="onlineRoomSelect"><option value="">正在读取在线房间…</option></select></label><button id="refreshOnlineRoomsBtn" class="secondary-button online-room-refresh-button" type="button" title="刷新在线房间" aria-label="刷新在线房间"><span aria-hidden="true">↻</span></button></div>
+          <p id="roomLookupStatus" class="room-lookup-status" role="status">输入房间号后会立即显示当前人数</p>
+          <label id="loginAccessGroup" class="is-hidden">房间访问密码<input id="loginAccessPassword" type="password" maxlength="72" placeholder="管理员设置的访问密码"></label>
+          <button class="primary-button" type="submit">进入房间</button>
+          <button id="guestLoginBtn" class="secondary-button full guest-login-button" type="button">游客模式 · 免注册</button>
+          <button id="createRoomBtn" class="secondary-button full auth-create-room" type="button">＋ 新建房间</button>
+          <div class="login-entry-actions"><button id="myRoomsLoginBtn" class="secondary-button" type="button">我的房间记录</button><button id="serverAdminLoginBtn" class="secondary-button is-hidden" type="button">超级管理员登录</button></div>
+          <div class="login-host-actions"><button id="resetAdminPasswordBtn" class="text-button icon-only is-hidden" type="button" title="重置超级管理员密码" aria-label="重置超级管理员密码">↻</button><button id="restartServerBtn" class="text-button is-hidden" type="button">重启服务器软件</button></div>
+          <label class="check-line auth-check"><input id="autoLogin" type="checkbox" checked> 自动登录</label>
+          <div class="login-account-actions"><button id="showRegisterBtn" class="text-button" type="button">没有账号？立即注册</button><button id="forgotPasswordBtn" class="text-button" type="button">忘记密码</button></div>
+          <div class="login-download-actions" aria-label="客户端下载"><button id="downloadClientBtn" class="secondary-button" type="button">下载服务器客户端</button><button id="downloadLoginApkBtn" class="secondary-button" type="button">下载安卓客户端</button><button id="downloadMacServerBtn" class="secondary-button" type="button">下载苹果服务器</button><button id="downloadMacClientBtn" class="secondary-button" type="button">下载苹果客户端</button></div>
+        </form>
+        <form id="registerForm" class="is-hidden" novalidate>
+          <label>新账号<input id="regUsername" autocomplete="username" maxlength="24" placeholder="中文、字母或数字，2-24 位"></label>
+          <label>设置密码<span class="password-field"><input id="regPassword" type="password" autocomplete="new-password" maxlength="72" placeholder="至少 6 位"><button id="toggleRegPasswordBtn" class="password-toggle" type="button" aria-label="显示设置密码" aria-pressed="false">显示</button></span></label>
+          <label>确认密码<span class="password-field"><input id="regPasswordConfirm" type="password" autocomplete="new-password" maxlength="72" placeholder="再次输入密码"><button id="toggleRegPasswordConfirmBtn" class="password-toggle" type="button" aria-label="显示确认密码" aria-pressed="false">显示</button></span></label>
+          <label>邮箱（选填）<input id="regEmail" type="email" autocomplete="email" maxlength="120" placeholder="填写后必须完成验证码校验" aria-describedby="registrationEmailRequirement"></label>
+          <div id="registrationEmailVerificationRow" class="registration-email-verification">
+            <label>邮箱验证码<input id="regEmailVerificationCode" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="[0-9]{6}" placeholder="请输入 6 位验证码" data-required-when="regEmail" aria-describedby="registrationEmailRequirement"></label>
+            <button id="sendRegistrationEmailCodeBtn" class="secondary-button" type="button">发送验证码</button>
+          </div>
+          <p id="registrationEmailRequirement" class="form-hint">填写邮箱时必须先发送并填写验证码；不填写邮箱可直接注册。</p>
+          <label id="registerAccessGroup" class="is-hidden" aria-hidden="true">房间访问密码<input id="registerAccessPassword" type="password" maxlength="72" placeholder="注册账号不需要房间密码" disabled></label>
+          <button class="primary-button" type="submit">创建账号</button>
+          <button id="requestRegistrationBtn" class="secondary-button full registration-request-button" type="button">当前 IP 已注册？申请一次注册名额</button>
+          <button id="showLoginBtn" class="text-button" type="button">已有账号？返回登录</button>
+        </form>
+        <section id="externalLoginProviders" class="external-login-providers" aria-labelledby="externalLoginProvidersTitle">
+          <div class="external-login-divider"><span></span><small id="externalLoginProvidersTitle">其他登录方式</small><span></span></div>
+          <div class="external-login-grid">
+            <button id="phoneOneTapLoginBtn" type="button" disabled aria-disabled="true"><span aria-hidden="true">▯</span><span>手机号一键登录<small>需服务商配置</small></span></button>
+            <button id="wechatLoginBtn" type="button" disabled aria-disabled="true"><span aria-hidden="true">◎</span><span>微信登录 / 扫码<small>需开放平台配置</small></span></button>
+            <button id="qqLoginBtn" type="button" disabled aria-disabled="true"><span aria-hidden="true">◉</span><span>QQ 登录 / 扫码<small>需开放平台配置</small></span></button>
+          </div>
+          <p class="provider-login-note">当前服务器尚未配置运营商、微信和 QQ 服务商凭据，因此不会伪装登录成功；管理员完成官方平台配置后才会启用。</p>
+        </section>
+        <p id="loginVersionInfo" class="login-version-info">版本 v2.1.5 · 版权所有 © xuan，保留所有权利。</p>
+      </div>
+    </section>
+
+    <section id="mainPage" class="main-page is-hidden">
+      <div class="workspace">
+        <aside id="filePanel" class="side-panel file-panel">
+          <button class="mobile-panel-close mobile-only" data-close-panel="filePanel" type="button">← 返回观影</button>
+          <div class="panel-heading"><div><p class="eyebrow">我的影院</p><h2>🎬 我的影片</h2></div><div class="panel-heading-actions"><span id="fileCount" class="count-pill">0</span><button id="collapseFilesBtn" class="panel-collapse-button" type="button" aria-expanded="true" aria-controls="filePanel" title="折叠影片库">‹</button></div></div>
+          <div class="panel-tabs media-tabs"><button class="tab-button active" data-media-tab="library" type="button">视频库</button><button class="tab-button" data-media-tab="queue" type="button">播放队列</button></div>
+          <section id="libraryTab" class="media-tab-content">
+            <input id="fileInput" class="visually-hidden" type="file" multiple accept="video/*,audio/*,.mkv,.avi,.srt,.ass,.ssa,.vtt,image/*,.pdf,.txt,.md,.doc,.docx,.xls,.xlsx">
+            <input id="folderInput" class="visually-hidden" type="file" accept="video/*,audio/*,.mkv,.avi,.srt,.ass,.ssa,.vtt,image/*,.pdf,.txt,.md,.doc,.docx,.xls,.xlsx" webkitdirectory directory multiple>
+            <button id="chooseFileBtn" class="upload-button" type="button"><span>＋</span><strong>上传影片或字幕</strong><small id="uploadLimitText">默认不限制大小和上传时长 · 支持拖动文件到此处上传</small></button>
+            <button id="chooseFolderBtn" class="folder-upload-button" type="button"><span aria-hidden="true">📁</span><strong>上传整个文件夹</strong><small>自动筛选支持的影片、字幕和文档</small></button>
+            <button id="addRemoteVideoBtn" class="folder-upload-button" type="button"><span aria-hidden="true">☁</span><strong>添加云端视频</strong><small>COS / OSS HTTPS 直链，服务器不占用视频带宽</small></button>
+            <div class="media-category-toolbar"><label>影片分类<select id="mediaCategoryFilter"><option value="">全部分类</option></select></label><button id="manageMediaCategoriesBtn" class="text-button" type="button">新建分类</button><button id="batchMoveMediaCategoryBtn" class="secondary-button" type="button">批量移动</button><button id="openVideoManagementBtn" class="secondary-button" type="button">视频管理</button></div>
+            <div id="fileList" class="file-list"></div>
+          </section>
+          <section id="queueTab" class="media-tab-content is-hidden">
+            <div class="queue-title"><strong>📂 播放队列</strong><button id="addCurrentQueueBtn" class="text-button" type="button">＋ 添加当前影片</button></div>
+            <div class="queue-mode-controls">
+              <label>播放模式<select id="queueModeSelect"><option value="autoplay">自动连播</option><option value="single">单个循环</option><option value="list">列表循环</option><option value="category">指定分类循环</option><option value="reverse">倒序连播</option><option value="off">播完停止</option></select></label>
+              <label id="queueCategoryGroup" class="is-hidden">循环分类<select id="queueCategorySelect"><option value="">请选择分类</option></select></label>
+            </div>
+            <ol id="queueList" class="queue-list"></ol>
+          </section>
+        </aside>
+
+        <section id="theater" class="theater">
+          <div id="roomMarquee" class="room-marquee is-hidden" role="status"><span id="roomMarqueeText"></span></div>
+          <section id="temporaryRoomNotice" class="temporary-room-notice is-hidden" role="status" aria-live="polite">
+            <div><strong>当前是临时房间</strong><small>退出后房间会自动删除。需要保留时，请先转换为正式房间。</small></div>
+            <div class="temporary-room-actions"><button id="convertTemporaryRoomPrimaryBtn" class="primary-button" type="button">转为正式房间</button><button id="ignoreTemporaryRoomBtn" class="text-button" type="button">本次忽略</button></div>
+          </section>
+          <div class="status-card">
+            <div><span>🎬</span><p><small>当前播放</small><strong id="nowPlayingName">未选择影片</strong></p></div>
+            <div><span>👥</span><p><small>在线成员</small><strong><b id="userCountCard">0</b> 人</strong></p></div>
+            <div><span>📡</span><p><small>本机延迟</small><strong id="localLatency">-- 毫秒</strong></p></div>
+            <div><span>⚡</span><p><small>播放同步</small><strong id="syncStatus">等待播放</strong></p></div>
+            <div><span class="network-rate-icon upload" aria-hidden="true">↑</span><p><small>实时上传</small><strong id="networkUploadSpeed">0 B/秒</strong></p></div>
+            <div><span class="network-rate-icon download" aria-hidden="true">↓</span><p><small>实时下载</small><strong id="networkDownloadSpeed">0 B/秒</strong></p></div>
+          </div>
+
+          <nav class="mobile-module-nav mobile-only" aria-label="移动端功能模块">
+            <button class="mobile-module-button active" type="button" data-mobile-module="watch"><span aria-hidden="true">▶</span><small>观影</small></button>
+            <button id="mobileFilesBtn" class="mobile-module-button" type="button" data-mobile-module="library"><span aria-hidden="true">▣</span><small>片库</small></button>
+            <button class="mobile-module-button" type="button" data-mobile-module="chat"><span aria-hidden="true">☰</span><small>聊天</small></button>
+            <button id="mobileUsersBtn" class="mobile-module-button" type="button" data-mobile-module="members"><span aria-hidden="true">●</span><small>成员</small></button>
+          </nav>
+
+          <div class="theater-toolbar">
+            <div class="toolbar-buttons toolbar-module playback-module" data-module="播放控制">
+              <button id="playPauseBtn" class="compact-button control-button" type="button" title="同步播放" aria-label="同步播放" aria-pressed="false">▶</button>
+              <button id="clearPlaybackBtn" class="compact-button stage-control" type="button" title="清空当前画面">清空画面</button>
+              <button id="customJumpBtn" class="compact-button control-button" type="button" title="输入时间并自动播放">跳转时间</button>
+              <button id="backBtn" class="compact-button control-button" type="button">−10 秒</button>
+              <button id="forwardBtn" class="compact-button control-button" type="button">+10 秒</button>
+              <div class="volume-control" role="group" aria-label="播放器音量">
+                <button id="videoMuteBtn" class="volume-mute-button" type="button" title="静音当前播放器" aria-label="静音当前播放器" aria-pressed="false"><span aria-hidden="true">🔊</span></button>
+                <input id="volumeSlider" type="range" min="0" max="1" step="0.01" value="1" aria-label="播放器音量">
+              </div>
+              <label class="toolbar-select">清晰度<select id="playbackQualitySelect"><option value="auto">自动</option><option value="smooth">流畅版</option><option value="original">原画</option></select></label>
+              <label class="toolbar-select playback-rate-control">倍速<select id="playbackRateSelect" aria-label="同步播放倍速"><option value="0.5">0.5x</option><option value="0.75">0.75x</option><option value="1" selected>1.0x</option><option value="1.25">1.25x</option><option value="1.5">1.5x</option><option value="2">2.0x</option><option value="2.5">2.5x</option><option value="3">3.0x</option></select></label>
+            </div>
+            <div class="toolbar-buttons toolbar-module room-tools-module" data-module="观影工具">
+              <label class="toolbar-check"><input id="syncNoticeToggle" type="checkbox" checked> 显示追赶提示</label>
+              <button id="requestControlBtn" class="compact-button" type="button">申请控制权</button>
+              <button id="screenShareBtn" class="compact-button" type="button" title="共享屏幕画面和可用的系统声音">共享屏幕与声音</button>
+              <button id="audioSourceBtn" class="compact-button" type="button" title="选择电脑程序或音乐平台音源同步播放">共享电脑音源</button>
+              <span class="screen-share-hint">优先高清实时传输</span>
+              <button id="floatingPlayerBtn" class="compact-button" type="button">悬浮播放</button>
+              <button id="fullscreenBtn" class="compact-button" type="button">全屏</button>
+              <button id="lightsBtn" class="compact-button accent" type="button">开灯</button>
+            </div>
+          </div>
+
+          <div id="ownerControls" class="owner-controls is-hidden">
+            <strong>🎬 房主控制</strong>
+            <button id="controlLockBtn" class="compact-button" type="button">🔒 已锁定</button>
+            <button id="forceSyncBtn" class="compact-button" type="button">强制同步</button>
+            <label><input id="volumeSyncToggle" type="checkbox"> 音量同步</label>
+          </div>
+
+          <div id="playerContainer" class="player-container">
+            <div id="emptyStage" class="empty-stage"><span>🎞️</span><strong>还没有开始观影</strong><small id="emptyStageHint">上传影片，或者等待房主选择影片</small></div>
+            <video id="videoPlayer" class="media-view is-hidden" controls playsinline preload="metadata"></video>
+            <img id="imageViewer" class="media-view image-view is-hidden" src="/themes/01.png" alt="文件预览">
+            <iframe id="documentViewer" class="media-view document-view is-hidden" title="文档预览"></iframe>
+            <pre id="textViewer" class="media-view text-view is-hidden" role="document" tabindex="0" aria-label="文本小说预览"></pre>
+            <iframe id="sharedWebViewer" class="media-view shared-web-view is-hidden" title="房间共享网页" allow="autoplay; fullscreen; picture-in-picture" sandbox="allow-forms allow-scripts allow-same-origin allow-popups allow-presentation"></iframe>
+            <div id="sharedWebEmpty" class="shared-web-empty is-hidden" role="status"><strong>正在打开共享网页</strong><small>网页音频将在浏览器允许自动播放后同步输出</small></div>
+            <div id="downloadViewer" class="download-view is-hidden"><span>📄</span><strong id="downloadTitle">请下载查看</strong><a id="downloadLink" class="primary-button" href="#">下载文件</a></div>
+            <canvas id="screenShareCanvas" class="media-view screen-canvas is-hidden"></canvas>
+            <video id="screenShareVideo" class="media-view screen-video is-hidden" autoplay playsinline></video>
+            <div id="playerProgressBar" class="player-progress-bar is-hidden" role="group" aria-label="播放进度"><span id="playerCurrentTime">00:00</span><input id="playerSeekSlider" type="range" min="0" max="0" step="0.1" value="0" aria-label="拖动播放进度"><span id="playerDuration">00:00</span></div>
+            <div id="screenShareStatus" class="share-status is-hidden"></div>
+            <div id="syncNotice" class="sync-notice is-hidden">正在同步…</div>
+            <div id="playbackRatePrompt" class="playback-rate-prompt is-hidden" aria-live="polite">
+              <output id="playbackRateBadge" class="playback-rate-badge">1.0x</output>
+              <div class="playback-rate-prompt-actions"><button type="button" data-rate-prompt-action="session">本次不再提示</button><button type="button" data-rate-prompt-action="day">今天不再提示</button><button type="button" data-rate-prompt-action="never">永久不再提示</button></div>
+            </div>
+            <button id="resumePlaybackBtn" class="resume-playback-button is-hidden" type="button">▶ 点击继续同步播放</button>
+            <div id="danmakuContainer" class="danmaku-container"></div>
+            <div id="reactionLayer" class="reaction-layer"></div>
+            <div id="friendVideoNoticeLayer" class="friend-video-notice-layer is-hidden" aria-live="polite"></div>
+            <div id="playerInfo" class="player-info is-hidden"><span id="playerResolution">--</span><span id="playerCodec">--</span><span id="hardwareDecode">图形处理器解码检测中</span></div>
+            <section id="controlRequestOverlay" class="control-request-overlay is-hidden" aria-live="assertive">
+              <div><strong id="controlRequestTitle">成员申请控制权</strong><small id="controlRequestDetail">可允许、拒绝或暂时不再提示此成员。</small></div>
+              <select id="controlRequestSuppress" aria-label="不再提示时长"><option value="0">继续提示</option><option value="300000">5 分钟不提示</option><option value="1800000">30 分钟不提示</option><option value="3600000">1 小时不提示</option><option value="-1">本次房间不再提示</option></select>
+              <button id="controlRequestDenyBtn" class="secondary-button" type="button">拒绝</button>
+              <button id="controlRequestAllowBtn" class="primary-button" type="button">允许控制</button>
+            </section>
+            <button id="fullscreenShowBtn" class="fullscreen-show-button is-hidden" type="button">显示界面与聊天</button>
+            <div id="fullscreenOverlay" class="fullscreen-overlay" aria-hidden="true">
+              <div class="fullscreen-actions">
+                <div class="fullscreen-transform-controls" aria-label="画面方向与缩放"><button id="portraitViewBtn" type="button">竖屏</button><button id="landscapeViewBtn" type="button">横屏</button><button id="zoomOutBtn" type="button" aria-label="缩小画面">−</button><output id="zoomLevel">100%</output><button id="zoomInBtn" type="button" aria-label="放大画面">＋</button><button id="zoomResetBtn" type="button">复位</button></div>
+                <button id="fullscreenHideBtn" class="fullscreen-hide-button" type="button" aria-label="隐藏全屏聊天和控件">隐藏界面</button>
+                <button id="fullscreenExitBtn" class="fullscreen-exit-button" type="button" aria-label="退出全屏">退出全屏 ×</button>
+              </div>
+              <section class="fullscreen-chat-card" aria-label="全屏聊天">
+                <header><strong>边看边聊</strong><select id="fullscreenChatMode" aria-label="消息类型"><option value="danmaku" selected>弹幕</option><option value="public">聊天</option><option value="private">私聊</option></select></header>
+                <div id="fullscreenChatHistory" class="fullscreen-chat-history" aria-live="polite"><p class="muted">点击屏幕后可在这里聊天、私聊或发送弹幕</p></div>
+                <form id="fullscreenChatForm" class="fullscreen-chat-form">
+                  <select id="fullscreenPrivateRecipient" class="is-hidden" aria-label="全屏私聊对象"><option value="">选择私聊成员</option></select>
+                  <input id="fullscreenChatInput" maxlength="300" autocomplete="off" placeholder="发送全屏可见弹幕…" aria-label="全屏聊天内容">
+                  <input id="fullscreenImageInput" class="visually-hidden" type="file" accept="image/*">
+                  <button id="fullscreenEmojiBtn" class="icon-button" type="button" title="选择表情">☺</button>
+                  <button id="fullscreenImageBtn" class="icon-button" type="button" title="上传图片">▧</button>
+                  <button id="fullscreenSendBtn" class="send-button" type="submit">发送</button>
+                </form>
+                <div class="emoji-toolbar"><label>表情分类<select id="fullscreenEmojiCategory"><option value="all">全部表情</option><option value="faces">表情</option><option value="people">人物</option><option value="animals">动物</option><option value="food">食物</option><option value="activity">活动</option><option value="objects">物品</option><option value="symbols">符号</option></select></label><div id="fullscreenEmojiBar" class="emoji-bar is-hidden" aria-label="全屏表情选择"></div></div>
+              </section>
+            </div>
+            <div id="permissionNotice" class="permission-notice is-hidden" role="dialog" aria-modal="true" aria-labelledby="permissionNoticeTitle">
+              <div class="permission-notice-card"><strong id="permissionNoticeTitle">您的权限已更新</strong><p id="permissionNoticeText"></p><button id="permissionNoticeCloseBtn" class="primary-button" type="button">知道了</button></div>
+            </div>
+          </div>
+
+          <section id="chatPanel" class="chat-panel">
+            <div class="chat-head">
+              <div class="chat-modes">
+                <button class="chat-mode" data-chat-mode="public" type="button">💬 聊天</button>
+                <button class="chat-mode" data-chat-mode="private" type="button">🔒 私聊</button>
+                <button class="chat-mode active" data-chat-mode="danmaku" type="button">📺 弹幕</button>
+                <button class="chat-mode owner-chat is-hidden" data-chat-mode="announcement" type="button">📢 公告</button>
+              </div>
+              <div class="chat-head-actions">
+                <button id="chatViewFilterBtn" class="text-button" type="button" aria-expanded="false" aria-controls="chatViewFilters">筛选</button>
+                <button id="loadHistoryBtn" class="text-button" type="button">更早记录</button>
+                <button id="chatToggleBtn" class="text-button" type="button" aria-expanded="false" aria-controls="chatHistory chatForm reactionBar">展开聊天</button>
+              </div>
+            </div>
+            <div id="chatViewFilters" class="chat-view-filters is-hidden" aria-label="房间聊天筛选">
+              <label>消息类型<select id="chatViewChannel"><option value="">全部消息</option><option value="public">群聊</option><option value="private">私聊</option><option value="danmaku">弹幕</option><option value="system">房间动态</option></select></label>
+              <label>成员<select id="chatViewUser"><option value="">全部成员</option></select></label>
+              <label>成员规则<select id="chatViewUserMode" disabled><option value="include">只看该成员</option><option value="exclude">不看该成员</option></select></label>
+              <label class="chat-view-query">关键词<input id="chatViewQuery" type="search" maxlength="100" placeholder="搜索内容、名字或账号"></label>
+              <button id="chatViewResetBtn" class="secondary-button" type="button">重置</button>
+            </div>
+            <div id="liveVoiceBar" class="live-voice-bar" aria-live="polite">
+              <div><strong>实时语音</strong><small id="liveVoiceStatus">未加入语音</small></div>
+              <button id="voiceRoomBtn" class="secondary-button" type="button">加入全麦</button>
+              <button id="voicePrivateBtn" class="secondary-button" type="button">呼叫私聊成员</button>
+              <button id="voiceMuteBtn" class="secondary-button is-hidden" type="button">麦克风静音</button>
+              <button id="voiceLeaveBtn" class="danger-text-button is-hidden" type="button">退出语音</button>
+              <button id="voiceDockToggleBtn" class="icon-button voice-fold-button" type="button" aria-expanded="true" title="折叠实时语音">⌃</button>
+            </div>
+            <div id="voiceAudioDock" class="voice-audio-dock" aria-hidden="true"></div>
+            <div id="chatHistory" class="chat-history"></div>
+            <form id="chatForm" class="chat-form">
+              <select id="privateRecipient" class="is-hidden" aria-label="私聊对象"><option value="">选择私聊成员</option></select>
+              <input id="chatInput" maxlength="300" autocomplete="off" placeholder="发送全屏可见弹幕…">
+              <input id="voiceFileInput" class="visually-hidden" type="file" accept="audio/*">
+              <input id="chatImageInput" class="visually-hidden" type="file" accept="image/*">
+              <button id="chatEmojiBtn" class="icon-button" type="button" title="选择表情">☺</button>
+              <button id="chatImageBtn" class="icon-button" type="button" title="粘贴或上传图片">▧</button>
+              <button id="voiceBtn" class="icon-button" type="button" title="录制语音">🎤</button>
+              <button type="submit" class="send-button">发送</button>
+            </form>
+            <div class="emoji-toolbar"><label>表情分类<select id="chatEmojiCategory"><option value="all">全部表情</option><option value="faces">表情</option><option value="people">人物</option><option value="animals">动物</option><option value="food">食物</option><option value="activity">活动</option><option value="objects">物品</option><option value="symbols">符号</option></select></label><button id="chatEmojiCollapseBtn" class="text-button is-hidden" type="button">收起表情</button><div id="chatEmojiBar" class="emoji-bar is-hidden" aria-label="聊天表情选择"></div></div>
+            <div id="reactionBar" class="reaction-bar"><span>观影反应</span><button type="button" data-reaction="😂">😂</button><button type="button" data-reaction="❤️">❤️</button><button type="button" data-reaction="🔥">🔥</button><button type="button" data-reaction="👏">👏</button><button type="button" data-reaction="😮">😮</button></div>
+          </section>
+        </section>
+
+        <aside id="userPanel" class="side-panel user-panel">
+          <button class="mobile-panel-close mobile-only" data-close-panel="userPanel" type="button">← 返回观影</button>
+          <div class="panel-tabs" role="tablist"><button class="tab-button active" data-tab="users" type="button">在线成员</button></div>
+          <section id="usersTab" class="tab-content">
+            <div class="panel-heading"><div><p class="eyebrow">在线成员</p><h2>房间成员</h2></div><div class="panel-heading-actions member-heading-actions"><button id="collapseMembersBtn" class="text-button" type="button" aria-pressed="false" title="只显示成员名字">折叠明细</button><button id="viewLocationAuthorizationsBtn" class="text-button is-hidden" type="button" title="查看已授权位置的成员">位置清单</button><button id="authorizeLocationBtn" class="text-button" type="button" title="允许浏览器获取本机大致位置">授权位置</button><button id="revokeLocationBtn" class="text-button is-hidden" type="button" title="清除服务器保存的本机位置">取消位置</button><span id="userCount" class="count-pill">0</span></div></div>
+            <div id="userList" class="user-list"></div>
+            <div class="room-code-card"><small>房间号</small><strong id="roomCode" title="双击复制房间号">------</strong><code id="roomScheme">syncwatch://------</code><label class="share-address-label">分享当前房间地址<input id="roomShareUrl" value="" placeholder="输入公网域名，例如 https://watch.example.com"></label><div class="room-address-actions"><button id="copyRoomCodeBtn" class="secondary-button" type="button">复制房间号</button><button id="copyLanAddressBtn" class="secondary-button" type="button">复制内网地址</button><button id="copyPublicAddressBtn" class="secondary-button" type="button">复制公网地址</button><button id="changeCurrentRoomIdBtn" class="secondary-button is-hidden" type="button">修改房间号</button><button id="convertTemporaryRoomBtn" class="secondary-button is-hidden" type="button">转正式房间</button><button id="applyShareDomainBtn" class="secondary-button" type="button">替换</button><button id="copyShareLinkBtn" class="secondary-button" type="button">复制地址</button><button id="resetShareAddressBtn" class="secondary-button" type="button">重置</button><button id="showQrBtn" class="secondary-button" type="button">二维码</button></div><div id="qrBox" class="qr-box is-hidden"></div></div>
+          </section>
+          <section id="adminTab" class="tab-content is-hidden">
+            <p class="eyebrow">服务器管理</p><h2>管理设置</h2>
+            <p id="defaultPasswordWarning" class="warning is-hidden">首次使用请先在服务器本机修改默认管理员密码，再开放其他设备访问。</p>
+            <div id="managementAuth" class="management-auth"><label>超级管理员账号<input id="adminUsername" maxlength="24" autocomplete="username" value="admin" placeholder="请输入超级管理员账号"></label><label>超级管理员密码<input id="adminPassword" type="password" maxlength="72" autocomplete="current-password" placeholder="请输入账号密码"></label><button id="loadAdminBtn" class="secondary-button" type="button">验证并加载</button></div>
+
+            <div id="hostTunnelCard" class="settings-card is-hidden" data-management-panel="server">
+              <h3>🌐 公网访问（仅服务器可见）</h3>
+              <p>临时模式一键生成安全公网地址；稳定模式使用 Cloudflare 公网隧道令牌。</p>
+              <select id="tunnelMode"><option value="quick">临时公网地址</option><option value="named">稳定隧道</option></select>
+              <input id="tunnelToken" class="is-hidden" type="password" placeholder="Cloudflare Tunnel 令牌（不保存）">
+              <input id="tunnelPublicUrl" class="is-hidden" placeholder="已绑定地址，如 https://watch.example.com">
+              <div class="setting-actions tunnel-primary-actions"><button id="startTunnelBtn" class="secondary-button" type="button">开启公网访问</button><button id="tunnelTutorialBtn" class="secondary-button" type="button">使用教程</button><button id="tunnelNetworkRepairBtn" class="secondary-button" type="button">网络诊断与修复</button><button id="stopTunnelBtn" class="danger-button" type="button">关闭</button></div>
+              <p id="tunnelStatus" class="setting-status">未开启</p>
+              <label class="check-line"><input id="tunnelBypassProxy" type="checkbox" checked> 绕过系统代理启动 cloudflared（适合 VPN/TUN 或家庭网络延迟异常）</label>
+              <label class="check-line"><input id="tunnelAutoDiagnose" type="checkbox" checked> 开启前自动执行网络预检（发现家庭网络、DNS 或 VPN/TUN 异常时先给出修复建议）</label>
+              <div class="tunnel-address-actions"><button id="copyTunnelUrlBtn" class="secondary-button" type="button" disabled>复制公网地址</button><button id="openTunnelUrlBtn" class="secondary-button" type="button" disabled>浏览器打开</button></div>
+              <label class="check-line"><input id="tunnelAutoStart" type="checkbox"> 随 Windows 开机自动开启公网访问</label>
+              <button id="saveTunnelStartupBtn" class="secondary-button" type="button">保存自动启动设置</button>
+              <p id="tunnelStartupStatus" class="setting-status"></p>
+              <label class="check-line"><input id="requirePublicRoomPassword" type="checkbox"> 要求所有房主为房间设置访问密码</label>
+              <p class="muted">开启后，在线房主会立即收到常驻提醒；离线房主下次进入时提醒。房主设置密码前不能控制播放，其他已在房间中的成员不会被强制退出。</p>
+              <button id="savePublicPasswordPolicyBtn" class="secondary-button" type="button">保存公网密码策略</button>
+              <p id="publicPasswordPolicyStatus" class="setting-status"></p>
+            </div>
+
+            <div id="lanAccessCard" class="settings-card is-hidden" data-management-panel="server">
+              <h3>局域网端口访问</h3>
+              <p>控制其他设备能否通过本机局域网 IP 和端口访问 SyncWatch。关闭后公网地址仍可使用，当前通过内网地址连接的设备会立即断开。</p>
+              <label class="check-line"><input id="lanAccessEnabled" type="checkbox" checked> 允许通过局域网地址访问服务器</label>
+              <button id="saveLanAccessBtn" class="secondary-button" type="button">保存局域网访问设置</button>
+              <p id="lanAccessStatus" class="setting-status">当前允许局域网地址访问</p>
+            </div>
+
+            <div id="mailSettingsCard" class="settings-card mail-settings-card is-hidden" data-management-panel="mail">
+              <div class="settings-title mail-settings-heading"><div><p class="eyebrow">邮件服务</p><h3>SMTP 验证码与密码找回</h3><p>支持 QQ、网易、企业邮和标准 SMTP 服务。密码或授权码使用 AES-256-GCM 加密，仅保存在服务器数据目录。</p></div><span id="mailConfigurationBadge" class="mail-status-badge">未配置</span></div>
+              <section class="mail-settings-section" aria-labelledby="smtpSettingsTitle">
+                <div class="settings-title"><div><h4 id="smtpSettingsTitle">SMTP 设置</h4><p>配置验证码邮件的发件服务器。QQ 邮箱可填写 smtp.qq.com、465，并使用邮箱授权码。</p></div><div class="settings-title-actions"><button id="mailTutorialBtn" class="secondary-button" type="button" aria-expanded="false">配置教程</button><button id="testMailConnectionBtn" class="secondary-button" type="button">测试连接</button></div></div>
+                <div id="mailTutorialPanel" class="mail-tutorial-panel is-hidden"><h5>SMTP 配置步骤</h5><ol><li>在邮箱网页设置中开启 SMTP 服务并生成“授权码”，不要填写邮箱登录密码。</li><li>QQ 邮箱填写 <code>smtp.qq.com</code>、端口 <code>465</code>、勾选隐式 TLS；网易邮箱可填写 <code>smtp.163.com</code>、端口 <code>465</code>。</li><li>SMTP 用户名和发件人邮箱填写完整邮箱地址，授权码填入“SMTP 密码 / 授权码”。</li><li>先保存设置，再依次点击“测试连接”和“发送测试邮件”。</li><li>连接失败时检查邮箱服务是否开启、授权码是否过期、防火墙是否允许 465/587 端口。</li></ol><p><strong>示例：</strong>主机 smtp.qq.com · 端口 465 · 用户名 movie@qq.com · 隐式 TLS 开启。</p></div>
+                <div class="mail-settings-grid">
+                  <label>SMTP 主机<input id="mailHost" maxlength="253" autocomplete="off" placeholder="smtp.qq.com"></label>
+                  <label>SMTP 端口<input id="mailPort" type="number" min="1" max="65535" value="465"></label>
+                  <label>SMTP 用户名<input id="mailUser" maxlength="254" autocomplete="username" placeholder="2590813506@qq.com"></label>
+                  <label>密码找回邮箱（选填）<input id="mailRecoveryEmail" type="email" maxlength="254" autocomplete="email" placeholder="留空使用 SMTP 用户名邮箱"></label>
+                  <label>SMTP 密码 / 授权码<input id="mailAuthCode" type="password" maxlength="512" autocomplete="new-password" placeholder="留空保留已保存的凭据"></label>
+                  <label>发件人邮箱<input id="mailFromEmail" type="email" maxlength="254" autocomplete="email" placeholder="2590813506@qq.com"></label>
+                  <label>发件人名称<input id="mailFromName" maxlength="60" value="SyncWatch"></label>
+                </div>
+                <div class="mail-toggle-grid">
+                  <label class="check-line"><input id="mailUseTls" type="checkbox" checked> 使用 TLS / STARTTLS 加密</label>
+                  <label class="check-line"><input id="mailSecure" type="checkbox" checked> 使用隐式 TLS（通常为 465 端口）</label>
+                  <label class="check-line"><input id="mailEnabled" type="checkbox" checked> 启用 SMTP 邮件服务</label>
+                </div>
+              </section>
+              <section class="mail-settings-section" aria-labelledby="mailFlowTitle">
+                <div><h4 id="mailFlowTitle">验证码功能</h4><p>按用途独立控制。启用注册验证后，用户必须先验证邮箱才能创建账号。</p></div>
+                <div class="mail-toggle-grid">
+                  <label class="check-line"><input id="mailRegistrationVerification" type="checkbox"> 注册账号必须验证邮箱</label>
+                  <label class="check-line"><input id="mailBindingVerification" type="checkbox" checked> 允许登录后绑定或更换邮箱</label>
+                  <label class="check-line"><input id="mailAccountRecovery" type="checkbox" checked> 允许用户找回账号密码</label>
+                  <label class="check-line"><input id="mailAdminRecovery" type="checkbox" checked> 允许找回服务器管理员密码</label>
+                </div>
+              </section>
+              <section class="mail-settings-section" aria-labelledby="mailTemplateTitle">
+                <div class="settings-title"><div><h4 id="mailTemplateTitle">邮件模板</h4><p>主题与 HTML 内容支持占位符。预览在禁用脚本的沙盒中显示。</p></div><div class="settings-title-actions"><button id="previewMailTemplateBtn" class="secondary-button" type="button">预览 / 刷新</button><button id="restoreMailTemplateBtn" class="secondary-button" type="button">恢复官方模板</button></div></div>
+                <div class="mail-template-selectors"><label>事件<select id="mailTemplateEvent"><option value="verification">邮箱验证码</option><option value="passwordReset">密码重置验证码</option></select></label><label>语言<select id="mailTemplateLanguage"><option value="zh-CN">简体中文</option><option value="en-US">English</option></select></label><label>内置模板<select id="mailTemplatePreset" aria-label="选择内置邮件模板"></select></label><button id="applyMailTemplatePresetBtn" class="secondary-button" type="button">应用模板</button></div>
+                <div class="mail-template-layout">
+                  <div class="mail-template-editor">
+                    <label>主题<input id="mailTemplateSubject" maxlength="200" placeholder="[{{site_name}}] 邮箱验证码"></label>
+                    <label>HTML 模板<textarea id="mailTemplateHtml" rows="18" maxlength="100000" spellcheck="false"></textarea></label>
+                    <div class="mail-placeholder-list" aria-label="可用占位符"><span>可用占位符</span><button type="button" data-mail-placeholder="{{site_name}}">{{site_name}}</button><button type="button" data-mail-placeholder="{{recipient_name}}">{{recipient_name}}</button><button type="button" data-mail-placeholder="{{recipient_email}}">{{recipient_email}}</button><button type="button" data-mail-placeholder="{{verification_code}}">{{verification_code}}</button><button type="button" data-mail-placeholder="{{expires_in_minutes}}">{{expires_in_minutes}}</button><button type="button" data-mail-placeholder="{{action_name}}">{{action_name}}</button><button type="button" data-mail-placeholder="{{account_name}}">{{account_name}}</button></div>
+                  </div>
+                  <div class="mail-template-preview-wrap"><div><strong>实时安全预览</strong><small id="mailTemplatePreviewSubject">SyncWatch 邮件</small></div><iframe id="mailTemplatePreview" title="邮件模板安全预览" sandbox="" style="width:100%;min-height:420px;background:#f4f4f5;border:0"></iframe></div>
+                </div>
+              </section>
+              <section class="mail-settings-section mail-test-section" aria-labelledby="mailTestTitle">
+                <div><h4 id="mailTestTitle">发送测试邮件</h4><p>先保存设置，再向指定邮箱发送一封测试邮件。</p></div>
+                <div class="mail-test-row"><label>测试模板<select id="mailTestTemplate"><option value="verification">邮箱验证码模板</option><option value="password-reset">密码重置验证码模板</option></select></label><label>测试收件邮箱<input id="mailTestRecipient" type="email" maxlength="254" placeholder="留空则发送到发件人邮箱"></label><button id="testMailSettingsBtn" class="secondary-button" type="button">发送测试邮件</button></div>
+              </section>
+              <section class="mail-settings-section" aria-labelledby="verificationCodeManagementTitle">
+                <div class="settings-title"><div><h4 id="verificationCodeManagementTitle">验证码记录管理</h4><p>只显示账号、脱敏邮箱、用途和有效状态，不会显示验证码明文。</p></div><button id="refreshVerificationCodesBtn" class="secondary-button" type="button">刷新记录</button></div>
+                <div class="manage-toolbar verification-code-toolbar"><label>用途<select id="verificationCodeType"><option value="">全部用途</option><option value="registration">注册验证</option><option value="binding">绑定邮箱</option><option value="unbinding">解绑邮箱</option><option value="password-reset">找回密码</option><option value="admin-reset">管理员找回</option></select></label><label>状态<select id="verificationCodeStatus"><option value="">全部状态</option><option value="active">有效</option><option value="used">已使用</option><option value="expired">已过期</option></select></label><label class="search-field">模糊搜索<input id="verificationCodeSearch" type="search" maxlength="100" placeholder="账号或脱敏邮箱"></label><label class="check-line"><input id="verificationCodeSelectAll" type="checkbox"> 全选结果</label><button id="deleteSelectedVerificationCodesBtn" class="danger-button" type="button" disabled>删除所选</button></div>
+                <div id="verificationCodeList" class="manage-list verification-code-list"><p class="muted">点击刷新读取验证码记录。</p></div>
+              </section>
+              <div class="mail-save-bar"><p id="mailSettingsStatus" class="setting-status" role="status">尚未配置</p><button id="saveMailSettingsBtn" class="primary-button" type="button">保存邮件设置</button></div>
+            </div>
+
+            <div id="brandingSettingsCard" class="settings-card is-hidden" data-management-panel="notices">
+              <h3>版权与署名</h3>
+              <p>保存后会立即同步到电脑客户端、手机网页和安卓客户端的关于页面。</p>
+              <label>版权所有者<input id="brandingOwner" maxlength="60" value="xuan"></label>
+              <label>完整版权声明<input id="brandingNotice" maxlength="240" value="版权所有 © xuan，保留所有权利。"></label>
+              <button id="saveBrandingBtn" class="secondary-button" type="button">保存并同步版权信息</button>
+              <p id="brandingStatus" class="setting-status"></p>
+            </div>
+
+            <div id="marqueeSettingsCard" class="settings-card is-hidden" data-management-panel="notices">
+              <h3>实时公告滚动词条</h3>
+              <p>设置后会在所有房间的播放区域顶部滚动显示；关闭时会保留内容和样式，方便下次直接开启。</p>
+              <label class="check-line"><input id="marqueeEnabled" type="checkbox"> 开启实时滚动播报</label>
+              <label class="check-line"><input id="marqueeLoginEnabled" type="checkbox" checked> 同时在登录界面显示滚动播报</label>
+              <label>滚动内容<input id="marqueeTextInput" maxlength="240" placeholder="例如：今晚 20:00 统一放映《星际穿越》"></label>
+              <div class="setting-actions"><label>字体颜色<input id="marqueeColor" type="color" value="#f3c96a"></label><label>滚动速度<input id="marqueeSpeed" type="number" min="10" max="200" value="30"></label></div>
+              <label>显示范围<select id="marqueeScope"><option value="all">所有房间和用户</option><option value="rooms">所有房间</option><option value="users">所有在线用户</option></select></label>
+              <button id="saveMarqueeBtn" class="secondary-button" type="button">保存滚动公告</button><p id="marqueeStatus" class="setting-status"></p>
+              <label class="check-line"><input id="registrationAccountNoticeToggle" type="checkbox" checked> 超级管理员收到新账号注册提示</label>
+              <label class="check-line"><input id="f11PromptGlobalEnabled" type="checkbox" checked> 新进入房间时显示 F11 全屏提示</label>
+              <label class="check-line"><input id="initialPasswordReminderEnabled" type="checkbox" checked> 初始或管理员重置密码登录时显示修改提醒</label>
+              <p class="form-hint">在线超级管理员即时收到提示；离线超级管理员下次上线时显示。</p>
+              <button id="saveNoticePreferenceSettingsBtn" class="primary-button" type="button">保存通知与登录提醒设置</button>
+              <p id="noticePreferenceSettingsStatus" class="setting-status" role="status" aria-live="polite"></p>
+            </div>
+
+            <div id="loginMusicSettingsCard" class="settings-card login-music-settings-card is-hidden" data-management-panel="notices">
+              <div class="settings-title"><div><h3>登录页背景音乐</h3><p>可使用 HTTPS 音频地址或上传音频文件；浏览器禁止自动播放时，会在用户首次点击后开始。</p></div><button id="removeLoginMusicBtn" class="danger-text-button" type="button">移除音乐</button></div>
+              <label class="check-line"><input id="loginMusicEnabled" type="checkbox" data-mutually-exclusive-with="loginVideoEnabled"> 在登录界面播放背景音乐</label>
+              <label class="check-line"><input id="loginMusicShowTitle" type="checkbox" checked> 在登录界面显示歌曲名称</label>
+              <label>音乐名称<input id="loginMusicTitle" maxlength="80" placeholder="例如：银幕序曲"></label>
+              <label>HTTPS 音频地址<input id="loginMusicUrl" type="url" maxlength="2048" placeholder="https://example.com/login-theme.mp3"></label>
+              <label>或上传音频文件<input id="loginMusicFile" type="file" multiple accept="audio/mpeg,audio/mp4,audio/ogg,audio/wav,audio/webm,.mp3,.m4a,.ogg,.wav,.webm"></label>
+              <div class="login-music-controls"><label>播放音量<input id="loginMusicVolume" type="range" min="0" max="1" step="0.01" value="0.3"><output id="loginMusicVolumeText">30%</output></label><label class="check-line"><input id="loginMusicLoop" type="checkbox" checked> 循环播放</label></div>
+              <audio id="loginMusicPreview" controls preload="metadata"></audio>
+              <div id="loginMusicUploadProgress" class="login-media-upload-progress is-hidden" role="status" aria-live="polite"><progress max="100" value="0" aria-label="登录音乐上传进度"></progress><span>等待上传 · 0% · 0 KB/s</span></div>
+              <div id="loginMusicTrackList" class="manage-list login-music-track-list"><p class="muted">暂无登录音乐</p></div><div class="setting-actions"><button id="previewLoginMusicBtn" class="secondary-button" type="button">试听</button><button id="saveLoginMusicBtn" class="primary-button" type="button">保存并同步</button></div>
+              <p id="loginMusicStatus" class="setting-status">当前未设置登录音乐</p>
+            </div>
+
+            <div id="loginVideoSettingsCard" class="settings-card login-video-settings-card is-hidden" data-management-panel="notices">
+              <div class="settings-title"><div><h3>登录页背景视频</h3><p>上传后会作为登录背景播放。启用视频时背景音乐会自动关闭。</p></div><button id="removeLoginVideoBtn" class="danger-text-button" type="button">移除视频</button></div>
+              <label class="check-line"><input id="loginVideoEnabled" type="checkbox" data-mutually-exclusive-with="loginMusicEnabled"> 在登录界面播放背景视频</label>
+              <label>上传视频<input id="loginVideoFile" type="file" accept="video/*,.mp4,.webm,.mov,.mkv,.avi,.flv,.m4v,.mpeg,.mpg,.wmv,.ts,.m2ts,.3gp"></label>
+              <p class="form-hint">服务器会先用 FFmpeg 探测格式，并转码为浏览器兼容视频；无法探测或损坏的文件会被拒绝。登录背景视频与背景音乐不能同时启用。</p>
+              <video id="loginVideoPreview" controls muted playsinline preload="metadata"></video>
+              <div id="loginVideoUploadProgress" class="login-media-upload-progress is-hidden" role="status" aria-live="polite"><progress max="100" value="0" aria-label="登录视频上传进度"></progress><span>等待上传 · 0% · 0 KB/s</span></div>
+              <div class="setting-actions"><button id="saveLoginVideoBtn" class="primary-button" type="button">上传并同步</button></div>
+              <p id="loginVideoStatus" class="setting-status">当前未设置登录背景视频</p>
+            </div>
+
+            <div id="passwordPolicyCard" class="settings-card is-hidden" data-management-panel="server">
+              <h3>用户密码规则</h3>
+              <label>允许的字符<select id="passwordPolicyMode"><option value="unrestricted">不限制字符类型</option><option value="chinese">只能中文</option><option value="english">只能英文</option><option value="digits">只能数字</option><option value="chinese_english">中文和英文</option><option value="chinese_digits">中文和数字</option><option value="english_digits">英文和数字</option><option value="chinese_english_digits">中文、英文和数字</option></select></label>
+              <div class="setting-actions"><label>最少位数<input id="passwordPolicyMin" type="number" min="1" max="72" value="6"></label><label>最多位数<input id="passwordPolicyMax" type="number" min="1" max="72" value="72"></label><label>定期修改（天）<input id="passwordPolicyExpiryDays" type="number" min="0" max="3650" value="7" aria-describedby="passwordPolicyStatus"></label></div>
+              <label class="check-line"><input id="adminUnlimitedDevices" type="checkbox" checked> admin 账号允许不限设备同时登录</label>
+              <button id="savePasswordPolicyBtn" class="secondary-button" type="button">保存密码与登录策略</button>
+              <p id="passwordPolicyStatus" class="setting-status"></p>
+            </div>
+
+            <div id="loginCubeSettingsCard" class="settings-card login-cube-settings-card is-hidden" data-management-panel="notices">
+              <div class="settings-title"><div><h3>登录页 3D 立方体</h3><p>分别设置六个面的图标、标题、说明与图片；保存后登录页和所有客户端会立即同步。</p></div></div>
+              <div class="login-cube-motion-settings">
+                <label>显示方式<select id="loginCubeDisplayMode"><option value="cube">3D 立方体</option><option value="model">自定义 GLB 模型</option><option value="flat">只显示“同一帧，共此刻”平面</option><option value="hidden">不显示登录视觉</option></select></label>
+                <label>自动旋转方向<select id="loginCubeRotationDirection"><option value="right">向右</option><option value="left">向左</option><option value="up">向上</option><option value="down">向下</option><option value="random">随机方向</option></select></label>
+                <label class="check-line"><input id="loginCubeAutoRotate" type="checkbox" checked> 未操作时缓慢自动旋转</label>
+                <label class="check-line"><input id="loginCubeInertia" type="checkbox" checked> 轻扫后保持惯性滑动</label>
+                <label class="login-cube-speed-control"><span>自动旋转速度</span><input id="loginCubeRotationSpeed" type="range" min="0" max="18" step="0.5" value="16"><output id="loginCubeRotationSpeedValue">16°/秒</output></label>
+              </div>
+              <div id="loginCubeSettingsGrid" class="login-cube-settings-grid"></div>
+              <details id="loginCubeModelTutorial" class="login-cube-model-tutorial">
+                <summary>自定义 3D 模型上传教程与安全要求</summary>
+                <div class="login-cube-model-guide">
+                  <p><strong>只接受不超过 25 MB 的单文件 GLB 2.0。</strong>JSON GLTF、外链贴图、外链网格与脚本不会被接收。</p>
+                  <ol><li>在 Blender 中选择“文件 → 导出 → glTF 2.0”，格式选择“glTF 二进制（.glb）”。</li><li>应用模型变换，删除无用相机和灯光，并把贴图打包进 GLB；不要使用外部 URI。</li><li>上传通过后，在“显示方式”选择“自定义 GLB 模型”，再保存同步。模型加载失败会自动显示原立方体。</li></ol>
+                  <label>选择单文件 GLB<input id="loginCubeModelFile" type="file" accept=".glb,model/gltf-binary" aria-describedby="loginCubeModelRequirement"></label>
+                  <div class="login-cube-model-actions"><button id="uploadLoginCubeModelBtn" class="secondary-button" type="button">上传并校验</button><button id="deleteLoginCubeModelBtn" class="danger-text-button" type="button">删除当前模型</button></div>
+                  <div id="loginCubeModelUploadProgress" class="login-media-upload-progress is-hidden" role="status" aria-live="polite"><progress max="100" value="0" aria-label="GLB 模型上传进度"></progress><span>等待上传 · 0%</span></div>
+                  <small id="loginCubeModelRequirement">服务器会验证 GLB 文件头、版本、声明长度、分块与外部资源引用。</small>
+                  <p id="loginCubeModelStatus" class="login-cube-model-status" role="status">当前未上传自定义模型</p>
+                </div>
+              </details>
+              <div class="setting-actions"><button id="resetLoginCubeSettingsBtn" class="secondary-button" type="button">恢复六面默认内容</button><button id="saveLoginCubeSettingsBtn" class="primary-button" type="button">保存并同步登录立方体</button></div>
+              <p id="loginCubeSettingsStatus" class="setting-status" role="status"></p>
+            </div>
+
+            <div id="blockedWordsCard" class="settings-card is-hidden" data-management-panel="server">
+              <div class="settings-title"><div><h3>聊天与弹幕屏蔽词</h3><p>每行填写一个词。弹幕、房间聊天、私聊和好友消息发送前都会由服务器统一检查。</p></div></div>
+              <label>屏蔽词列表<textarea id="blockedWordsInput" rows="6" maxlength="40000" placeholder="例如：&#10;违规词一&#10;违规词二"></textarea></label>
+              <button id="saveBlockedWordsBtn" class="secondary-button" type="button">保存屏蔽词</button>
+              <p id="blockedWordsStatus" class="setting-status"></p>
+            </div>
+
+            <div id="roomIdPolicyCard" class="settings-card is-hidden" data-management-panel="server">
+              <h3>自定义房间号规则</h3>
+              <label class="check-line"><input id="roomIdPolicyEnabled" type="checkbox"> 启用房间号限制</label>
+              <div class="setting-actions"><label>最少位数<input id="roomIdPolicyMin" type="number" min="1" max="32" value="4"></label><label>最多位数<input id="roomIdPolicyMax" type="number" min="1" max="32" value="32"></label></div>
+              <label>字符规则<select id="roomIdPolicyMode"><option value="uppercase_alnum">大写字母和数字</option><option value="uppercase_no_ambiguous">大写字母和数字（排除易混淆字符）</option><option value="letters">仅大写字母</option><option value="digits">仅数字</option><option value="custom">自定义正则</option></select></label>
+              <label id="roomIdPolicyPatternLabel" class="is-hidden">自定义正则（不含首尾 ^$）<input id="roomIdPolicyPattern" maxlength="120" placeholder="例如 [A-Z]{4}[0-9]{2}"></label>
+              <button id="saveRoomIdPolicyBtn" class="secondary-button" type="button">保存房间号规则</button><p id="roomIdPolicyStatus" class="setting-status"></p>
+            </div>
+
+            <div id="accountTierCard" class="settings-card is-hidden" data-management-panel="tiers">
+              <div class="settings-title"><h3>账户权限等级</h3><button id="newAccountTierBtn" class="text-button" type="button">新建等级</button></div>
+              <p>为账户设置上传容量、建房数量和描述。admin 与超级管理员固定使用 S 级服务器权限。</p>
+              <div id="accountTierList" class="permission-group-list"></div>
+              <div id="accountTierEditor" class="permission-group-editor is-hidden"><label>等级标识<input id="accountTierId" maxlength="32" placeholder="例如 creator_plus"></label><label>等级名称<input id="accountTierName" maxlength="40"></label><div class="setting-actions"><label>上传上限（GB，0 不限）<input id="accountTierUploadGb" type="number" min="0" max="32768" step="0.1" value="10"></label><label>建房数量（0 不限）<input id="accountTierRoomQuota" type="number" min="0" max="9999" value="1"></label></div><label>说明<textarea id="accountTierDescription" maxlength="240" rows="2"></textarea></label><div class="setting-actions"><button id="cancelAccountTierBtn" class="secondary-button" type="button">取消</button><button id="saveAccountTierBtn" class="primary-button" type="button">保存等级</button></div></div>
+            </div>
+            <div id="watchLevelSettingsCard" class="settings-card is-hidden" data-management-panel="tiers">
+              <div class="settings-title"><h3>观影等级与经验</h3><small>等级明细、经验门槛和进度统一在这里查看</small></div>
+              <label>每观看一分钟获得经验<input id="experiencePerMinute" type="number" min="0" max="1000" step="1" value="1"></label>
+              <button id="saveExperiencePolicyBtn" class="secondary-button" type="button">保存经验规则</button>
+              <p id="experiencePolicyStatus" class="setting-status"></p>
+              <div id="watchLevelSettingsList" class="watch-level-settings-list"></div>
+            </div>
+
+            <div id="roomEntryNoticeSettingsCard" class="settings-card is-hidden" data-management-panel="notices">
+              <div class="settings-title"><div><h3>进房通知</h3><p>可设置全服务器默认内容，也可为自己拥有的单个房间单独覆盖；用户进入时展示，10 秒无操作自动关闭。</p></div></div>
+              <label>通知范围<select id="roomEntryNoticeScope"><option value="global">全服务器默认通知</option></select></label>
+              <label class="check-line"><input id="roomEntryNoticeEnabled" type="checkbox"> 启用进房通知</label>
+              <label>通知内容<textarea id="roomEntryNoticeText" maxlength="800" rows="5" placeholder="例如：欢迎进入房间，请文明观影。"></textarea></label>
+              <div class="setting-actions"><button id="saveRoomEntryNoticeBtn" class="secondary-button" type="button">保存进房通知</button><button id="resetRoomEntryNoticeBtn" class="text-button is-hidden" type="button">恢复全局默认</button></div>
+              <p id="roomEntryNoticeStatus" class="setting-status"></p>
+            </div>
+
+            <div id="adminContactSettingsCard" class="settings-card is-hidden" data-management-panel="notices">
+              <h3>登录页管理员联系方式</h3>
+              <label>按钮名称<input id="adminContactLabel" maxlength="40" value="联系服务器管理员"></label>
+              <label>QQ<input id="adminContactQq" inputmode="numeric" maxlength="32"></label><label>微信<input id="adminContactWechat" maxlength="80"></label>
+              <label>邮箱<input id="adminContactEmail" type="email" maxlength="120"></label><label>电话<input id="adminContactPhone" maxlength="40"></label>
+              <label>补充说明<textarea id="adminContactNote" maxlength="240" rows="3"></textarea></label>
+              <button id="saveAdminContactBtn" class="secondary-button" type="button">保存并同步到登录页</button>
+              <p id="adminContactStatus" class="setting-status"></p>
+            </div>
+
+            <div id="legalAgreementSettingsCard" class="settings-card is-hidden" data-management-panel="notices">
+              <h3>首次登录使用协议</h3>
+              <label>协议版本<input id="legalAgreementVersion" maxlength="40" value="2.1.5"></label><label>协议标题<input id="legalAgreementTitle" maxlength="80"></label>
+              <label>协议正文<textarea id="legalAgreementText" maxlength="4000" rows="12"></textarea></label>
+              <button id="saveLegalAgreementBtn" class="secondary-button" type="button">发布新协议版本</button>
+              <p id="legalAgreementStatus" class="setting-status"></p>
+            </div>
+
+            <div id="dataBackupCard" class="settings-card is-hidden" data-management-panel="server">
+              <h3>数据导入与导出</h3>
+              <p>可按模块导出配置、账号、房间、影片索引和聊天记录，也可以导入 SyncWatch JSON 备份。导入后会自动校验并保存。</p>
+              <label class="backup-scope-select">备份范围<select id="dataBackupScope"><option value="all">全部数据与配置</option><option value="config">服务器配置</option><option value="accounts">账号与权限</option><option value="rooms">房间与播放状态</option><option value="media-index">影片索引与视频文件</option><option value="chat">聊天记录</option></select></label>
+              <fieldset id="dataBackupScopes" class="backup-scope-grid"><legend>也可以多选导出或导入模块</legend><label class="check-line"><input type="checkbox" value="config" checked>服务器配置</label><label class="check-line"><input type="checkbox" value="accounts" checked>账号与权限</label><label class="check-line"><input type="checkbox" value="rooms" checked>房间与播放状态</label><label class="check-line"><input type="checkbox" value="media-index" checked>影片索引、原视频与转码文件</label><label class="check-line"><input type="checkbox" value="chat" checked>聊天记录</label></fieldset>
+              <div class="setting-actions"><button id="exportDataBtn" class="secondary-button" type="button">导出备份</button><button id="importDataBtn" class="secondary-button" type="button">导入备份</button></div>
+              <div id="dataBackupProgress" class="backup-progress is-hidden" role="status" aria-live="polite"><div><strong id="dataBackupProgressLabel">正在准备备份</strong><output id="dataBackupProgressPercent">0%</output></div><progress id="dataBackupProgressBar" max="100" value="0"></progress><small id="dataBackupProgressDetail">等待服务器开始传输</small></div>
+              <input id="importDataInput" class="visually-hidden" type="file" accept="application/json,.json,application/vnd.syncwatch.backup,.swbackup">
+              <p id="dataBackupStatus" class="setting-status"></p>
+            </div>
+
+            <div class="settings-card" data-management-panel="room"><h3>房间设置</h3><label>房间名称<input id="roomNameInput" maxlength="40" value="私人影院"></label><label>最多人数<input id="maxUsersInput" type="number" min="2" max="100" value="8"></label><label class="check-line"><input id="roomAllowGuests" type="checkbox" checked> 允许游客进入（关闭后仅正式成员可加入）</label><label class="check-line"><input id="uploadApprovalToggle" type="checkbox"> 新上传文件需审核</label><button id="saveRoomBtn" class="secondary-button" type="button">保存房间设置</button></div>
+            <div id="roomStorageCard" class="settings-card" data-management-panel="room"><h3>房间存储</h3><p id="roomStorageSummary" class="muted">正在读取房间存储…</p></div>
+            <div class="settings-card" data-management-panel="room"><div class="settings-title"><div><h3>上传限制</h3><p>两个值均为 0 时，文件大小和上传时长完全不限制。</p></div><button id="uploadLimitTutorialBtn" class="text-button" type="button">使用教程</button></div><label>最大文件（兆字节，0 不限）<input id="uploadLimitMb" type="number" min="0" value="0"></label><label>最长上传（秒，0 不限）<input id="uploadTimeLimit" type="number" min="0" value="0"></label><button id="saveUploadLimitsBtn" class="secondary-button" type="button">保存上传限制</button></div>
+            <div class="settings-card" data-management-panel="permissions"><h3>成员权限</h3><select id="permissionUser"><option value="">选择成员</option></select><label>权限组<select id="permissionGroup"><option value="member">成员</option></select></label><label class="check-line"><input id="permAdministrator" type="checkbox"> 直接赋予管理员</label><div class="permission-grid"><label class="check-line"><input id="permControl" type="checkbox"> 控制播放</label><label class="check-line"><input id="permUpload" type="checkbox"> 上传影片</label><label class="check-line"><input id="permDelete" type="checkbox"> 删除影片</label><label class="check-line"><input id="permShareScreen" type="checkbox"> 共享屏幕</label><label class="check-line"><input id="permShareAudio" type="checkbox"> 共享电脑音源</label><label class="check-line"><input id="permShareWeb" type="checkbox"> 共享网址</label><label class="check-line"><input id="permVoiceChat" type="checkbox" checked> 实时语音</label><label class="check-line"><input id="permManageChat" type="checkbox"> 管理聊天</label><label class="check-line"><input id="permManageRoom" type="checkbox"> 管理房间</label><label class="check-line"><input id="permSendNotice" type="checkbox"> 发送屏幕公告</label></div><button id="savePermissionsBtn" class="secondary-button" type="button">保存成员权限</button></div>
+            <div class="settings-card" data-management-panel="permissions"><div class="settings-title"><h3>权限组系统</h3><button id="newPermissionGroupBtn" class="text-button" type="button">新建权限组</button></div><div id="permissionGroupList" class="permission-group-list"></div><div id="permissionGroupEditor" class="permission-group-editor is-hidden"><label>组标识<input id="permissionGroupId" maxlength="32" placeholder="例如 family_admin"></label><label>组名称<input id="permissionGroupName" maxlength="40" placeholder="例如 家庭管理员"></label><div class="permission-grid"><label class="check-line"><input id="groupPermControl" type="checkbox"> 控制播放</label><label class="check-line"><input id="groupPermUpload" type="checkbox"> 上传影片</label><label class="check-line"><input id="groupPermDelete" type="checkbox"> 删除影片</label><label class="check-line"><input id="groupPermShareScreen" type="checkbox"> 共享屏幕</label><label class="check-line"><input id="groupPermShareAudio" type="checkbox"> 共享电脑音源</label><label class="check-line"><input id="groupPermShareWeb" type="checkbox"> 共享网址</label><label class="check-line"><input id="groupPermVoiceChat" type="checkbox" checked> 实时语音</label><label class="check-line"><input id="groupPermManageChat" type="checkbox"> 管理聊天</label><label class="check-line"><input id="groupPermManageRoom" type="checkbox"> 管理房间</label><label class="check-line"><input id="groupPermSendNotice" type="checkbox"> 发送屏幕公告</label></div><div class="setting-actions"><button id="cancelPermissionGroupBtn" class="secondary-button" type="button">取消</button><button id="savePermissionGroupBtn" class="primary-button" type="button">保存权限组</button></div></div></div>
+            <div id="applicationRefreshCard" class="settings-card" data-management-panel="applications"><div class="settings-title"><div><h3>用户申请中心</h3><p>一次读取待审核上传、多账号注册申请和建房额度申请。</p></div><button id="refreshAllApplicationsBtn" class="secondary-button" type="button">一键刷新全部申请</button></div><p id="applicationRefreshStatus" class="setting-status">等待刷新</p></div>
+            <div class="settings-card" data-management-panel="room"><div class="settings-title"><h3>待审核上传</h3><button id="refreshPendingBtn" class="text-button" type="button">刷新</button></div><div id="pendingList" class="pending-list"><p class="muted">暂无</p></div></div>
+            <div class="settings-card" data-management-panel="chat"><div class="management-command-grid"><button id="managementChatManageBtn" class="management-command" type="button"><strong>聊天记录管理</strong><small>管理聊天、私聊、弹幕、语音和图片</small></button><button id="managementOperationHistoryBtn" class="management-command" type="button"><strong>操作历史</strong><small>查看审计记录和可撤回操作</small></button></div></div>
+            <div id="serverLogsCard" class="settings-card is-hidden" data-management-panel="server"><div class="settings-title"><div><h3>服务器日志</h3><p>仅超级管理员可查看，支持按类别、级别和关键字筛选。</p></div><button id="refreshServerLogsBtn" class="secondary-button" type="button">刷新日志</button></div><div class="manage-toolbar"><label>类别<select id="serverLogCategory"><option value="">全部</option><option value="server">服务器</option><option value="operation">操作</option></select></label><label>级别<select id="serverLogLevel"><option value="">全部</option><option value="info">信息</option><option value="warn">警告</option><option value="error">错误</option></select></label><input id="serverLogQuery" type="search" placeholder="搜索账号、动作、房间号或摘要"></div><div id="serverLogList" class="manage-list"><p class="muted">验证服务器管理员后加载日志</p></div></div>
+            <div class="settings-card" data-management-panel="accounts"><div class="settings-title"><div><h3>注册账号管理</h3><p>显示账号、注册 IP、最近 IP 和设备名称；在线状态会实时更新。密码仅以不可逆哈希保存，管理员无法查看明文。</p></div><div class="settings-title-actions"><button id="openAccountOverviewBtn" class="secondary-button" type="button">账号总览</button><button id="accountAuditLogBtn" class="secondary-button" type="button">账户日志</button><button id="showSuperAdminAccountsBtn" class="secondary-button" type="button" aria-pressed="false">仅看超级管理员</button><button id="refreshAccountsBtn" class="text-button" type="button">刷新</button></div></div><div class="account-filter-toolbar"><label class="admin-search-field">搜索账号<input id="accountAdminSearch" type="search" placeholder="按账号、名称、邮箱、备注或 IP 模糊搜索"></label><label>在线状态<select id="accountAdminPresence"><option value="all">全部状态</option><option value="online">仅在线</option><option value="offline">仅离线</option></select></label><label>姓名排序<select id="accountAdminSort"><option value="name-asc">名称 A-Z</option><option value="name-desc">名称 Z-A</option><option value="online-first">在线优先</option><option value="registered-desc">最近注册</option></select></label><label>视图模式<select id="accountViewMode"><option value="cards">卡片视图</option><option value="compact">紧凑列表</option><option value="table">表格视图</option></select></label></div><div id="accountAdminList" class="account-admin-list view-cards"><p class="muted">加载管理设置后显示</p></div></div>
+            <div id="accountNumberPolicyCard" class="settings-card is-hidden" data-management-panel="accounts"><div class="settings-title"><div><h3>账户编号规则</h3><p>新注册账号会按规则自动编号，也可以为单个账号修改编号。编号仅用于管理识别，不会改变登录账号。</p></div></div><div class="setting-actions"><label>编号前缀<input id="accountIdPolicyPrefix" maxlength="12" value="SW"></label><label>分隔符<input id="accountIdPolicySeparator" maxlength="3" value="-"></label><label>数字位数<input id="accountIdPolicyDigits" type="number" min="3" max="12" value="6"></label><label>下一个编号<input id="accountIdPolicyNextNumber" type="number" min="1" max="999999999999" value="1"></label></div><button id="saveAccountIdPolicyBtn" class="secondary-button" type="button">保存编号规则</button><p id="accountIdPolicyStatus" class="setting-status"></p></div>
+            <div id="globalRoomDashboardCard" class="settings-card" data-management-panel="rooms"><div class="settings-title"><div><h3>全部房间控制台</h3><p>查看在线成员、设备、当前影片，并对选中或全部房间执行批量管理。</p></div><button id="refreshGlobalRoomsBtn" class="secondary-button" type="button">刷新房间</button></div><div id="currentRoomBanner" class="current-room-banner is-hidden"></div><label class="admin-search-field">搜索房间<input id="globalRoomSearch" type="search" placeholder="按房间号、名称、房主或备注模糊搜索"></label><div class="bulk-room-toolbar"><label class="check-line"><input id="selectAllRooms" type="checkbox"> 全选当前列表</label><label class="room-storage-bulk-control">房间空间上限（MB）<input id="globalRoomStorageLimitMb" type="number" min="0" max="10485760" step="1" inputmode="numeric" placeholder="0 表示不限"></label><button id="applyGlobalRoomStorageLimitBtn" class="secondary-button" type="button" disabled>应用空间上限</button><button id="batchStopRoomsBtn" class="secondary-button" type="button" disabled>批量停止播放</button><button id="batchRequireRoomPasswordsBtn" class="secondary-button" type="button" disabled>批量要求设置密码</button><button id="batchBanRoomsBtn" class="warning-button" type="button" disabled>批量封禁</button><button id="batchRenameRoomsBtn" class="secondary-button" type="button" disabled>批量改名</button><button id="batchRenameRoomIdsBtn" class="secondary-button" type="button" disabled>批量改房间号</button><button id="deleteSelectedRoomsBtn" class="danger-button" type="button" disabled>批量永久删除</button></div><p class="form-hint">空间上限只应用到所选房间；保存后应通知对应房间与房主。0 表示不限制。</p><div id="globalRoomList" class="global-room-list"><p class="muted">使用超级管理员或服务器管理员身份加载后显示</p></div></div>
+            <div class="settings-card" data-management-panel="accounts"><div class="settings-title"><h3>多账号注册申请</h3><label class="view-mode-select">视图模式<select id="registrationViewMode"><option value="cards">卡片视图</option><option value="compact">紧凑列表</option><option value="table">表格视图</option></select></label><button id="refreshRegistrationBtn" class="text-button" type="button">刷新</button></div><div id="registrationRequestList" class="registration-request-list view-cards"><p class="muted">暂无待处理申请</p></div></div>
+            <div class="settings-card" data-management-panel="accounts"><div class="settings-title"><h3>建房额度申请</h3><button id="refreshRoomQuotaBtn" class="text-button" type="button">刷新</button></div><div id="roomQuotaRequestList" class="registration-request-list"><p class="muted">暂无待处理申请</p></div></div>
+            <div class="settings-card" data-management-panel="accounts"><h3>注册 IP 白名单</h3><div class="setting-actions"><input id="registrationWhitelistInput" placeholder="例如 192.168.1.20"><button id="addRegistrationWhitelistBtn" class="secondary-button" type="button">添加</button></div><div id="registrationWhitelistList" class="registration-whitelist-list"></div></div>
+            <div class="settings-card" data-management-panel="room"><h3>房间访问密码</h3><input id="accessPassword" type="password" maxlength="72" placeholder="留空表示关闭"><button id="setAccessPasswordBtn" class="secondary-button" type="button">保存访问密码</button></div>
+            <div id="dissolveRoomCard" class="settings-card danger-zone is-hidden" data-management-panel="room"><h3>解散房间</h3><p>可选择存档并保留影片、聊天、播放队列与进度，或彻底删除本房间数据。</p><button id="dissolveRoomBtn" class="danger-button" type="button">解散房间…</button></div>
+            <div class="settings-card" data-management-panel="server"><h3>修改管理员密码</h3><input id="newAdminPassword" type="password" maxlength="72" placeholder="新密码至少 8 位"><button id="changeAdminPasswordBtn" class="secondary-button" type="button">修改管理员密码</button></div>
+            <div id="factoryResetCard" class="settings-card danger-zone is-hidden" data-management-panel="server"><h3>恢复出厂设置</h3><p>清空全部账户、房间、上传媒体、聊天、服务器配置和本软件产生的缓存。此操作不可撤销。</p><button id="factoryResetBtn" class="danger-button" type="button">恢复出厂设置…</button></div>
+            <div class="settings-card" data-management-panel="accounts"><div class="settings-title"><h3>封禁列表</h3><button id="refreshBlacklistBtn" class="text-button" type="button">刷新</button></div><div id="blacklistContent" class="blacklist"><p class="muted">加载管理设置后显示</p></div></div>
+          </section>
+        </aside>
+      </div>
+    </section>
+  </main>
+
+  <aside id="liveVoiceFloating" class="live-voice-floating is-hidden" aria-live="polite" aria-label="实时语音悬浮控制">
+    <header><span class="voice-live-dot" aria-hidden="true"></span><strong>实时语音</strong><button id="voiceFloatingCollapseBtn" class="icon-button" type="button" aria-expanded="true" title="折叠语音控制">⌃</button></header>
+    <div class="live-voice-floating-body"><small id="voiceFloatingStatus">语音已连接</small><div><button id="voiceFloatingMuteBtn" class="secondary-button" type="button">麦克风静音</button><button id="voicePushToTalkBtn" class="secondary-button" type="button" title="按住期间临时开麦">按住开麦</button><button id="voiceFloatingLeaveBtn" class="danger-button" type="button">退出语音</button></div></div>
+  </aside>
+
+  <div id="copyrightModal" class="modal is-hidden"><div class="modal-card"><button id="closeCopyrightBtn" class="modal-close" type="button">×</button><p class="eyebrow">关于软件</p><h2>SyncWatch</h2><p>版本 <span id="versionText">v2.1.5</span></p><p>仅共享您有权使用的内容。聊天历史和存档房间数据保存在服务器数据目录。</p><p><strong id="copyrightNotice">版权所有 © xuan，保留所有权利。</strong></p></div></div>
+  <div id="accountModal" class="modal is-hidden"><div class="modal-card account-modal-card"><button id="closeAccountBtn" class="modal-close" type="button">×</button><div class="account-layout"><nav id="accountNav" class="account-nav"><button class="active" data-account-page="home" type="button">我的主页</button><button data-account-page="room" type="button">我的房间</button><button data-account-page="media" type="button">我的影片</button><button data-account-page="favorites" type="button">我的收藏</button><button data-account-page="history" type="button">观影记录</button><button data-account-page="devices" type="button">设备管理</button><button data-account-page="friends" type="button">好友</button><button data-account-page="security" type="button">安全设置</button></nav><section id="accountContent" class="account-content"><p class="muted">正在加载账户资料…</p></section></div></div></div>
+
+  <div id="mediaBatchModal" class="modal is-hidden"><div class="modal-card management-modal-card media-batch-modal-card"><button id="closeMediaBatchBtn" class="modal-close" type="button" aria-label="关闭批量移动">×</button><div class="settings-title"><div><p class="eyebrow">影片库管理</p><h2>批量移动影片</h2></div><span id="mediaBatchCount" class="count-pill">已选 0</span></div><div class="manage-toolbar"><label class="search-field">搜索影片<input id="mediaBatchSearch" type="search" placeholder="按名称、分类或上传者筛选"></label><label class="check-line"><input id="mediaBatchSelectAll" type="checkbox"> 全选当前结果</label></div><div id="mediaBatchList" class="manage-list media-batch-list"><p class="muted">正在读取影片…</p></div><div class="media-batch-footer"><label>移动到分类<select id="mediaBatchCategory"><option value="">请选择分类</option></select></label><button id="mediaBatchConfirmBtn" class="primary-button" type="button" disabled>移动所选影片</button></div></div></div>
+
+  <div id="videoManagementModal" class="modal is-hidden"><div class="modal-card management-modal-card video-management-modal-card"><button id="closeVideoManagementBtn" class="modal-close" type="button" aria-label="关闭视频管理">×</button><div class="settings-title"><div><p class="eyebrow">我的影片</p><h2>上传视频管理系统</h2><p class="muted">统一管理重命名、分类、备注、收藏、删除和导出。</p></div><div class="manage-actions"><button id="exportVideoManagementBtn" class="secondary-button" type="button">导出</button><button id="importVideoManagementBtn" class="secondary-button" type="button">导入</button><input id="importVideoManagementInput" class="visually-hidden" type="file" accept="application/json"></div></div><div class="manage-toolbar video-management-toolbar"><label>搜索<input id="videoManagementSearch" type="search" placeholder="模糊搜索影片名称、分类、备注"></label><label>分类<select id="videoManagementCategory"><option value="">全部分类</option></select></label><label class="check-line"><input id="videoManagementSelectAll" type="checkbox"> 全选</label><button id="videoManagementBatchCategoryBtn" class="secondary-button" type="button">批量分类</button><button id="videoManagementBatchNoteBtn" class="secondary-button" type="button">批量备注</button><button id="videoManagementBatchDeleteBtn" class="danger-button" type="button">批量删除</button></div><div id="videoManagementList" class="manage-list video-management-list"><p class="muted">暂无上传影片</p></div></div></div>
+
+  <div id="desktopShareModal" class="modal is-hidden"><div class="modal-card management-modal-card desktop-share-modal-card"><button id="closeDesktopShareBtn" class="modal-close" type="button" aria-label="关闭共享画面设置">×</button><div class="settings-title"><div><p class="eyebrow">共享画面</p><h2>桌面共享控制台</h2><p class="muted">根据当前设备能力选择清晰度和帧率，设置会同步到本次共享。</p></div></div><section><div class="settings-grid"><label>分辨率<select id="desktopShareResolution"><option value="native">当前电脑原始分辨率</option><option value="1920x1080">1920 × 1080</option><option value="1600x900">1600 × 900</option><option value="1280x720">1280 × 720</option><option value="960x540">960 × 540</option></select></label><label>帧率<select id="desktopShareFps"><option value="15">15 FPS</option><option value="24">24 FPS</option><option value="30" selected>30 FPS</option><option value="60">60 FPS</option></select></label><label>画质<select id="desktopShareQuality"><option value="balanced">均衡</option><option value="high" selected>高清</option><option value="ultra">极致</option></select></label><label class="check-line"><input id="desktopShareSystemAudio" type="checkbox" checked> 共享系统声音</label></div><button id="desktopShareStartBtn" class="primary-button" type="button">开始共享当前桌面</button></section></div></div>
+
+  <div id="friendChatModal" class="modal is-hidden"><div class="modal-card friend-chat-modal-card"><button id="closeFriendChatBtn" class="modal-close" type="button">×</button><div class="settings-title"><div><p class="eyebrow">好友私聊</p><h2 id="friendChatTitle">好友对话</h2></div><div class="manage-actions"><button id="friendChatFloatingBtn" class="secondary-button" type="button" aria-pressed="true">关闭悬浮提示</button><button id="manageFriendChatBtn" class="secondary-button" type="button">管理记录</button><button id="clearFriendChatBtn" class="danger-text-button" type="button">清空记录</button></div></div><div id="friendChatBatchBar" class="friend-chat-batch-bar is-hidden"><label class="check-line"><input id="friendChatSelectAll" type="checkbox"> 全选当前记录</label><button id="deleteFriendChatSelectedBtn" class="danger-button" type="button" disabled>删除所选</button></div><div id="friendChatHistory" class="friend-chat-history"></div><div id="friendChatReplyPreview" class="friend-chat-reply-preview is-hidden"><div><strong>正在回复</strong><span id="friendChatReplyText"></span></div><button id="cancelFriendChatReplyBtn" class="icon-button" type="button" aria-label="取消引用">×</button></div><form id="friendChatForm" class="chat-form friend-chat-form"><input id="friendChatInput" maxlength="500" placeholder="发送消息或表情…"><button id="friendChatEmojiBtn" class="icon-button" type="button" title="表情">☺</button><button id="friendChatImageBtn" class="icon-button" type="button" title="发送图片">▧</button><input id="friendChatImageInput" class="visually-hidden" type="file" accept="image/jpeg,image/png,image/webp,image/gif"><button class="primary-button" type="submit">发送</button></form><div class="emoji-toolbar friend-chat-emoji-toolbar"><label>表情分类<select id="friendChatEmojiCategory"><option value="all">全部表情</option><option value="faces">表情</option><option value="people">人物</option><option value="animals">动物</option><option value="food">食物</option><option value="activity">活动</option><option value="objects">物品</option><option value="symbols">符号</option></select></label><button id="friendChatEmojiCollapseBtn" class="text-button" type="button">收起表情</button><div id="friendChatEmojiBar" class="emoji-bar friend-chat-emoji-bar is-hidden"></div></div><div id="friendChatContextMenu" class="chat-context-menu friend-chat-context-menu is-hidden" role="menu"><button data-friend-message-action="reply" type="button">引用回复</button><button data-friend-message-action="delete" class="danger-text-button" type="button">删除这条</button></div></div></div>
+  <div id="createRoomModal" class="modal is-hidden"><div class="modal-card"><button id="closeCreateRoomBtn" class="modal-close" type="button" aria-label="关闭新建房间">×</button><p class="eyebrow">新建房间</p><h2>新建观影房间</h2><p class="muted">房间号规则由服务器管理员设置；未启用规则时可使用 4-32 位大写字母或数字，留空时系统会自动生成。</p><p id="roomQuotaStatus" class="setting-status"></p><form id="createRoomForm" class="modal-form"><label>房间名称<input id="newRoomName" maxlength="40" value="私人影院" placeholder="给房间起个名字"></label><label>自定义房间号（选填）<input id="newRoomId" maxlength="32" autocomplete="off" placeholder="例如 MOVIE88"></label><label>房间密码（选填）<input id="newRoomPassword" type="password" maxlength="72" autocomplete="new-password" placeholder="留空表示无需密码"></label><label>最多人数<input id="newRoomMaxUsers" type="number" min="2" max="100" value="8"></label><button class="primary-button full" type="submit">创建并进入房间</button><button id="requestRoomQuotaBtn" class="secondary-button full" type="button">申请更多建房数量</button></form></div></div>
+  <div id="managementHubModal" class="modal is-hidden"><div class="modal-card management-hub-card"><button id="closeManagementHubBtn" class="modal-close" type="button">×</button><div class="management-hub-layout"><nav class="management-nav"><div><p class="eyebrow">管理中心</p><h2>功能合集</h2></div><button data-management-section="room" type="button">房间与上传</button><button data-management-section="rooms" type="button">全部房间</button><button data-management-section="permissions" type="button">成员与权限组</button><button data-management-section="chat" type="button">聊天与记录</button><button data-management-section="accounts" type="button">账户与注册</button><button class="active" data-management-section="server" type="button">服务器设置</button></nav><div id="managementContentHost" class="management-content"></div></div></div></div>
+  <div id="switchRoomModal" class="modal is-hidden"><div class="modal-card switch-room-card"><button id="closeSwitchRoomBtn" class="modal-close" type="button" aria-label="关闭更换房间">×</button><div class="switch-room-heading"><div><h2>更换房间</h2><p class="muted">直接选择自己拥有的房间，或输入其他房间号。</p></div><button id="switchOwnedRoomRefreshBtn" class="secondary-button" type="button">刷新我的房间</button></div><section class="switch-owned-room-section" aria-labelledby="switchOwnedRoomTitle"><div class="switch-owned-room-title"><strong id="switchOwnedRoomTitle">我拥有的房间</strong><small id="switchOwnedRoomStatus" aria-live="polite">正在读取…</small></div><div id="switchOwnedRoomList" class="switch-owned-room-list" aria-live="polite"><p class="muted">正在读取我的房间…</p></div></section><div class="switch-room-divider"><span>输入其他房间号</span></div><form id="switchRoomForm" class="modal-form"><label>目标房间号<span class="input-with-action"><input id="switchRoomId" maxlength="32" autocomplete="off" placeholder="请输入房间号"><button id="pasteSwitchRoomIdBtn" class="secondary-button" type="button" title="粘贴房间号">粘贴</button></span></label><label>房间密码（选填）<span class="input-with-action"><input id="switchRoomPassword" type="password" maxlength="72" autocomplete="off"><button id="pasteSwitchRoomPasswordBtn" class="secondary-button" type="button" title="粘贴房间密码">粘贴</button></span></label><button class="primary-button full" type="submit">切换房间</button></form></div></div>
+  <div id="lanScanModal" class="modal is-hidden"><div class="modal-card management-modal-card"><button id="closeLanScanBtn" class="modal-close" type="button">×</button><div class="settings-title"><div><p class="eyebrow">房间发现</p><h2>可加入的房间</h2></div><button id="refreshLanScanBtn" class="secondary-button" type="button">刷新房间</button></div><p class="muted">当前服务器所有创建的房间（不包括离线房间）</p><div id="lanRoomList" class="manage-list"><p class="muted">正在刷新在线房间…</p></div></div></div>
+  <div id="chatManageModal" class="modal is-hidden"><div class="modal-card management-modal-card chat-management-card"><button id="closeChatManageBtn" class="modal-close" type="button" aria-label="关闭聊天记录管理">×</button><div class="settings-title chat-management-title"><div><p class="eyebrow">记录管理</p><h2>聊天、私聊与弹幕管理</h2></div><button id="chatManageFullscreenBtn" class="secondary-button" type="button" aria-pressed="false" title="全屏查看聊天记录">全屏查看</button></div><div class="manage-toolbar chat-filter-toolbar"><details id="chatManageUsersFilter" class="multi-filter"><summary id="chatManageUsersSummary">全部账户</summary><div id="chatManageUsers" class="multi-filter-options" aria-label="筛选一个或多个成员"></div></details><label>消息类型<select id="chatManageType"><option value="">全部类型</option><option value="public">聊天</option><option value="private">私聊</option><option value="danmaku">弹幕</option><option value="image">图片</option><option value="voice">语音</option><option value="announcement">公告</option></select></label><label>开始日期<input id="chatManageDateFrom" type="date"></label><label>结束日期<input id="chatManageDateTo" type="date"></label><label class="chat-query-field">内容搜索<input id="chatManageQuery" type="search" maxlength="100" placeholder="模糊搜索内容、姓名或账号"></label><div class="manage-actions"><button id="chatClearFiltersBtn" class="secondary-button" type="button">重置筛选</button><button id="chatClearUserBtn" class="danger-button" type="button" disabled>清空筛选记录</button><button id="chatClearAllBtn" class="danger-button" type="button">清空全部记录</button></div></div><select id="chatManageUser" class="visually-hidden" aria-hidden="true"><option value="">全部账户</option></select><div id="chatManageList" class="manage-list" aria-live="polite"><p class="muted">正在等待加载聊天记录…</p></div></div></div>
+  <div id="operationHistoryModal" class="modal is-hidden"><div class="modal-card management-modal-card"><button id="closeOperationHistoryBtn" class="modal-close" type="button" aria-label="关闭操作历史">×</button><div class="settings-title"><div><p class="eyebrow">操作记录</p><h2>操作历史与回溯</h2></div><button id="refreshOperationHistoryBtn" class="secondary-button" type="button">刷新记录</button></div><p class="muted">可回溯的操作会显示撤回按钮；可按关键字和范围筛选并批量删除审计记录。</p><div class="manage-toolbar operation-history-toolbar"><input id="operationHistoryQuery" type="search" placeholder="搜索操作、账号、摘要"><select id="operationHistoryScope"><option value="">全部分类</option><option value="room">房间</option><option value="server">服务器</option><option value="account">账户</option></select><label class="check-line"><input id="operationHistorySelectAll" type="checkbox"> 全选结果</label><button id="deleteSelectedOperationsBtn" class="danger-button" type="button" disabled>删除所选</button></div><div id="operationHistoryList" class="manage-list operation-history-list" aria-live="polite"><p class="muted">正在等待加载操作记录…</p></div></div></div>
+  <div id="roomMediaPreviewModal" class="modal is-hidden" role="dialog" aria-modal="true" aria-labelledby="roomMediaPreviewTitle"><div class="modal-card management-modal-card room-media-preview-card"><button id="closeRoomMediaPreviewBtn" class="modal-close" type="button" aria-label="关闭房间影片预览">×</button><div class="settings-title"><div><p class="eyebrow">跨房间预览</p><h2 id="roomMediaPreviewTitle">房间影片</h2><p class="muted">服务器和管理员可勾选影片后批量删除或禁止同名影片再次上传；操作结果会通知对应房间与房主。</p></div></div><div class="manage-toolbar room-media-preview-toolbar"><label class="check-line"><input id="roomMediaPreviewSelectAll" type="checkbox"> 全选当前影片</label><button id="roomMediaPreviewBatchDeleteBtn" class="danger-button" type="button" disabled>批量删除影片</button><button id="roomMediaPreviewBanUploadBtn" class="warning-button" type="button" disabled>禁止再次上传</button></div><div class="room-media-preview-layout"><div id="roomMediaPreviewList" class="manage-list" aria-live="polite"></div><video id="roomMediaPreviewPlayer" controls preload="metadata" playsinline></video></div><p id="roomMediaPreviewActionStatus" class="setting-status" role="status" aria-live="polite"></p></div></div>
+  <div id="audioSourceModal" class="modal is-hidden"><div class="modal-card management-modal-card audio-source-card"><button id="closeAudioSourceBtn" class="modal-close" type="button" aria-label="关闭音源共享">×</button><p class="eyebrow">同步伴奏</p><h2>共享电脑程序音源</h2><p class="muted">桌面客户端会自动扫描当前运行的程序。选择汽水音乐等程序后会直接捕获对应窗口，并通过系统回环音频同步给所有成员。</p><div class="audio-source-grid"><label>伴奏来源<select id="audioSourcePlatform"><option value="system">当前电脑 / 系统选择器</option><option value="netease">网易云音乐</option><option value="qqmusic">QQ 音乐</option><option value="kugou">酷狗音乐</option><option value="qishui">汽水音乐</option></select></label><label>同步音量<input id="audioSourceVolume" type="range" min="0" max="1" step="0.01" value="0.8"><output id="audioSourceVolumeText">80%</output></label></div><p id="audioSourceStatus" class="setting-status">当前未共享音源</p><div class="setting-actions"><button id="refreshAudioSourcesBtn" class="secondary-button" type="button">重新扫描程序</button><button id="startAudioSourceBtn" class="primary-button" type="button">选择程序并开始放歌</button><button id="stopAudioSourceBtn" class="danger-button" type="button" disabled>停止放歌</button></div></div></div>
+  <div id="webShareModal" class="modal is-hidden"><div class="modal-card web-share-card"><button id="closeWebShareBtn" class="modal-close" type="button" aria-label="关闭网页共享">×</button><div class="web-share-heading"><div><h2>网页浏览与共享</h2><p class="muted">网址会保留完整查询参数并同步到公网、内网和客户端；禁止嵌入的网站请改用窗口共享。</p></div></div><div class="web-share-actions"><button id="clearWebShareBtn" class="secondary-button" type="button">清空画面</button><button id="shareWebWindowBtn" class="primary-button" type="button">共享当前网页/窗口</button></div><div class="web-address-bar"><input id="webUrlInput" type="text" inputmode="url" value="" placeholder="输入或粘贴完整网址" aria-label="网页地址"><div class="web-address-actions"><button id="pasteWebUrlBtn" class="secondary-button" type="button">粘贴</button><button id="openWebUrlBtn" class="secondary-button" type="button">预览网页</button><button id="shareWebUrlBtn" class="primary-button" type="button">共享网址</button><button id="probeWebUrlBtn" class="secondary-button" type="button">识别媒体</button></div></div><p id="webShareStatus" class="setting-status"></p><div id="webProbeResults" class="web-probe-results is-hidden"></div><div class="web-preview-stage"><section id="webShareEmpty" class="web-share-empty"><span aria-hidden="true">▣</span><div><strong>输入网址后再开始预览</strong><ol><li>粘贴完整的 HTTP/HTTPS 网址，长链接不会被截断。</li><li>先点击“预览网页”确认内容，再点击“共享网址”同步给房间成员。</li><li>网站不允许嵌入时，使用“共享当前网页/窗口”。</li><li>点击关闭或清空后，预览与共享音频会一并停止。</li></ol></div></section><iframe id="webFrame" class="web-frame is-hidden" src="about:blank" title="网页共享预览" sandbox="allow-forms allow-scripts allow-same-origin allow-popups allow-presentation"></iframe></div></div></div>
+  <div id="themeModal" class="modal is-hidden"><div class="modal-card theme-modal-card"><button id="closeThemeBtn" class="modal-close" type="button" aria-label="关闭界面风格">×</button><div class="theme-modal-heading"><div><h2>界面风格</h2><p class="muted">原版保持默认。切换只改变视觉布局和配色，不改变房间、播放或管理功能。</p></div><div class="theme-modal-actions"><button id="syncThemeBtn" class="secondary-button is-hidden" type="button">同步当前风格</button><button id="resetThemeBtn" class="secondary-button" type="button">恢复原版</button></div></div><section class="settings-card theme-font-settings" aria-labelledby="themeFontTitle"><div class="settings-title"><div><h3 id="themeFontTitle">当前主题字体</h3><p>从 50 种常用字体预设中搜索并应用，只影响当前设备。</p></div><button id="resetThemeFontBtn" class="text-button" type="button">恢复主题字体</button></div><label>模糊搜索字体<input id="themeFontSearch" type="search" maxlength="40" placeholder="输入中文名、英文名或字体类型"></label><label>字体预设<select id="themeFontSelect" aria-describedby="themeFontStatus"></select></label><div class="setting-actions"><button id="applyThemeFontBtn" class="primary-button" type="button">应用字体</button></div><p id="themeFontStatus" class="setting-status" role="status">使用当前主题默认字体</p></section><section id="themeSyncTargets" class="theme-sync-targets is-hidden" aria-label="风格同步对象"><div class="segmented-control"><label><input id="themeSyncAll" type="radio" name="themeSyncScope" value="all" checked><span>全部成员</span></label><label><input id="themeSyncSelected" type="radio" name="themeSyncScope" value="selected"><span>指定成员</span></label></div><div id="themeSyncMemberList" class="theme-sync-member-list is-hidden"></div></section><div id="themeGrid" class="theme-grid"></div></div></div>
+  <div id="myRoomsModal" class="modal is-hidden"><div class="modal-card management-modal-card"><button id="closeMyRoomsBtn" class="modal-close" type="button">×</button><div class="settings-title"><div><h2>我的房间</h2><p class="muted">验证账号密码后显示您拥有和连接过的房间。</p></div></div><div id="myRoomsList" class="manage-list"><p class="muted">等待验证账号…</p></div></div></div>
+  <div id="accountOverviewModal" class="modal is-hidden"><div class="modal-card management-modal-card account-overview-card"><button id="closeAccountOverviewBtn" class="modal-close" type="button" aria-label="关闭账号总览">×</button><div class="settings-title"><div><p class="eyebrow">账号与注册</p><h2>全部注册账号</h2><p class="muted">搜索、筛选或排序后，可直接跳转到对应账号明细。</p></div><span id="accountOverviewCount" class="count-pill">0</span></div><div class="account-filter-toolbar"><label class="admin-search-field">搜索账号<input id="accountOverviewSearch" type="search" placeholder="账号、名称、邮箱、备注或 IP"></label><label>在线状态<select id="accountOverviewPresence"><option value="all">全部状态</option><option value="online">仅在线</option><option value="offline">仅离线</option></select></label><label>姓名排序<select id="accountOverviewSort"><option value="name-asc">名称 A-Z</option><option value="name-desc">名称 Z-A</option><option value="online-first">在线优先</option><option value="registered-desc">最近注册</option></select></label></div><div id="accountOverviewList" class="account-overview-list"><p class="muted">正在读取账号…</p></div></div></div>
+  <div id="accountAuditLogModal" class="modal is-hidden" role="dialog" aria-modal="true" aria-labelledby="accountAuditLogTitle"><div class="modal-card management-modal-card account-audit-log-card"><button id="closeAccountAuditLogBtn" class="modal-close" type="button" aria-label="关闭账户日志">×</button><div class="settings-title"><div><p class="eyebrow">账户与注册</p><h2 id="accountAuditLogTitle">账户注册与登录日志</h2><p class="muted">记录注册、登录和注销事件；支持搜索、分类筛选与批量删除。</p></div><button id="refreshAccountAuditLogsBtn" class="secondary-button" type="button">刷新日志</button></div><div class="manage-toolbar account-audit-toolbar"><label class="search-field">模糊搜索<input id="accountAuditLogSearch" type="search" maxlength="100" placeholder="账号、名字、IP、设备或摘要"></label><label>事件分类<select id="accountAuditLogType"><option value="">全部事件</option><option value="register">注册</option><option value="login">登录</option><option value="logout">注销</option></select></label><label class="check-line"><input id="accountAuditLogSelectAll" type="checkbox"> 全选结果</label><button id="deleteSelectedAccountAuditLogsBtn" class="danger-button" type="button" disabled>删除所选</button></div><div id="accountAuditLogList" class="manage-list account-audit-log-list" aria-live="polite"><p class="muted">点击刷新读取账户日志。</p></div></div></div>
+  <div id="memberProfileModal" class="modal is-hidden"><div class="modal-card member-profile-card"><button id="closeMemberProfileBtn" class="modal-close" type="button" aria-label="关闭成员资料">×</button><div id="memberProfileContent"><p class="muted">正在读取成员资料…</p></div></div></div>
+  <div id="locationAuthorizationsModal" class="modal is-hidden"><div class="modal-card management-modal-card location-authorizations-card"><button id="closeLocationAuthorizationsBtn" class="modal-close" type="button" aria-label="关闭位置授权清单">×</button><div class="settings-title"><div><p class="eyebrow">位置权限</p><h2>已授权位置的成员</h2></div><button id="refreshLocationAuthorizationsBtn" class="secondary-button" type="button">刷新</button></div><div id="locationAuthorizationsList" class="manage-list"><p class="muted">正在读取授权状态…</p></div></div></div>
+  <div id="adminContactModal" class="modal is-hidden"><div class="modal-card"><button id="closeAdminContactBtn" class="modal-close" type="button">×</button><h2 id="adminContactTitle">联系服务器管理员</h2><p id="adminContactNoteDisplay" class="muted"></p><div id="adminContactList" class="contact-list"></div></div></div>
+  <div id="tunnelTutorialModal" class="modal is-hidden" role="dialog" aria-modal="true" aria-labelledby="tunnelTutorialTitle"><div class="modal-card tunnel-tutorial-card"><button id="closeTunnelTutorialBtn" class="modal-close" type="button" aria-label="关闭公网访问教程">×</button><p class="eyebrow">公网访问教程</p><h2 id="tunnelTutorialTitle">让外网设备加入当前服务器</h2><div class="tunnel-tutorial-content"><section><h3>一、临时公网地址（推荐首次使用）</h3><ol><li>在“公网访问”中选择“临时公网地址”。</li><li>无需填写令牌或域名，直接点击“开启公网访问”。</li><li>等待状态显示“已开启”并出现绿色可用地址。</li><li>点击“复制公网地址”或“分享房间”，系统会自动附带当前房间号。</li></ol><div class="tutorial-example"><strong>分享示例</strong><code>https://example.trycloudflare.com/?room=ADMIN</code></div><p>临时地址每次重新开启可能变化，适合临时观影和快速测试。运行期间即使延迟探测暂时超时，程序也会保持当前地址，不会主动重启隧道。</p></section><section><h3>二、稳定隧道（固定域名）</h3><ol><li>先在 Cloudflare Zero Trust 创建 Tunnel，并把域名指向该 Tunnel。</li><li>复制 Tunnel Token，在软件中选择“稳定隧道”。</li><li>“Cloudflare Tunnel 令牌”填写完整令牌；“已绑定地址”填写站点根地址。</li><li>点击“开启公网访问”，验证成功后即可使用固定域名。</li></ol><div class="tutorial-example"><strong>填写示例</strong><span>令牌：<code>eyJhIjoi...完整令牌...</code></span><span>公网地址：<code>https://watch.example.com</code></span></div><p>公网地址只填写根地址，不要填写房间号、路径、查询参数、用户名或密码。</p></section><section><h3>三、房间与播放检查</h3><ul><li>建议为公开房间设置访问密码，再把带房间号的地址发送给成员。</li><li>公网状态会显示延迟；探测波动会保持当前地址，只有 cloudflared 进程真正退出才会显示运行异常。</li><li>公网网页默认优先使用流畅兼容版；仍可在播放器中手动切换原画、流畅版或自动模式。</li><li>视频需要支持 HTTP Range。服务器本地影片会自动提供 Range，COS/OSS 直链也必须允许跨域和 Range。</li><li>连接不上时，先点击“关闭”强制停止，再重新开启；同时检查系统代理、防火墙和 Cloudflare 域名配置。</li></ul></section></div></div></div>
+  <div id="uploadLimitTutorialModal" class="modal is-hidden" role="dialog" aria-modal="true" aria-labelledby="uploadLimitTutorialTitle"><div class="modal-card upload-limit-tutorial-card"><button id="closeUploadLimitTutorialBtn" class="modal-close" type="button" aria-label="关闭上传限制教程">×</button><p class="eyebrow">房间与上传</p><h2 id="uploadLimitTutorialTitle">上传限制怎么设置</h2><div class="upload-limit-guide"><section><h3>文件大小</h3><p>单位是兆字节（MB）。填写 1024 表示单个文件最大 1 GB；填写 10240 表示最大 10 GB；填写 0 表示不限制单个文件大小。</p></section><section><h3>上传时长</h3><p>单位是秒。填写 3600 表示单次上传最长 1 小时；填写 0 表示不限制上传时间。慢速公网或大体积 4K 影片建议保留更长时间。</p></section><section><h3>推荐设置</h3><p>局域网可设置为 0 / 0。公网服务器建议按磁盘容量限制文件大小，并把时长设置为 7200 秒以上。修改后只影响新开始的上传任务，不会删除已有影片。</p></section><section><h3>上传失败时</h3><p>客户端会对网络中断自动重试，不完整的临时文件不会进入影片库。m3u8 清单必须与分片资源一起可访问；只有清单文件时，其他设备可能无法播放其中引用的分片。</p></section></div><button id="uploadLimitTutorialActionBtn" class="primary-button full" type="button">我知道了</button></div></div>
+  <div id="noticeModal" class="modal is-hidden"><div class="modal-card"><button id="closeNoticeBtn" class="modal-close" type="button">×</button><h2>发送屏幕公告</h2><form id="noticeForm" class="modal-form"><label>公告内容<textarea id="noticeText" maxlength="500" rows="5" required></textarea></label><div class="notice-options"><label>字体<select id="noticeFont"><option value="system">系统字体</option><option value="serif">宋体 / 衬线</option><option value="monospace">等宽字体</option><option value="rounded">圆体</option></select></label><label>停留秒数<input id="noticeDuration" type="number" min="2" max="60" value="8"></label><label>字体大小<input id="noticeFontSize" type="number" min="16" max="72" value="28"></label><label>字体颜色<input id="noticeColor" type="color" value="#ffffff"></label><label id="noticeScopeGroup" class="is-hidden">发送范围<select id="noticeScope"><option value="room">当前房间</option><option value="server">所有在线用户</option></select></label></div><button class="primary-button full" type="submit">发送公告</button><button id="openPermissionsFromNoticeBtn" class="secondary-button full" type="button">打开成员权限设置</button></form></div></div>
+  <div id="conversionProgressModal" class="modal is-hidden"><div class="modal-card management-modal-card conversion-progress-card"><button id="closeConversionProgressBtn" class="modal-close" type="button">×</button><div class="settings-title"><div><h2>媒体处理进度</h2><p class="muted">显示自动检测、兼容转换、速度和预计完成时间。默认只删除记录，不删除源文件。</p></div><button id="refreshConversionProgressBtn" class="secondary-button" type="button">刷新</button></div><div id="conversionProgressSummary" class="conversion-summary" aria-live="polite"><span><small>转换中</small><strong>0</strong></span><span><small>等待转换</small><strong>0</strong></span><span><small>已完成</small><strong>0</strong></span></div><div id="mediaProcessingAdminControls" class="conversion-admin-controls is-hidden"><label>同时转换<select id="mediaProcessingConcurrency"><option value="1">1 个任务</option><option value="2">2 个任务</option><option value="3">3 个任务</option><option value="4">4 个任务</option><option value="5">5 个任务</option><option value="6">6 个任务</option><option value="7">7 个任务</option><option value="8">8 个任务</option></select></label><button id="saveMediaProcessingBtn" class="primary-button" type="button">立即应用</button><button id="openConvertedMediaFolderBtn" class="secondary-button is-hidden" type="button">打开转换文件目录</button><small id="mediaProcessingControlStatus">默认同时处理 3 个转换任务</small></div><div class="manage-toolbar conversion-progress-toolbar"><label class="search-field">搜索任务<input id="mediaProcessingSearch" type="search" placeholder="按影片名、房间号或状态筛选"></label><label class="check-line"><input id="mediaProcessingSelectAll" type="checkbox"> 全选筛选结果</label><label class="check-line destructive-option"><input id="mediaProcessingDeleteSource" type="checkbox"> 同时删除源文件</label><button id="deleteSelectedMediaProcessingBtn" class="danger-button" type="button" disabled>删除所选记录</button></div><p class="destructive-option-hint">“同时删除源文件”默认不勾选；勾选后应再次确认，并由服务器重新校验权限。</p><div id="conversionProgressList" class="manage-list"></div></div></div>
+  <div id="guestConvertModal" class="modal is-hidden" role="dialog" aria-modal="true" aria-labelledby="guestConvertTitle" aria-describedby="guestConvertDescription">
+    <div class="modal-card guest-convert-card">
+      <button id="closeGuestConvertBtn" class="modal-close" type="button" aria-label="关闭转为正式成员窗口">×</button>
+      <p class="eyebrow">保留当前进度</p>
+      <h2 id="guestConvertTitle">转为正式成员</h2>
+      <p id="guestConvertDescription" class="muted">在当前房间内完成注册。成功后会把本游客的资料、房间关系和观影信息迁移到新账号，不会跳离正在观看的房间。</p>
+      <form id="guestConvertForm" class="modal-form" novalidate>
+        <label>账号<input id="guestConvertUsername" autocomplete="username" maxlength="24" required placeholder="中文、字母或数字，2-24 位"></label>
+        <label>设置密码<span class="password-field"><input id="guestConvertPassword" type="password" autocomplete="new-password" maxlength="72" minlength="6" required placeholder="至少 6 位"><button id="toggleGuestConvertPasswordBtn" class="password-toggle" type="button" aria-label="显示设置密码" aria-pressed="false">显示</button></span></label>
+        <label>确认密码<span class="password-field"><input id="guestConvertPasswordConfirm" type="password" autocomplete="new-password" maxlength="72" minlength="6" required placeholder="再次输入密码"><button id="toggleGuestConvertPasswordConfirmBtn" class="password-toggle" type="button" aria-label="显示确认密码" aria-pressed="false">显示</button></span></label>
+        <label>邮箱（选填）<input id="guestConvertEmail" type="email" autocomplete="email" maxlength="120" aria-describedby="guestConvertEmailRequirement" placeholder="填写后必须完成验证码校验"></label>
+        <div class="registration-email-verification guest-convert-email-verification">
+          <label>邮箱验证码<input id="guestConvertEmailCode" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="[0-9]{6}" data-required-when="guestConvertEmail" aria-describedby="guestConvertEmailRequirement" placeholder="请输入 6 位验证码"></label>
+          <button id="sendGuestConvertEmailCodeBtn" class="secondary-button" type="button">发送验证码</button>
+        </div>
+        <p id="guestConvertEmailRequirement" class="form-hint">邮箱可留空；填写邮箱时必须先发送并填写验证码。</p>
+        <p id="guestConvertStatus" class="form-status" role="status" aria-live="polite"></p>
+        <button class="primary-button full" type="submit">注册并迁移当前游客资料</button>
+      </form>
+    </div>
+  </div>
+  <div id="agreementModal" class="modal agreement-modal is-hidden" role="dialog" aria-modal="true"><div class="modal-card agreement-card"><h2 id="agreementTitle">SyncWatch 使用协议</h2><small id="agreementVersion"></small><div id="agreementText" class="agreement-text"></div><label class="check-line"><input id="agreementCheck" type="checkbox"> 我已完整阅读并同意遵守本协议</label><button id="acceptAgreementBtn" class="primary-button full" type="button" disabled>同意并进入</button><button id="declineAgreementBtn" class="secondary-button full" type="button">不同意并退出登录</button></div></div>
+  <div id="ownerExitModal" class="modal is-hidden" role="dialog" aria-modal="true" aria-labelledby="ownerExitTitle"><div class="modal-card owner-exit-card"><p class="eyebrow">房主退出</p><h2 id="ownerExitTitle">请选择如何处理当前房间</h2><p class="muted">意外断线只会让您的账号离开，不会关闭或删除房间。</p><div class="owner-exit-actions"><button data-owner-exit="leave" class="secondary-button" type="button"><strong>只退出房间</strong><small>房间继续保留并允许其他成员观看</small></button><button data-owner-exit="close" class="warning-button" type="button"><strong>关闭并存档</strong><small>成员退出，完整保留影片、聊天和进度</small></button><button data-owner-exit="delete" class="danger-button" type="button"><strong>永久删除房间</strong><small>删除全部媒体和记录，无法恢复</small></button><button data-owner-exit="cancel" class="text-button" type="button">取消</button></div></div></div>
+  <div id="desktopCloseModal" class="modal desktop-close-modal is-hidden" role="dialog" aria-modal="true" aria-labelledby="desktopCloseTitle"><div class="modal-card desktop-close-card"><div class="desktop-close-heading"><span aria-hidden="true">SW</span><div><p class="eyebrow">SyncWatch 服务器</p><h2 id="desktopCloseTitle">请选择关闭方式</h2></div></div><p class="desktop-close-description">最小化到托盘后，服务器、房间和临时公网连接会继续运行；退出程序会停止本机服务。</p><div class="desktop-close-actions"><button data-desktop-close="minimize" class="primary-button" type="button"><strong>最小化到托盘</strong><small>保持服务器和当前房间在线</small></button><button data-desktop-close="restart" class="secondary-button" type="button"><strong>重新启动</strong><small>安全关闭服务后重新打开程序</small></button><button data-desktop-close="quit" class="danger-button" type="button"><strong>退出程序</strong><small>停止本机服务器与公网连接</small></button><button data-desktop-close="cancel" class="text-button" type="button">取消</button></div><p id="desktopCloseStatus" class="setting-status" aria-live="polite"></p></div></div>
+  <div id="screenNoticeOverlay" class="screen-notice-overlay is-hidden" role="alert"><div><small id="screenNoticeSender"></small><p id="screenNoticeText"></p><button id="closeScreenNoticeBtn" type="button">关闭</button></div></div>
+  <div id="roomSwitchSuccessOverlay" class="room-switch-success-overlay is-hidden" role="status"><div><button id="closeRoomSwitchSuccessBtn" class="notice-close-button" type="button" aria-label="关闭房间切换提示" title="关闭提示">×</button><strong>房间切换成功</strong><span id="roomSwitchSuccessText"></span></div></div>
+  <div id="f11PromptModal" class="modal f11-prompt-modal is-hidden" role="dialog" aria-modal="true" aria-labelledby="f11PromptTitle"><div class="modal-card f11-prompt-card"><button id="closeF11PromptBtn" class="modal-close" type="button" aria-label="关闭全屏提示">×</button><p class="eyebrow">观影提示</p><h2 id="f11PromptTitle">按 F11 进入全屏观影</h2><p class="muted">全屏后仍可发送弹幕、聊天和私聊。<span id="f11PromptCountdown">提示将在 10 秒后自动关闭。</span></p><div class="f11-prompt-actions"><button id="enterF11NowBtn" class="primary-button" type="button">立即全屏</button><button id="ignoreF11OnceBtn" class="secondary-button" type="button">本次忽略</button></div><label class="f11-prompt-preference">下次提示<select id="f11PromptPreference"><option value="next">下次继续提示</option><option value="day">一天内不提示</option><option value="week">一周内不提示</option><option value="never">永久不提示</option></select></label><button id="saveF11PreferenceBtn" class="text-button" type="button">保存提示设置</button></div></div>
+  <div id="roomEntryNoticeModal" class="modal room-entry-notice-modal is-hidden" role="dialog" aria-modal="true" aria-labelledby="roomEntryNoticeTitle"><div class="modal-card room-entry-notice-card"><button id="closeRoomEntryNoticeBtn" class="modal-close" type="button" aria-label="关闭进房通知">×</button><p class="eyebrow">房间通知</p><h2 id="roomEntryNoticeTitle">欢迎进入房间</h2><div id="roomEntryNoticeMessage" class="room-entry-notice-message"></div><p id="roomEntryNoticeCountdown" class="muted">通知将在 10 秒后自动关闭。</p><div class="f11-prompt-actions"><button id="confirmRoomEntryNoticeBtn" class="primary-button" type="button">我知道了</button><button id="ignoreRoomEntryNoticeBtn" class="secondary-button" type="button">本次忽略</button></div><label class="f11-prompt-preference">下次提示<select id="roomEntryNoticePreference"><option value="next">下次继续提示</option><option value="day">一天内不提示</option><option value="week">一周内不提示</option><option value="never">永久不提示</option></select></label><button id="saveRoomEntryNoticePreferenceBtn" class="text-button" type="button">保存提示设置</button></div></div>
+  <div id="macDownloadModal" class="modal is-hidden" role="dialog" aria-modal="true" aria-labelledby="macDownloadTitle"><div class="modal-card mac-download-card"><button id="closeMacDownloadBtn" class="modal-close" type="button" aria-label="关闭 macOS 下载">×</button><p class="eyebrow">macOS 下载</p><h2 id="macDownloadTitle">选择 Mac 下载版本</h2><p id="macDownloadHint" class="muted">Apple Silicon 适用于 M1/M2/M3/M4，较早的 Mac 请选择 Intel。DMG 适合直接安装，ZIP 适合解压部署。</p><div class="mac-download-choice-grid"><label>处理器架构<select id="macDownloadArch"><option value="">正在读取可用架构…</option></select></label><label>文件格式<select id="macDownloadFormat"><option value="">正在读取可用格式…</option></select></label></div><div id="macDownloadAvailability" class="mac-download-availability" aria-label="可用的 macOS 下载文件"></div><p id="macDownloadStatus" class="setting-status" role="status"></p><button id="confirmMacDownloadBtn" class="primary-button full" type="button">开始下载</button></div></div>
+  <div id="appDialog" class="modal app-dialog is-hidden" role="dialog" aria-modal="true" aria-labelledby="appDialogTitle" aria-describedby="appDialogDescription">
+    <div class="modal-card app-dialog-card">
+      <button id="appDialogCloseBtn" class="modal-close" type="button" aria-label="关闭窗口">×</button>
+      <form id="appDialogForm" novalidate>
+        <p class="eyebrow">SyncWatch</p>
+        <h2 id="appDialogTitle">请输入</h2>
+        <p id="appDialogDescription" class="muted"></p>
+        <label id="appDialogInputGroup"><span id="appDialogInputLabel">内容</span><span class="password-field"><input id="appDialogInput" type="text" autocomplete="off"><button id="appDialogPasswordToggle" class="password-toggle is-hidden" type="button" aria-label="显示密码" aria-pressed="false">显示</button></span></label>
+        <label id="appDialogSelectGroup" class="is-hidden"><span id="appDialogSelectLabel">请选择</span><select id="appDialogSelect"><option value="">请选择</option></select></label>
+        <label id="appDialogConfirmGroup" class="is-hidden"><span id="appDialogConfirmLabel">确认密码</span><span class="password-field"><input id="appDialogConfirmInput" type="password" autocomplete="new-password"><button id="appDialogConfirmPasswordToggle" class="password-toggle" type="button" aria-label="显示确认密码" aria-pressed="false">显示</button></span></label>
+        <p id="appDialogError" class="app-dialog-error is-hidden" role="alert"></p>
+        <div class="app-dialog-actions"><button id="appDialogFillRiskBtn" class="text-button is-hidden" type="button">一键填入确认文字</button><button id="appDialogBackBtn" class="secondary-button is-hidden" type="button">上一步</button><button id="appDialogCancelBtn" class="secondary-button" type="button">取消</button><button id="appDialogConfirmBtn" class="primary-button" type="submit">确定</button></div>
+      </form>
+    </div>
+  </div>
+  <div id="chatContextMenu" class="chat-context-menu is-hidden" role="menu" aria-label="聊天记录操作"><button id="chatContextDeleteBtn" type="button" role="menuitem">删除这条聊天记录</button></div>
+  <button id="clearAllToastsBtn" class="clear-all-toasts-button is-hidden" type="button" aria-controls="toastRegion" aria-label="一键清空所有通知"><span aria-hidden="true">×</span><span>清空全部通知</span></button>
+  <div id="toastRegion" class="toast-region" aria-live="polite"></div>
+  <div id="reconnectOverlay" class="reconnect-overlay is-hidden"><button id="closeReconnectOverlayBtn" class="notice-close-button reconnect-close-button" type="button" aria-label="关闭网络提示" title="关闭提示">×</button><span>⚠</span><strong>网络波动</strong><small id="reconnectMessage">正在重新连接…</small><button id="reconnectRetryBtn" class="secondary-button" type="button">立即重试</button></div>
+  <script src="/socket.io/socket.io.js"></script><script src="/js/media-network-recovery.js"></script><script src="/js/friend-account-ui.js"></script><script src="/js/app.js"></script><script src="/js/avatar-tools.js"></script><script src="/js/ai-workbench.js"></script><script src="/js/notification-preferences.js"></script>
+</body>
+</html>
+

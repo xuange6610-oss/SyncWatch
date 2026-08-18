@@ -1,0 +1,6 @@
+nodeLinker: hoisted
+
+allowBuilds:
+  electron: true
+  electron-winstaller: true
+  ffmpeg-static: true

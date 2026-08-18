@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">SyncWatch</string>
+    <string name="mobile_server_special_use_description">由用户主动开启的局域网 SyncWatch 服务器</string>
+</resources>

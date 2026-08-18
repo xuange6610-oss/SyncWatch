@@ -1,0 +1,17 @@
+﻿services:
+  syncwatch:
+    build: .
+    platform: linux/amd64
+    container_name: syncwatch-server
+    restart: unless-stopped
+    stop_grace_period: 90s
+    ports:
+      - "${SYNCWATCH_BIND_ADDRESS:-0.0.0.0}:${SYNCWATCH_PORT:-5000}:${SYNCWATCH_PORT:-5000}"
+    environment:
+      PORT: "${SYNCWATCH_PORT:-5000}"
+      SYNCWATCH_PUBLIC_URL: "${SYNCWATCH_PUBLIC_URL:-}"
+      SYNCWATCH_ALLOWED_HOSTS: "${SYNCWATCH_ALLOWED_HOSTS:-}"
+      SYNCWATCH_DATA_DIR: /app/SyncWatch-Data
+    volumes:
+      - ./SyncWatch-Data:/app/SyncWatch-Data
+

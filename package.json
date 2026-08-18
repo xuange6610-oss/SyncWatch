@@ -1,0 +1,143 @@
+{
+  "name": "sync-watch-lan",
+  "version": "2.1.5",
+  "description": "同步观影",
+  "main": "electron-pink.js",
+  "author": "xuan",
+  "license": "MIT",
+  "packageManager": "pnpm@11.9.0",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "start:server": "node server-standalone.js",
+    "test": "node tests/integration.test.js",
+    "test:features": "node tests/features-1.0.0.test.js",
+    "test:hardening": "node tests/server-hardening.test.js",
+    "test:media": "node tests/media.test.js",
+    "test:http-compression": "node tests/http-compression.test.js",
+    "test:guest-parity": "node tests/guest-member-parity.test.js",
+    "test:registration-email-required": "node tests/registration-email-required.test.js",
+    "test:media-processing": "node tests/media-processing-settings.test.js",
+    "test:friends": "node tests/friend-system.test.js",
+    "test:presence": "node tests/member-presence.test.js",
+    "test:avatars": "node tests/default-avatar.test.js",
+    "test:ai": "node tests/ai-relay.test.js",
+    "test:media-stream": "node tests/media-stream-lifecycle.test.js",
+    "test:media-network-recovery": "node tests/media-network-recovery.test.js",
+    "test:server-package": "node tests/server-package-contract.test.js",
+    "test:download-path": "node tests/download-path.test.js",
+    "test:email": "node tests/email-binding.test.js",
+    "test:mail-settings": "node tests/mail-settings.test.js",
+    "test:new-features": "node tests/new-features.test.js",
+    "test:registration-notice": "node tests/registration-notice.test.js",
+    "test:electron": "electron tests/electron-smoke.js",
+    "test:epipe": "node tests/epipe-smoke.js",
+    "test:sync": "electron tests/sync-smoke.js",
+    "test:main": "electron tests/main-smoke.js",
+    "test:email-binding": "node tests/email-binding.test.js",
+    "test:playback-rate": "node tests/playback-rate.test.js",
+    "test:account-v205-backend": "node tests/account-v205-backend.test.js",
+    "test:account-admin": "node tests/account-admin-audit.test.js",
+    "test:frontend-v205": "node tests/frontend-v205.test.js",
+    "test:latest26-backend": "node tests/latest26-backend.test.js",
+    "test:latest26-frontend": "node tests/latest26-frontend-contract.test.js",
+    "test:round26": "node tests/round26-features.test.js",
+    "test:login-music-upload": "node tests/login-music-upload-validation.test.js",
+    "test:ui-theme": "electron tests/ui-theme-smoke.js",
+    "test:login-cube": "node tests/login-cube-settings.test.js",
+    "test:login-cube-webgl": "electron tests/login-cube-webgl-smoke.js",
+    "test:macos-portable": "node tests/macos-portable-package.test.js",
+    "test:tunnel-public-url": "node tests/tunnel-public-url.test.js",
+    "test:tunnel-runtime": "electron tests/tunnel-runtime.test.js",
+    "test:tunnel": "electron tests/tunnel-smoke.js",
+    "test:ui-close": "electron tests/desktop-close-theme-smoke.js",
+    "test:audio-source": "node tests/audio-source-bridge.test.js",
+    "test:audio-source:electron": "electron tests/audio-source-electron-smoke.js",
+    "test:artifact": "node tests/artifact-smoke.js",
+    "test:desktop-release": "node tests/desktop-release-contract.test.js",
+    "test:android-package": "node tests/android-package.test.js --source-only",
+    "pretest:all": "node tests/login-cube-model.test.js",
+    "test:all": "node tests/integration.test.js && node tests/features-1.0.0.test.js && node tests/new-features.test.js && node tests/registration-notice.test.js && node tests/friend-system.test.js && node tests/member-presence.test.js && node tests/default-avatar.test.js && node tests/email-binding.test.js && node tests/guest-member-parity.test.js && node tests/registration-email-required.test.js && node tests/playback-rate.test.js && node tests/account-v205-backend.test.js && node tests/account-admin-audit.test.js && node tests/frontend-v205.test.js && node tests/latest15-frontend-contract.test.js && node tests/latest26-frontend-contract.test.js && node tests/latest26-backend.test.js && node tests/round26-features.test.js && node tests/round29-features.test.js && node tests/round29-layout.test.js && node tests/round29-backend.test.js && node tests/login-music-upload-validation.test.js && node tests/http-compression.test.js && node tests/login-cube-settings.test.js && electron tests/login-cube-webgl-smoke.js && node tests/mail-settings.test.js && node tests/ai-relay.test.js && node tests/server-hardening.test.js && node tests/media.test.js && node tests/media-processing-settings.test.js && node tests/media-stream-lifecycle.test.js && node tests/media-network-recovery.test.js && node tests/backup-migration.test.js && node tests/standalone-tunnel.test.js && node tests/download-path.test.js && node tests/macos-download.test.js && node tests/macos-portable-package.test.js && node tests/server-package-contract.test.js && node tests/desktop-release-contract.test.js && node tests/android-package.test.js --source-only && node tests/platform-contracts.test.js && node tests/cloudflared-bundle.test.js && node tests/ui-layout.test.js && node tests/audio-source-bridge.test.js && electron tests/audio-source-electron-smoke.js && node tests/tunnel-public-url.test.js && electron tests/electron-smoke.js && electron tests/ui-theme-smoke.js && node tests/epipe-smoke.js && electron tests/sync-smoke.js && electron tests/main-smoke.js && electron tests/tunnel-runtime.test.js && electron tests/desktop-close-theme-smoke.js && electron tests/tunnel-smoke.js",
+    "build:android": "powershell -NoProfile -ExecutionPolicy Bypass -File mobile/build-apk.ps1",
+    "build:client": "electron-builder --config electron-builder-client.json --win portable",
+    "build:mac": "bash scripts/build-macos.sh",
+    "build:mac:client": "electron-builder --config electron-builder-mac-client.json --mac",
+    "build:mac:server": "electron-builder --config electron-builder-mac-server.json --mac",
+    "build:server": "powershell -NoProfile -ExecutionPolicy Bypass -File build-server-package.ps1",
+    "build": "electron-builder --win portable"
+  },
+  "dependencies": {
+    "compression": "1.8.1",
+    "express": "5.2.1",
+    "ffmpeg-static": "5.2.0",
+    "ffprobe-static": "3.1.0",
+    "multer": "2.2.0",
+    "nodemailer": "9.0.3",
+    "qrcode": "1.5.4",
+    "socket.io": "4.8.3"
+  },
+  "devDependencies": {
+    "electron": "41.10.3",
+    "electron-builder": "26.15.3",
+    "socket.io-client": "4.8.3",
+    "ws": "8.21.1"
+  },
+  "overrides": {
+    "engine.io": "6.6.9",
+    "socket.io-adapter": "2.5.8",
+    "socket.io-parser": "4.2.7",
+    "ws": "8.21.1"
+  },
+  "build": {
+    "appId": "com.tangjingxuan.syncwatch",
+    "productName": "同步观影",
+    "copyright": "Copyright © 2026 xuan",
+    "asar": true,
+    "compression": "maximum",
+    "electronLanguages": [
+      "zh-CN"
+    ],
+    "removePackageScripts": true,
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "electron-pink.js",
+      "electron-main-preload.js",
+      "electron-settings-preload.js",
+      "server/index.js",
+      "server/ai-relay.js",
+      "server/macos-distribution.js",
+      "public/**/*",
+      "package.json",
+      "同步观影图标2026.ico"
+    ],
+    "asarUnpack": [
+      "node_modules/ffmpeg-static/**/*",
+      "node_modules/ffprobe-static/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "vendor/cloudflared.exe",
+        "to": "vendor/cloudflared.exe"
+      }
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "同步观影图标2026.ico",
+      "executableName": "同步观影",
+      "requestedExecutionLevel": "asInvoker",
+      "signExecutable": false
+    },
+    "portable": {
+      "artifactName": "SyncWatch同步观影-v2.1.5.exe"
+    }
+  }
+}
