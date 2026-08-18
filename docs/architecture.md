@@ -25,6 +25,103 @@ flowchart LR
 
 所有客户端共用 `public/` 下的同一套界面和业务代码，因此桌面浏览器、Electron、Android WebView、手机浏览器和平板浏览器的账号、房间、播放、聊天、通知和管理能力保持同步。平台特有能力通过 Electron 或 Android 原生桥接补充。
 
+### 2.1 从启动到可用的执行流程
+
+服务启动不是“打开一个网页”这么简单，而是依次完成运行环境、数据目录、HTTP 服务和实时通道的准备。下面的流程图对应实际入口和边界：
+
+```mermaid
+flowchart TD
+    A[启动入口\nElectron / server-standalone.js / Android Service] --> B[确定运行目录与端口]
+    B --> C[创建或锁定\nSyncWatch同步观影-Data]
+    C --> D[读取配置与管理员凭据]
+    D --> E[创建 Express 应用]
+    E --> F[挂载 REST API 与静态 public]
+    F --> G[创建 HTTP Server]
+    G --> H[挂载 Socket.IO]
+    H --> I[监听 0.0.0.0:5000]
+    I --> J[浏览器 / Electron / Android WebView 连接]
+    J --> K[登录、协议确认、房间密码校验]
+    K --> L[进入 Socket.IO 房间并收到 room-state]
+    L --> M[开始同步播放、聊天和管理操作]
+```
+
+启动阶段失败会停在对应节点并返回明确错误：数据目录被另一进程占用时拒绝继续写入；端口占用时提示更换端口；Android 原生 Node 运行库缺失时不伪装成“服务器已启动”。
+
+### 2.2 登录与实时同步调用链
+
+网页端的登录表单通过 Socket.IO 发送认证事件，服务端校验账号、密码哈希、设备策略和房间权限后，再把会话绑定到 socket。HTTP 接口用于文件、备份和下载等请求；房间内的瞬时状态使用 Socket.IO 广播。
+
+```mermaid
+sequenceDiagram
+    participant U as 用户界面 public/js/app.js
+    participant S as Socket.IO 客户端
+    participant H as server/index.js
+    participant D as Data 目录
+    participant R as 房间成员 sockets
+
+    U->>S: io() 建立连接
+    S->>H: connection + authenticate
+    H->>D: 读取账号、会话和策略
+    H-->>S: auth-result / agreement-required
+    U->>S: enter-room(roomId, password)
+    H->>D: 校验房间、成员和权限
+    H-->>S: room-state + users-list + queue-state
+    U->>S: playback-command / chat-message
+    H->>H: 权限检查、更新内存房间状态
+    H->>D: 原子写入配置或 JSONL 记录
+    H-->>R: playback-sync / chat-message / room-state
+    R->>R: 按服务器时间修正本地播放器
+```
+
+关键原则：
+
+1. **服务器是房间状态的唯一事实来源。** 客户端只提交意图（播放、暂停、跳转、改倍速），不能直接覆盖其他成员的状态。
+2. **每次状态广播都带时间和版本信息。** 客户端根据服务器时间、网络延迟和本地缓冲计算漂移，只有超过阈值才渐进校正，避免画面抖动。
+3. **权限检查在服务端重复执行。** 页面隐藏按钮只是体验优化，真正的房主、管理员、成员和访客限制由 HTTP middleware 与 Socket handler 再次判断。
+4. **写盘与广播分离。** 先更新受保护的房间内存状态，再按操作类型持久化；广播只发送脱敏后的公开字段，密码哈希、令牌和邮件授权码不会进入事件 payload。
+
+### 2.3 媒体上传、处理与播放链路
+
+```mermaid
+flowchart LR
+    A[选择文件] --> B[POST /api/upload\nBearer 会话]
+    B --> C[multer 流式接收\n磁盘空间预检查]
+    C --> D[文件归属与扩展名校验]
+    D --> E[FFprobe 读取时长/编码/字幕]
+    E --> F{浏览器是否兼容}
+    F -- 是 --> G[登记 uploads 与媒体索引]
+    F -- 否 --> H[FFmpeg 生成 compatible-media]
+    H --> G
+    G --> I[广播 file-uploaded / media-processing-updated]
+    I --> J[成员选择影片]
+    J --> K[HTTP Range 读取媒体 + Socket.IO 播放状态]
+```
+
+大文件不会一次性读入内存；上传、转码和下载都使用流式处理。原文件、兼容文件、缩略图和字幕分开保存，删除或撤回时由服务端同时清理索引、任务和临时文件。
+
+### 2.4 公网访问调用链
+
+```mermaid
+sequenceDiagram
+    participant A as 管理中心
+    participant E as Electron / standalone tunnel
+    participant C as cloudflared
+    participant CF as Cloudflare Edge
+    participant M as SyncWatch HTTP + Socket.IO
+
+    A->>E: POST /api/host/tunnel/start
+    E->>E: 检查房间密码、网络和代理策略
+    E->>C: tunnel --url http://127.0.0.1:5000
+    C->>CF: HTTPS / QUIC 或 HTTP/2 出站连接
+    CF-->>C: trycloudflare.com 公网地址
+    C-->>E: 输出 URL 与连接状态
+    E-->>A: tunnel/status + diagnostics
+    CF->>M: 代理浏览器 HTTP、Socket.IO、Range 请求
+    M-->>CF: 鉴权后的页面、事件和媒体数据
+```
+
+`cloudflared` 只负责网络入口，不保存账号、房间或影片。程序优先使用安装包中的已校验二进制，缺失时才按平台下载 Cloudflare 官方 Release 并校验 SHA-256；临时地址重启后可能变化。
+
 ## 3. 目录与模块职责
 
 ### 3.1 Windows Electron 桌面端
@@ -172,6 +269,20 @@ Android APK 内嵌与桌面端相同的 `server/index.js`、`public/**` 和生�
 | `pnpm` | 11.9.0 | 锁定的包管理器版本。 |
 
 为处理上游安全更新并保持协议兼容，项目通过 `overrides` 固定：`engine.io 6.6.9`、`socket.io-adapter 2.5.8`、`socket.io-parser 4.2.7`、`ws 8.21.1`。
+
+### 6.4 用什么写、运行在哪里、调用什么
+
+| 层次 | 实现技术 | 运行环境 | 主要调用/边界 |
+| --- | --- | --- | --- |
+| 页面与交互 | 原生 HTML、CSS、JavaScript、Web Components 风格的模块化函数 | Chromium、Firefox、Safari、Android WebView | `fetch` 调用 `/api/*`；`socket.io-client` 调用实时事件；WebRTC 用于语音/屏幕协商 |
+| 服务端 | Node.js 22+、Express 5、Socket.IO 4 | Windows、Linux、Docker、Android Node.js Mobile | `http/https`、`fs`、`crypto`、`stream`、`child_process`、`dns`、`net` |
+| 桌面容器 | Electron 41、electron-builder 26 | Windows x64；macOS 构建需 macOS runner | `ipcMain/ipcRenderer`、`desktopCapturer`、托盘、窗口和系统权限 |
+| Android 容器 | Java、C++ JNI、Android WebView、Node.js Mobile | Android 6.0+，arm64-v8a/armeabi-v7a/x86_64 | `MediaProjection`、前台服务、SAF 文件选择、JNI `nativeStartNode` |
+| 媒体能力 | FFprobe、FFmpeg | 桌面完整包；轻量 Android 可能只提供原片 | `spawn` 子进程读取媒体元数据、转码、缩略图和字幕 |
+| 公网入口 | Cloudflare `cloudflared` | Windows/Linux/macOS 对应二进制 | 本机 `127.0.0.1:5000` 到 Cloudflare Edge 的 HTTPS/QUIC/HTTP2 隧道 |
+| 开发与交付 | npm/pnpm、PowerShell、Bash、Gradle、GitHub Actions | Windows 开发机与 GitHub-hosted runner | `npm ci`、构建脚本、发布契约测试、Pages 部署 |
+
+项目没有调用第三方 CDN 来加载核心页面资源；生产网页、Socket.IO 客户端和播放器代码都由自己的服务端同源提供。可选 AI 工作台只在用户填写兼容的 HTTPS API 地址和密钥后由 `server/ai-relay.js` 代理，并阻止内网地址、重定向绕过和超大响应。
 
 ### 6.3 Android 工具链
 

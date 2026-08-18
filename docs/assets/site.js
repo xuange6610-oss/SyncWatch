@@ -50,3 +50,55 @@ copyButton?.addEventListener('click', async () => {
 for (const year of document.querySelectorAll('[data-current-year]')) {
   year.textContent = String(new Date().getFullYear());
 }
+
+const revealItems = [...document.querySelectorAll('[data-reveal]')];
+if (revealItems.length > 0 && !window.matchMedia('(prefers-reduced-motion: reduce)').matches && 'IntersectionObserver' in window) {
+  const revealObserver = new IntersectionObserver((entries, observer) => {
+    for (const entry of entries) {
+      if (!entry.isIntersecting) continue;
+      entry.target.classList.remove('is-pending');
+      observer.unobserve(entry.target);
+    }
+  }, { rootMargin: '0px 0px -8% 0px', threshold: 0.08 });
+  for (const item of revealItems) revealObserver.observe(item);
+}
+
+const architectureConsole = document.querySelector('[data-architecture-console]');
+const architectureSteps = [...document.querySelectorAll('[data-architecture-step]')];
+const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+let architectureTimer = 0;
+let architectureIndex = 0;
+
+function stopArchitectureAnimation() {
+  if (architectureTimer) window.clearInterval(architectureTimer);
+  architectureTimer = 0;
+}
+
+function showArchitectureStep(index) {
+  architectureSteps.forEach((step, stepIndex) => step.classList.toggle('is-active', stepIndex === index));
+}
+
+function startArchitectureAnimation() {
+  if (reduceMotion || architectureSteps.length === 0 || architectureTimer || document.hidden) return;
+  showArchitectureStep(architectureIndex);
+  architectureTimer = window.setInterval(() => {
+    architectureIndex = (architectureIndex + 1) % architectureSteps.length;
+    showArchitectureStep(architectureIndex);
+  }, 1200);
+}
+
+if (architectureConsole && architectureSteps.length > 0) {
+  if (reduceMotion || !('IntersectionObserver' in window)) {
+    architectureSteps.forEach((step) => step.classList.add('is-active'));
+  } else {
+    const architectureObserver = new IntersectionObserver(([entry]) => {
+      if (entry?.isIntersecting) startArchitectureAnimation();
+      else stopArchitectureAnimation();
+    }, { threshold: 0.18 });
+    architectureObserver.observe(architectureConsole);
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) stopArchitectureAnimation();
+      else if (architectureConsole.getBoundingClientRect().top < window.innerHeight && architectureConsole.getBoundingClientRect().bottom > 0) startArchitectureAnimation();
+    });
+  }
+}

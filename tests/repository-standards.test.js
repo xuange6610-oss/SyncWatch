@@ -15,6 +15,8 @@ const requiredFiles = [
   '.github/ISSUE_TEMPLATE/feature-request.yml',
   '.github/ISSUE_TEMPLATE/config.yml',
   '.github/PULL_REQUEST_TEMPLATE.md',
+  '.github/CODEOWNERS',
+  '.github/workflows/ci.yml',
   '.github/workflows/pages.yml',
   'CODE_OF_CONDUCT.md',
   'CONTRIBUTING.md',
@@ -85,6 +87,14 @@ assert.match(pages, /id-token:\s*write/);
 assert.match(pages, /actions\/upload-pages-artifact@v3/);
 assert.match(pages, /path:\s*docs/);
 assert.match(pages, /actions\/deploy-pages@v4/);
+
+const contributionChecks = read('.github/workflows/ci.yml');
+assert.match(contributionChecks, /pull_request:/);
+assert.match(contributionChecks, /npm run test:repo/);
+assert.match(contributionChecks, /npm test/);
+assert.match(read('.github/CODEOWNERS'), /@xuange6610-oss/);
+assert.match(read('CONTRIBUTING.md'), /Pull Request/);
+assert.match(read('CONTRIBUTING.md'), /分支保护/);
 
 const site = read('docs/index.html');
 assert.match(site, /<html\s+lang="zh-CN">/);

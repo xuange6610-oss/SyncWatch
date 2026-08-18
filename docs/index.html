@@ -28,10 +28,12 @@
     </a>
     <nav aria-label="主要导航">
       <a href="#how-it-works">工作方式</a>
+      <a href="#architecture">原理架构</a>
       <a href="#screenshots">界面</a>
+      <a href="#management-center">管理中心</a>
       <a href="#quick-start">快速开始</a>
       <a href="#downloads">下载</a>
-      <a href="https://github.com/xuange6610-oss/SyncWatch">源代码</a>
+      <a href="https://github.com/xuange6610-oss/SyncWatch">GitHub主页</a>
     </nav>
   </header>
 
@@ -47,6 +49,7 @@
           <div class="hero__actions">
             <a class="button button--primary" href="https://github.com/xuange6610-oss/SyncWatch/releases/latest">前往下载</a>
             <a class="button button--quiet" href="#quick-start">新手快速开始</a>
+            <a class="button button--quiet" href="https://github.com/xuange6610-oss/SyncWatch">GitHub主页</a>
           </div>
         </div>
       </div>
@@ -85,6 +88,86 @@
             <div><h3>成员加入</h3><p>成员用客户端或浏览器打开地址，进入房间后由房主统一开始播放。</p></div>
           </li>
         </ol>
+      </div>
+    </section>
+
+    <section id="architecture" class="section architecture-section" aria-labelledby="architecture-title">
+      <div class="shell">
+        <div class="architecture-heading">
+          <div class="section-heading section-heading--dark">
+            <h2 id="architecture-title">一次操作，怎样变成所有人的同一画面</h2>
+            <p>服务器保存权威房间状态。客户端提交播放意图，服务端完成认证、更新、持久化与广播；成员端再按服务器时间和网络延迟校正播放器。</p>
+          </div>
+          <a class="architecture-doc-link" href="architecture.md">阅读完整技术架构</a>
+        </div>
+
+        <div class="architecture-console" data-architecture-console>
+          <div class="architecture-console__bar">
+            <span class="architecture-console__status"><i aria-hidden="true"></i> 调用链运行演示</span>
+            <span>Node.js · Express · Socket.IO · FFmpeg</span>
+          </div>
+          <ol class="architecture-flow" aria-label="SyncWatch同步观影实现流程">
+            <li data-architecture-step>
+              <span class="architecture-flow__index">01</span>
+              <strong>启动核心</strong>
+              <small>Electron、独立 Node 或 Android Service 启动 Express 与 Socket.IO</small>
+              <code>server/index.js</code>
+            </li>
+            <li data-architecture-step>
+              <span class="architecture-flow__index">02</span>
+              <strong>客户端连接</strong>
+              <small>浏览器、桌面端和 WebView 加载同源界面并建立实时连接</small>
+              <code>HTTP + WebSocket</code>
+            </li>
+            <li data-architecture-step>
+              <span class="architecture-flow__index">03</span>
+              <strong>认证与入房</strong>
+              <small>校验密码哈希、会话、设备策略、协议、房间密码和权限</small>
+              <code>session / room</code>
+            </li>
+            <li data-architecture-step>
+              <span class="architecture-flow__index">04</span>
+              <strong>处理操作</strong>
+              <small>更新播放状态；上传时使用 FFprobe 分析、FFmpeg 转换</small>
+              <code>state / media</code>
+            </li>
+            <li data-architecture-step>
+              <span class="architecture-flow__index">05</span>
+              <strong>安全写盘</strong>
+              <small>配置原子替换，媒体与 secrets 分目录保存，单实例写入</small>
+              <code>SyncWatch同步观影-Data</code>
+            </li>
+            <li data-architecture-step>
+              <span class="architecture-flow__index">06</span>
+              <strong>广播结果</strong>
+              <small>向房间发送版本化状态，客户端按时间与延迟修正画面</small>
+              <code>room-state / playback-sync</code>
+            </li>
+          </ol>
+          <div class="architecture-result" aria-live="polite">
+            <div class="architecture-result__signal" aria-hidden="true"><span></span><span></span><span></span></div>
+            <div><strong>结果：所有成员收到同一份房间状态</strong><p>播放、暂停、进度、倍速、聊天、通知和共享信令保持一致；媒体文件仍由房主自己的服务器提供。</p></div>
+          </div>
+        </div>
+
+        <div class="architecture-details">
+          <article>
+            <h3>用什么写的</h3>
+            <p>网页使用原生 HTML、CSS、JavaScript；服务端使用 Node.js、Express、Socket.IO；桌面端使用 Electron；Android 使用 Java、C++ JNI、WebView 与 Node.js Mobile。</p>
+          </article>
+          <article>
+            <h3>调用了什么</h3>
+            <p><code>fetch</code> 访问 REST API，Socket.IO 传递实时事件，WebRTC 协商语音和屏幕共享；FFprobe/FFmpeg 由服务端子进程调用，cloudflared 只在开启公网访问时运行。</p>
+          </article>
+          <article>
+            <h3>数据怎样流动</h3>
+            <p>文件和备份走 HTTP 流式传输，房间状态走 Socket.IO，媒体播放走 HTTP Range。账号、房间、媒体索引、记录和密钥分别写入本机数据目录。</p>
+          </article>
+          <article>
+            <h3>运行在什么环境</h3>
+            <p>源码服务器需要 Node.js 22+；Windows 完整 EXE 自带 Electron/Node/FFmpeg；Android 完整 APK 内置 Node.js Mobile；Docker 使用 Node.js 24 Linux 镜像。</p>
+          </article>
+        </div>
       </div>
     </section>
 
@@ -145,6 +228,65 @@
           <div><dt>账号与权限</dt><dd>好友、在线状态、权限组、注册审批、设备管理、封禁与操作记录。</dd></div>
           <div><dt>服务器运维</dt><dd>数据导入导出、备份恢复、邮件验证、日志、网络诊断和可选 AI 中转。</dd></div>
         </dl>
+      </div>
+    </section>
+
+    <section id="management-center" class="section section--light management-section" aria-labelledby="management-title">
+      <div class="shell">
+        <div class="section-heading">
+          <h2 id="management-title">管理中心：每个模块都能找到下一步</h2>
+          <p>下面按真实管理任务拆开说明。先看模块用途，再按“打开入口 → 修改字段 → 保存 → 验证结果”的顺序操作；需要完整按钮清单时打开管理中心详细教程。</p>
+        </div>
+        <div class="management-grid">
+          <article class="management-module" data-reveal>
+            <figure><img src="screenshots/playback-controls.png" alt="房间播放控制和上传后的媒体区域"><figcaption>房间与上传</figcaption></figure>
+            <div><h3>房间与上传</h3><p>新建房间、设置人数和密码，上传影片或字幕，审核文件后加入队列。操作示例：选择影片后点击“加入队列”，再由房主点击“开始播放”。</p><a href="management-center.md#房间与上传">查看按钮步骤</a></div>
+          </article>
+          <article class="management-module" data-reveal>
+            <figure><img src="screenshots/login.png" alt="登录页中的服务器和房间入口"><figcaption>全部房间</figcaption></figure>
+            <div><h3>全部房间</h3><p>查看正式房和临时房，点击“进入”切换房间，“置顶”方便下次查找；只有房主或管理员能编辑、删除房间。</p><a href="management-center.md#全部房间">查看按钮步骤</a></div>
+          </article>
+          <article class="management-module" data-reveal>
+            <figure><img src="screenshots/account-registration.png" alt="账号注册和服务器审批界面"><figcaption>成员与权限组</figcaption></figure>
+            <div><h3>成员与权限组</h3><p>按成员查看设备和在线状态，使用“授予控制权”“收回控制权”“踢出”“封禁”管理风险，再保存权限组。</p><a href="management-center.md#成员与权限组">查看按钮步骤</a></div>
+          </article>
+          <article class="management-module" data-reveal>
+            <figure><img src="screenshots/screen-announcement.png" alt="发送房间通告的编辑界面"><figcaption>聊天与记录</figcaption></figure>
+            <div><h3>聊天与记录</h3><p>切换公聊、私聊、弹幕和语音记录，按时间筛选并删除单条消息；清空前先导出需要保留的记录。</p><a href="management-center.md#聊天与记录">查看按钮步骤</a></div>
+          </article>
+          <article class="management-module" data-reveal>
+            <figure><img src="screenshots/account-registration.png" alt="新账号注册界面"><figcaption>账户与注册</figcaption></figure>
+            <div><h3>账户与注册</h3><p>审批注册、修改显示名、重置密码、撤销登录会话，并设置邮箱验证和注册公告。敏感操作都会写入记录。</p><a href="management-center.md#账户与注册">查看按钮步骤</a></div>
+          </article>
+          <article class="management-module" data-reveal>
+            <figure><img src="screenshots/legal-agreement.png" alt="首次使用协议和确认界面"><figcaption>用户申请中心</figcaption></figure>
+            <div><h3>用户申请中心</h3><p>集中处理注册、入房、权限和好友申请。打开详情核对目标房间后点击“同意”或“拒绝”，必要时填写处理原因。</p><a href="management-center.md#用户申请中心">查看按钮步骤</a></div>
+          </article>
+          <article class="management-module" data-reveal>
+            <figure><img src="screenshots/public-access-settings.png" alt="服务器设置和权限策略界面"><figcaption>账户权限等级</figcaption></figure>
+            <div><h3>账户权限等级</h3><p>设置等级名称、经验范围、上传额度、房间额度和功能开关。调整等级后用普通测试账号重新登录验证。</p><a href="management-center.md#账户权限等级">查看按钮步骤</a></div>
+          </article>
+          <article class="management-module" data-reveal>
+            <figure><img src="screenshots/screen-announcement.png" alt="全屏通告编辑和发送界面"><figcaption>通知 / 通告设置</figcaption></figure>
+            <div><h3>通知 / 通告设置</h3><p>编辑登录公告、房间公告和全屏通告，设置范围、字号、颜色和停留时间，先预览再发送，必要时撤回。</p><a href="management-center.md#通知--通告设置">查看按钮步骤</a></div>
+          </article>
+          <article class="management-module" data-reveal>
+            <figure><img src="screenshots/public-access-settings.png" alt="公网访问和服务器设置界面"><figcaption>邮件设置</figcaption></figure>
+            <div><h3>邮件设置</h3><p>填写 SMTP 地址、端口、加密方式和应用专用密码，保存后发送测试邮件；授权码不会在页面明文显示。</p><a href="management-center.md#邮件设置">查看按钮步骤</a></div>
+          </article>
+          <article class="management-module" data-reveal>
+            <figure><img src="screenshots/backup-and-restore.png" alt="数据备份和恢复选项"><figcaption>日志中心管理</figcaption></figure>
+            <div><h3>日志中心管理</h3><p>按时间和类型查看登录、权限、媒体、隧道异常；导出前先删除令牌、IP、邮箱和真实姓名。</p><a href="management-center.md#日志中心管理">查看按钮步骤</a></div>
+          </article>
+          <article class="management-module" data-reveal>
+            <figure><img src="screenshots/public-access-settings.png" alt="临时公网访问和网络诊断设置"><figcaption>服务器设置</figcaption></figure>
+            <div><h3>服务器设置</h3><p>管理端口、局域网、公网 Tunnel、数据导入导出和网络诊断。公网地址出现后只发送给可信成员。</p><a href="management-center.md#服务器设置">查看按钮步骤</a></div>
+          </article>
+        </div>
+        <div class="management-callout">
+          <strong>完整教程</strong>
+          <p>需要从启动到每个按钮的逐步说明，请阅读 <a href="management-center.md">管理中心详细教程</a>；需要查看所有仓库文件和发布文件用途，请阅读 <a href="repository-map.md">仓库文件地图</a> 与 <a href="release-artifacts.md">发布文件说明</a>。</p>
+        </div>
       </div>
     </section>
 
@@ -235,6 +377,9 @@ npm start</code></pre>
           <a href="architecture.md"><strong>技术架构与依赖</strong><span>模块边界、数据、构建入口和测试方式</span></a>
           <a href="macos-build.md"><strong>macOS 构建</strong><span>Intel 与 Apple Silicon 构建和发布说明</span></a>
           <a href="cloud-media-deployment.md"><strong>云端媒体与商业部署</strong><span>对象存储、反向代理和容量边界</span></a>
+          <a href="management-center.md"><strong>管理中心详细教程</strong><span>11 个管理模块、按钮说明、操作示例和安全检查</span></a>
+          <a href="release-artifacts.md"><strong>发布文件与下载说明</strong><span>服务器、客户端、APK、macOS、ZIP 和校验方式</span></a>
+          <a href="repository-map.md"><strong>仓库文件地图</strong><span>截图中每个文件夹、规范文件和构建入口的职责</span></a>
           <a href="https://github.com/xuange6610-oss/SyncWatch/blob/main/CONTRIBUTING.md"><strong>参与贡献</strong><span>分支、格式、测试和 Pull Request 要求</span></a>
         </div>
       </div>
