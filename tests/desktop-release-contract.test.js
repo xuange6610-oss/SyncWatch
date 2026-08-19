@@ -16,6 +16,7 @@ const electronServer = read('electron-pink.js');
 const electronClient = read('electron-client.js');
 const clientPreload = read('electron-client-preload.js');
 const launcher = read('client-launcher.html');
+const macReleaseWorkflow = read('.github/workflows/release-macos.yml');
 const windowsBuildPath = path.join(root, 'build-windows.ps1');
 const windowsBuildBytes = fs.readFileSync(windowsBuildPath);
 const windowsBuild = windowsBuildBytes.toString('utf8').replace(/^\uFEFF/, '');
@@ -102,5 +103,17 @@ assert.doesNotMatch(windowsBuild, /app\.asar\.unpacked\\mobile/);
 assert.match(windowsBuild, /build-server-package\.ps1/);
 assert.match(windowsBuild, /SyncWatch同步观影-Client-v2\.1\.6\.exe/);
 assert.match(windowsBuild, /SyncWatch同步观影-Server-v/i);
+
+// GitHub strips some non-ASCII characters from uploaded asset names. Keep the
+// public macOS names ASCII and role-specific so client/server jobs cannot
+// overwrite one another when both architectures are published.
+for (const arch of ['x64', 'arm64']) {
+  for (const extension of ['dmg', 'zip']) {
+    assert.match(macReleaseWorkflow,
+      new RegExp(`SyncWatch-\\$\\{release_role\\}-macOS-v\\$\\{VERSION\\}-${arch}\\.${extension}`));
+  }
+}
+assert.match(macReleaseWorkflow, /release_role="Client"/);
+assert.match(macReleaseWorkflow, /release_role="Server"/);
 
 console.log('desktop login visual, metadata and split-release contracts passed.');

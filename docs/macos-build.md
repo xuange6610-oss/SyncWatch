@@ -14,6 +14,7 @@ SyncWatch同步观影 的 macOS 服务器和客户端使用 Electron，支持 In
 
 ```bash
 bash scripts/build-macos.sh
+```
 
 在 Windows 或 Linux 上执行同一条命令会生成四个未签名、可直接解压运行的 macOS `.app` ZIP：脚本使用 Electron 官方 Darwin 运行时，保留框架符号链接，并把目标架构的 ffmpeg、ffprobe 和 cloudflared 一起放入服务器包。Windows/Linux 不能生成真实 DMG，也不能完成 Apple Developer ID 签名或公证；这几步必须在 macOS 主机或 macOS CI 上执行。
 
@@ -21,7 +22,6 @@ bash scripts/build-macos.sh
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\build-macos-portable.ps1
-```
 ```
 
 发布到项目根目录的文件：
@@ -32,6 +32,13 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\build-macos-portab
 - `SyncWatch同步观影-客户端-v2.1.6-arm64.dmg` / `.zip`
 
 `dist-mac-server` 与 `dist-mac-client` 中保留相同构建副本；ZIP 适合企业内部分发和自动化部署。当前 Windows 发布机只生成 Windows EXE、APK 和服务器部署包，不会伪造 macOS 文件。
+
+GitHub Release 使用仅含 ASCII 的公共下载名，避免平台上传接口删除中文后造成客户端与服务器同名覆盖：
+
+- `SyncWatch-Server-macOS-v2.1.6-x64.dmg` / `.zip`
+- `SyncWatch-Server-macOS-v2.1.6-arm64.dmg` / `.zip`
+- `SyncWatch-Client-macOS-v2.1.6-x64.dmg` / `.zip`
+- `SyncWatch-Client-macOS-v2.1.6-arm64.dmg` / `.zip`
 
 ## 下载产物如何发布
 

@@ -10,8 +10,8 @@ GitHub Release 是给普通用户下载成品的地方；仓库首页的 `Source
 | Windows 客户端 EXE | `SyncWatch同步观影-Client-v版本.exe` | 普通成员 | 输入服务器地址加入房间，不在本机运行服务器 | 当前构建为 Windows x64；需要房主先启动服务 |
 | Android APK | `SyncWatch同步观影-v版本.apk` | Android 用户 | 加入房间；支持的设备可以启动手机服务器 | 包含 `arm64-v8a`、`armeabi-v7a` 和 `x86_64` ABI |
 | 独立服务器 ZIP | `SyncWatch同步观影-Server-v版本.zip` | Windows/Linux/Docker 管理员 | 使用 Node.js、启动脚本或 Docker 长期部署 | 包含生产依赖、FFmpeg/FFprobe、cloudflared、客户端和 APK |
-| macOS 服务器 DMG/ZIP | `SyncWatch同步观影-服务器-v版本-x64/arm64.*` | Mac 房主 | Intel 或 Apple Silicon 上运行服务器 | 必须由 macOS 主机或 macOS CI 生成，不能用 Windows 文件冒充 |
-| macOS 客户端 DMG/ZIP | `SyncWatch同步观影-客户端-v版本-x64/arm64.*` | Mac 成员 | Intel 或 Apple Silicon 上加入房间 | 需要系统允许网络、麦克风或屏幕共享权限时按提示授权 |
+| macOS 服务器 DMG/ZIP | `SyncWatch-Server-macOS-v版本-x64/arm64.*` | Mac 房主 | Intel 或 Apple Silicon 上运行服务器 | 必须由 macOS 主机或 macOS CI 生成，不能用 Windows 文件冒充 |
+| macOS 客户端 DMG/ZIP | `SyncWatch-Client-macOS-v版本-x64/arm64.*` | Mac 成员 | Intel 或 Apple Silicon 上加入房间 | 需要系统允许网络、麦克风或屏幕共享权限时按提示授权 |
 | cloudflared 安装包 | `cloudflared-平台-架构` | 需要手工配置 Tunnel 的管理员 | 把本地 HTTP 服务安全映射到 Cloudflare 网络 | 只从 Cloudflare 官方 Release 下载并校验 SHA-256 |
 
 ## 选择流程

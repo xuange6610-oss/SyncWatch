@@ -4,9 +4,9 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: Existing draft release tag
+        description: Existing release tag
         required: true
-        default: v2.1.6
+        default: 2.1.6
 
 permissions:
   contents: write
@@ -93,14 +93,26 @@ jobs:
         run: |
           if [[ "${{ matrix.kind }}" == "client" ]]; then
             label="客户端"
+            release_role="Client"
             folder="dist-mac-client"
           else
             label="服务器"
+            release_role="Server"
             folder="dist-mac-server"
           fi
+
+          release_dir="release-macos-${{ matrix.kind }}"
+          mkdir -p "$release_dir"
+          for arch in x64 arm64; do
+            cp "$folder/SyncWatch同步观影-${label}-v${VERSION}-${arch}.dmg" \
+              "$release_dir/SyncWatch-${release_role}-macOS-v${VERSION}-${arch}.dmg"
+            cp "$folder/SyncWatch同步观影-${label}-v${VERSION}-${arch}.zip" \
+              "$release_dir/SyncWatch-${release_role}-macOS-v${VERSION}-${arch}.zip"
+          done
+
           gh release upload "${{ inputs.tag }}" \
-            "$folder/SyncWatch同步观影-${label}-v${VERSION}-x64.dmg" \
-            "$folder/SyncWatch同步观影-${label}-v${VERSION}-x64.zip" \
-            "$folder/SyncWatch同步观影-${label}-v${VERSION}-arm64.dmg" \
-            "$folder/SyncWatch同步观影-${label}-v${VERSION}-arm64.zip" \
+            "$release_dir/SyncWatch-${release_role}-macOS-v${VERSION}-x64.dmg" \
+            "$release_dir/SyncWatch-${release_role}-macOS-v${VERSION}-x64.zip" \
+            "$release_dir/SyncWatch-${release_role}-macOS-v${VERSION}-arm64.dmg" \
+            "$release_dir/SyncWatch-${release_role}-macOS-v${VERSION}-arm64.zip" \
             --clobber
