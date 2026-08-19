@@ -1,8 +1,8 @@
-# SyncWatch同步观影 v2.1.6
+# SyncWatch同步观影 v2.1.7
 
 ## 直接使用
 
-双击正式发布目录 `release/windows-server/SyncWatch同步观影-v2.1.6.exe` 中的服务器程序。首次启动时，Windows 防火墙如有提示，请允许“专用网络”。程序会在 EXE 同目录创建 `SyncWatch同步观影-Data/`，账号、设置、媒体、缩略图、字幕、语音、聊天、缓存和密钥全部保存在这里；把整个程序文件夹移动到另一台电脑或云服务器时，数据会随文件夹一起移动。
+双击正式发布目录 `release/windows-server/SyncWatch同步观影-v2.1.7.exe` 中的服务器程序。首次启动时，Windows 防火墙如有提示，请允许“专用网络”。程序会在 EXE 同目录创建 `SyncWatch同步观影-Data/`，账号、设置、媒体、缩略图、字幕、语音、聊天、缓存和密钥全部保存在这里；把整个程序文件夹移动到另一台电脑或云服务器时，数据会随文件夹一起移动。
 
 程序窗口打开后，从“系统 → 复制局域网地址”复制链接。同一 Wi-Fi 或有线网络内的手机、平板、电脑、笔记本和电视浏览器均可访问。
 
@@ -78,7 +78,7 @@
 - 默认清晰度为原画；全屏可切换横屏/竖屏并手动放大缩小，桌面、网页和 Android 支持悬浮播放/画中画。
 - 屏幕共享采用低延迟画面帧同步，桌面端在系统和所选来源支持时会同时采集声音；Android 10 及以上客户端使用系统 MediaProjection 原生投屏，支持横竖屏热切换，并会在停止、锁屏、授权撤销、切换服务器或退出应用时自动结束。浏览器或受系统保护的窗口可能只允许共享画面。
 - Android 顶栏使用 48dp 菜单按钮打开两列功能面板，竖屏优先显示播放器，横屏把播放器与聊天并排；功能项与 PC 端保持一致。
-- 顶栏“生成 APK”会下载本 EXE 内置并经过签名校验的 `SyncWatch同步观影-v2.1.6.apk`。安装后输入电脑端显示的 HTTP 局域网地址或 HTTPS 公网地址，即可使用与网页端一致的房间、播放、聊天、上传、全屏和账户功能。
+- 顶栏“生成 APK”会下载本 EXE 内置并经过签名校验的 `SyncWatch同步观影-v2.1.7.apk`。安装后输入电脑端显示的 HTTP 局域网地址或 HTTPS 公网地址，即可使用与网页端一致的房间、播放、聊天、上传、全屏和账户功能。
 - Electron 桌面端已配置系统屏幕/窗口选择器与捕获授权。Android APK 支持原生屏幕投放、文件多选、递归文件夹上传、上传中止、麦克风、下载和系统全屏；iPhone/iPad 浏览器目前不开放网页屏幕捕获，可观看共享或上传媒体同步播放。
 
 ## 公网访问
@@ -94,7 +94,7 @@
 
 ## 独立服务器部署
 
-正式发布目录 `release/server-deployment/SyncWatch同步观影-Server-v2.1.6.zip` 中的文件是不含测试、构建缓存、Android 签名密钥和 Electron 文件的纯服务器包，已经内置锁定的 Windows x64 生产依赖。解压后编辑 `SyncWatch同步观影-Data/server-config.json`，Windows 双击 `start-server.cmd` 即可离线启动。Linux x64 可执行 `./start-server.sh`，脚本会在首次启动时自动安装锁定的 Linux 生产依赖；Linux x64 云服务器更推荐直接使用 Docker Compose。本版本已验证 Windows x64 与 Linux x64/`linux/amd64`，不直接支持 Linux ARM64。直接部署需要 Node.js 22 或更高版本，推荐 Node.js 24 LTS；Docker 镜像已自带 Node.js 24。
+正式发布目录 `release/server-deployment/SyncWatch同步观影-Server-v2.1.7.zip` 中的文件是不含测试、构建缓存、Android 签名密钥和 Electron 文件的纯服务器包，已经内置锁定的 Windows x64 生产依赖。解压后编辑 `SyncWatch同步观影-Data/server-config.json`，Windows 双击 `start-server.cmd` 即可离线启动。Linux x64 可执行 `./start-server.sh`，脚本会在首次启动时自动安装锁定的 Linux 生产依赖；Linux x64 云服务器更推荐直接使用 Docker Compose。本版本已验证 Windows x64 与 Linux x64/`linux/amd64`，不直接支持 Linux ARM64。直接部署需要 Node.js 22 或更高版本，推荐 Node.js 24 LTS；Docker 镜像已自带 Node.js 24。
 
 Windows Server、Linux、Docker Compose、自定义端口、安全组、域名 HTTPS、Nginx/Caddy WebSocket、内网穿透、QQ 邮箱找回、数据备份迁移和升级步骤，请阅读 [服务器部署与使用教程](server-deployment-guide.md)。该教程也会随独立服务器 ZIP 一起打包。
 
@@ -123,7 +123,7 @@ Windows Server、Linux、Docker Compose、自定义端口、安全组、域名 H
 powershell -ExecutionPolicy Bypass -File .\build-windows.ps1
 ```
 
-脚本会先使用保留在 `mobile/.keys` 的发布密钥构建并验证 Android v2.1.6 APK，再执行主接口集成检查、服务端硬化回归、真实 FFmpeg/中文字幕测试、Electron 多尺寸渲染测试、双窗口真实播放/画面同步测试、主入口与公网隧道测试，以及完整/生产依赖安全审计。便携 EXE 会先生成到临时目录；只有在确认 APK 位于 `app.asar.unpacked`，且候选成品通过 HTTP、版本、polling、真实 WebSocket/network-ping、Cookie 会话及 APK 下载校验后，才会原子替换 `release/windows-server`、`release/windows-client` 和 `release/server-deployment` 中的正式成品，并自动更新本文 SHA256。
+脚本会先使用保留在 `mobile/.keys` 的发布密钥构建并验证 Android v2.1.7 APK，再执行主接口集成检查、服务端硬化回归、真实 FFmpeg/中文字幕测试、Electron 多尺寸渲染测试、双窗口真实播放/画面同步测试、主入口与公网隧道测试，以及完整/生产依赖安全审计。便携 EXE 会先生成到临时目录；只有在确认 APK 位于 `app.asar.unpacked`，且候选成品通过 HTTP、版本、polling、真实 WebSocket/network-ping、Cookie 会话及 APK 下载校验后，才会原子替换 `release/windows-server`、`release/windows-client` 和 `release/server-deployment` 中的正式成品，并自动更新本文 SHA256。
 
 - `electron-pink.js`：桌面入口、屏幕捕获、托盘和公网隧道生命周期。
 - `server/index.js`：HTTP、Socket.IO、账号、聊天、权限、文件与同步状态。

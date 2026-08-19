@@ -14,7 +14,7 @@ def bundledRuntimePackages = [
         'compression', 'concat-stream', 'content-disposition', 'content-type', 'cookie',
         'cookie-signature', 'cors',
         'debug', 'decamelize', 'depd', 'dijkstrajs', 'dunder-proto', 'ee-first', 'emoji-regex',
-        'encodeurl', 'engine.io', 'engine.io-parser', 'escape-html',
+        'encodeurl', 'engine.io', 'engine.io-parser', 'escalade', 'escape-html',
         'es-define-property', 'es-errors', 'es-object-atoms', 'etag', 'express',
         'finalhandler', 'find-up', 'forwarded', 'fresh', 'function-bind', 'get-caller-file',
         'get-intrinsic', 'get-proto', 'gopd', 'hasown', 'has-symbols', 'http-errors',
@@ -27,7 +27,7 @@ def bundledRuntimePackages = [
         'set-blocking', 'setprototypeof', 'side-channel', 'side-channel-list', 'side-channel-map',
         'side-channel-weakmap', 'socket.io', 'socket.io-adapter', 'socket.io-parser',
         'statuses', 'streamsearch', 'string_decoder', 'string-width', 'strip-ansi',
-        'toidentifier', 'typedarray', 'type-is', 'undici-types', 'unpipe',
+        'toidentifier', 'typedarray', 'type-is', 'undici', 'undici-types', 'unpipe',
         'util-deprecate', 'vary', 'which-module', 'wrap-ansi', 'wrappy', 'ws', 'y18n', 'yargs',
         'yargs-parser'
 ]
@@ -246,7 +246,7 @@ android {
         minSdk 23
         targetSdk 35
         versionCode 20106
-        versionName '2.1.6'
+        versionName '2.1.7'
 
         ndk {
             abiFilters 'arm64-v8a', 'armeabi-v7a', 'x86_64'
@@ -319,4 +319,3 @@ gradle.taskGraph.whenReady { graph ->
         throw new GradleException('A real SyncWatch同步观影 release keystore is required. Debug signing is never used for release APK/AAB artifacts.')
     }
 }
-

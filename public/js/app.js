@@ -21,7 +21,7 @@ try {
 const state = {
   socket: null, token: localStorage.getItem('syncwatchToken') || '', user: null,
   capabilities: { owner: false, serverHost: false, superAdmin: false }, permissions: { control: false, upload: true, delete: false, manageMedia: false, shareScreen: false, shareAudio: false, shareWeb: false, voiceChat: true, manageChat: false, manageRoom: false, sendNotice: false },
-  publicConfig: { version: 'v2.1.6', addresses: [], accessPasswordRequired: false, maxUploadBytes: 10 * 1024 * 1024 * 1024, uploadTimeLimitSeconds: 0, androidApkAvailable: false, clientDownloadAvailable: false, macServerDownloads: [], macClientDownloads: [], serverHostLoginAvailable: false, passwordRecoveryAvailable: false, registrationEmailVerificationRequired: false, emailBindingAvailable: false, lanAccessEnabled: true, defaultPlaybackQuality: 'original', experiencePerMinute: 1, passwordPolicy: { mode: 'unrestricted', minLength: 6, maxLength: 72, expiryDays: 7 }, roomIdPolicy: { enabled: false, mode: 'uppercase_alnum', minLength: 4, maxLength: 32, customPattern: '' }, contact: {}, legalAgreement: {}, branding: { owner: 'xuan', notice: '版权所有 © xuan，保留所有权利。' }, f11PromptEnabled: true, initialPasswordReminderEnabled: true, loginMusic: { enabled: false, showTitle: true, title: '', url: '', volume: 0.3, loop: true }, loginVideo: { enabled: false, url: '', originalName: '' }, loginCube: { displayMode: 'cube', rotationDirection: 'right', autoRotate: true, inertia: true, rotationSpeed: 16, faces: LOGIN_CUBE_FACE_DEFAULTS.map((face) => ({ ...face })), model: { url: '', originalName: '', size: 0, sha256: '' } } },
+  publicConfig: { version: 'v2.1.7', addresses: [], accessPasswordRequired: false, maxUploadBytes: 10 * 1024 * 1024 * 1024, uploadTimeLimitSeconds: 0, androidApkAvailable: false, clientDownloadAvailable: false, macServerDownloads: [], macClientDownloads: [], serverHostLoginAvailable: false, passwordRecoveryAvailable: false, registrationEmailVerificationRequired: false, emailBindingAvailable: false, lanAccessEnabled: true, defaultPlaybackQuality: 'original', experiencePerMinute: 1, passwordPolicy: { mode: 'unrestricted', minLength: 6, maxLength: 72, expiryDays: 7 }, roomIdPolicy: { enabled: false, mode: 'uppercase_alnum', minLength: 4, maxLength: 32, customPattern: '' }, contact: {}, legalAgreement: {}, branding: { owner: 'xuan', notice: '版权所有 © xuan，保留所有权利。' }, f11PromptEnabled: true, initialPasswordReminderEnabled: true, downloadButtonsVisible: true, loginMusic: { enabled: false, showTitle: true, title: '', url: '', volume: 0.3, loop: true }, loginVideo: { enabled: false, url: '', originalName: '' }, loginCube: { displayMode: 'cube', rotationDirection: 'right', autoRotate: true, inertia: true, rotationSpeed: 16, faces: LOGIN_CUBE_FACE_DEFAULTS.map((face) => ({ ...face })), model: { url: '', originalName: '', size: 0, sha256: '' } } },
   publicConfigKnown: false, publicConfigRetryTimer: null, roomInfoTimer: null, files: new Map(), users: [], room: null, queue: [], currentFile: null,
   applyingPlayback: false, pendingPlayback: null, playbackAnchor: null, playbackRevision: -1, syncSeekCooldownUntil: 0,
   expectedSeek: null, expectedPlaybackEvent: null, expectedVolume: null, mediaGeneration: 0,
@@ -253,7 +253,7 @@ filePanel userPanel mobileFilesBtn mobileUsersBtn fileInput folderInput chooseFi
  liveVoiceBar liveVoiceStatus voiceRoomBtn voicePrivateBtn voiceMuteBtn voiceLeaveBtn voiceAudioDock voiceDockToggleBtn liveVoiceFloating voiceFloatingStatus voiceFloatingMuteBtn voicePushToTalkBtn voiceFloatingLeaveBtn voiceFloatingCollapseBtn collapseMembersBtn
   authorizeLocationBtn revokeLocationBtn loginCubeScene loginCube loginCubeModel loginCubeDisplayMode loginCubeRotationDirection loginCubeSettingsCard loginCubeAutoRotate loginCubeInertia loginCubeRotationSpeed loginCubeRotationSpeedValue loginCubeSettingsGrid saveLoginCubeSettingsBtn resetLoginCubeSettingsBtn loginCubeSettingsStatus loginCubeModelFile uploadLoginCubeModelBtn deleteLoginCubeModelBtn loginCubeModelUploadProgress loginCubeModelStatus loginBackgroundVideo loginMusicNowPlaying loginMusicProgressShell loginMusicNowPlayingTitle loginMusicProgressPopover loginMusicProgress loginMusicTime loginMusicAudio
   usersTab adminTab defaultPasswordWarning managementAuth adminUsername adminPassword loadAdminBtn hostTunnelCard tunnelMode tunnelToken tunnelPublicUrl startTunnelBtn tunnelTutorialBtn tunnelNetworkRepairBtn tunnelBypassProxy tunnelAutoDiagnose stopTunnelBtn tunnelStatus copyTunnelUrlBtn openTunnelUrlBtn tunnelAutoStart saveTunnelStartupBtn tunnelStartupStatus requirePublicRoomPassword savePublicPasswordPolicyBtn publicPasswordPolicyStatus lanAccessCard lanAccessEnabled saveLanAccessBtn lanAccessStatus serverSettingsLoginBtn serverLogsCard refreshServerLogsBtn serverLogCategory serverLogLevel serverLogQuery serverLogList roomStorageCard roomStorageSummary pasteSwitchRoomIdBtn pasteSwitchRoomPasswordBtn clearWebShareBtn changeCurrentRoomIdBtn convertTemporaryRoomBtn
-  mailSettingsCard mailConfigurationBadge mailHost mailPort mailUser mailRecoveryEmail mailAuthCode mailFromEmail mailFromName mailUseTls mailSecure mailEnabled mailRegistrationVerification mailBindingVerification mailAccountRecovery mailAdminRecovery mailTutorialBtn mailTutorialPanel mailTemplateEvent mailTemplateLanguage mailTemplatePreset applyMailTemplatePresetBtn mailTemplateSubject mailTemplateHtml mailTemplatePreview mailTemplatePreviewSubject previewMailTemplateBtn restoreMailTemplateBtn mailTestTemplate mailTestRecipient saveMailSettingsBtn testConnectionBtn testMailConnectionBtn testMailSettingsBtn mailSettingsStatus refreshVerificationCodesBtn verificationCodeType verificationCodeStatus verificationCodeSearch verificationCodeSelectAll deleteSelectedVerificationCodesBtn verificationCodeList brandingSettingsCard brandingOwner brandingNotice saveBrandingBtn brandingStatus marqueeSettingsCard marqueeEnabled marqueeLoginEnabled marqueeTextInput marqueeColor marqueeSpeed marqueeScope saveMarqueeBtn marqueeStatus f11PromptGlobalEnabled initialPasswordReminderEnabled saveNoticePreferenceSettingsBtn loginMusicSettingsCard loginMusicEnabled loginMusicShowTitle loginMusicTitle loginMusicUrl loginMusicFile loginMusicVolume loginMusicVolumeText loginMusicLoop loginMusicPreview loginMusicUploadProgress loginMusicTrackList previewLoginMusicBtn saveLoginMusicBtn removeLoginMusicBtn loginMusicStatus loginVideoSettingsCard loginVideoEnabled loginVideoFile loginVideoPreview loginVideoUploadProgress saveLoginVideoBtn removeLoginVideoBtn loginVideoStatus roomEntryNoticeSettingsCard roomEntryNoticeScope roomEntryNoticeEnabled roomEntryNoticeText saveRoomEntryNoticeBtn resetRoomEntryNoticeBtn roomEntryNoticeStatus
+  mailSettingsCard mailConfigurationBadge mailHost mailPort mailUser mailRecoveryEmail mailAuthCode mailFromEmail mailFromName mailUseTls mailSecure mailEnabled mailRegistrationVerification mailBindingVerification mailAccountRecovery mailAdminRecovery mailTutorialBtn mailTutorialPanel mailTemplateEvent mailTemplateLanguage mailTemplatePreset applyMailTemplatePresetBtn mailTemplateSubject mailTemplateHtml mailTemplatePreview mailTemplatePreviewSubject previewMailTemplateBtn restoreMailTemplateBtn mailTestTemplate mailTestRecipient saveMailSettingsBtn testConnectionBtn testMailConnectionBtn testMailSettingsBtn mailSettingsStatus refreshVerificationCodesBtn verificationCodeType verificationCodeStatus verificationCodeSearch verificationCodeSelectAll deleteSelectedVerificationCodesBtn verificationCodeList brandingSettingsCard brandingOwner brandingNotice saveBrandingBtn brandingStatus marqueeSettingsCard marqueeEnabled marqueeLoginEnabled marqueeTextInput marqueeColor marqueeSpeed marqueeScope saveMarqueeBtn marqueeStatus f11PromptGlobalEnabled initialPasswordReminderEnabled downloadButtonsVisible saveNoticePreferenceSettingsBtn loginMusicSettingsCard loginMusicEnabled loginMusicShowTitle loginMusicTitle loginMusicUrl loginMusicFile loginMusicVolume loginMusicVolumeText loginMusicLoop loginMusicPreview loginMusicUploadProgress loginMusicTrackList previewLoginMusicBtn saveLoginMusicBtn removeLoginMusicBtn loginMusicStatus loginVideoSettingsCard loginVideoEnabled loginVideoFile loginVideoPreview loginVideoUploadProgress saveLoginVideoBtn removeLoginVideoBtn loginVideoStatus roomEntryNoticeSettingsCard roomEntryNoticeScope roomEntryNoticeEnabled roomEntryNoticeText saveRoomEntryNoticeBtn resetRoomEntryNoticeBtn roomEntryNoticeStatus
  roomNameInput maxUsersInput uploadApprovalToggle roomAllowGuests saveRoomBtn uploadLimitMb uploadTimeLimit saveUploadLimitsBtn permissionUser permissionGroup permAdministrator permControl permUpload permDelete permShareScreen permShareAudio permShareWeb permVoiceChat permManageChat permManageRoom permSendNotice savePermissionsBtn
  permissionGroupList permissionGroupEditor permissionGroupId permissionGroupName groupPermControl groupPermUpload groupPermDelete groupPermShareScreen groupPermShareAudio groupPermShareWeb groupPermVoiceChat groupPermManageChat groupPermManageRoom groupPermSendNotice newPermissionGroupBtn cancelPermissionGroupBtn savePermissionGroupBtn dataBackupScopes
  pendingList refreshPendingBtn applicationRefreshCard refreshAllApplicationsBtn applicationRefreshStatus accountAdminList refreshAccountsBtn accountViewMode registrationRequestList refreshRegistrationBtn registrationViewMode roomQuotaRequestList refreshRoomQuotaBtn registrationWhitelistInput registrationWhitelistList addRegistrationWhitelistBtn accessPassword setAccessPasswordBtn dissolveRoomCard dissolveRoomBtn newAdminPassword changeAdminPasswordBtn blacklistContent refreshBlacklistBtn
@@ -842,7 +842,8 @@ async function saveServerNoticePreferences() {
   if (!state.adminSettings?.serverAdmin) return;
   const settings = {
     f11PromptEnabled: elements.f11PromptGlobalEnabled?.checked !== false,
-    initialPasswordReminderEnabled: elements.initialPasswordReminderEnabled?.checked !== false
+    initialPasswordReminderEnabled: elements.initialPasswordReminderEnabled?.checked !== false,
+    downloadButtonsVisible: elements.downloadButtonsVisible?.checked !== false
   };
   const result = await adminAction('set-notice-preferences', settings);
   const status = elements.noticePreferenceSettingsStatus;
@@ -1624,6 +1625,7 @@ function bindUiEvents() {
   elements.saveNoticePreferenceSettingsBtn?.addEventListener('click', saveServerNoticePreferences);
   elements.f11PromptGlobalEnabled?.addEventListener('change', saveServerNoticePreferences);
   elements.initialPasswordReminderEnabled?.addEventListener('change', saveServerNoticePreferences);
+  elements.downloadButtonsVisible?.addEventListener('change', saveServerNoticePreferences);
   elements.refreshAllApplicationsBtn?.addEventListener('click', refreshAllApplications);
   elements.saveRoomEntryNoticeBtn?.addEventListener('click', saveRoomEntryNoticeSettings);
   elements.roomEntryNoticeScope?.addEventListener('change', renderRoomEntryNoticeEditor);
@@ -2264,6 +2266,11 @@ function connectSocket() {
       if (state.adminSettings) state.adminSettings.lanAccessEnabled = policy.lanAccessEnabled !== false;
       renderLanAccessSetting(policy.lanAccessEnabled !== false);
     }
+    applyPublicConfig();
+  });
+  state.socket.on('notice-preferences-updated', (preferences = {}) => {
+    state.publicConfig = { ...state.publicConfig, ...preferences };
+    if (state.adminSettings) Object.assign(state.adminSettings, preferences);
     applyPublicConfig();
   });
   state.socket.on('mail-policy-updated', (policy = {}) => {
@@ -3858,7 +3865,7 @@ async function finishAuthentication(result, remember, reconnecting = false) {
   elements.accountName.textContent = state.user.displayName || state.user.username; elements.logoutBtn.classList.remove('is-hidden');
   updateGuestConversionAccess();
   elements.newRoomBtn?.classList.remove('is-hidden'); elements.switchRoomBtn?.classList.remove('is-hidden'); elements.lanScanBtn?.classList.remove('is-hidden'); elements.webShareBtn?.classList.remove('is-hidden');
-  elements.androidApkBtn?.classList.toggle('is-hidden', !state.publicConfig.androidApkAvailable);
+  elements.androidApkBtn?.classList.toggle('is-hidden', state.publicConfig.downloadButtonsVisible === false || !state.publicConfig.androidApkAvailable);
   elements.hostTunnelCard.classList.toggle('is-hidden', !(state.capabilities.serverHost || state.capabilities.superAdmin));
   elements.ownerControls.classList.toggle('is-hidden', !(state.capabilities.owner || state.capabilities.superAdmin));
   elements.dissolveRoomCard?.classList.toggle('is-hidden', !state.capabilities.owner);
@@ -4192,10 +4199,10 @@ async function loadPublicConfig(silent = false) {
 }
 
 function applyPublicConfig() {
-  elements.versionText.textContent = state.publicConfig.version || 'v2.1.6';
+  elements.versionText.textContent = state.publicConfig.version || 'v2.1.7';
   const branding = state.publicConfig.branding || {};
   if (elements.copyrightNotice) elements.copyrightNotice.textContent = branding.notice || `版权所有 © ${branding.owner || 'xuan'}，保留所有权利。`;
-  if (elements.loginVersionInfo) elements.loginVersionInfo.textContent = `版本 ${state.publicConfig.version || 'v2.1.6'} · ${branding.notice || `版权所有 © ${branding.owner || 'xuan'}，保留所有权利。`}`;
+  if (elements.loginVersionInfo) elements.loginVersionInfo.textContent = `版本 ${state.publicConfig.version || 'v2.1.7'} · ${branding.notice || `版权所有 © ${branding.owner || 'xuan'}，保留所有权利。`}`;
   applyLoginMarquee(state.publicConfig.marqueeNotice || {});
   applyLoginMusic(state.publicConfig.loginMusic || {});
   applyLoginVideo(state.publicConfig.loginVideo || {});
@@ -4213,7 +4220,8 @@ function applyPublicConfig() {
     elements.regEmail.placeholder = registrationEmailRequired ? '必填，需先获取验证码' : '选填；填写后必须输入邮箱验证码';
   }
   updateRegistrationEmailVerificationRequirement();
-  elements.androidApkBtn?.classList.toggle('is-hidden', !state.authenticated || !state.publicConfig.androidApkAvailable);
+  const showDownloads = state.publicConfig.downloadButtonsVisible !== false;
+  elements.androidApkBtn?.classList.toggle('is-hidden', !showDownloads || !state.authenticated || !state.publicConfig.androidApkAvailable);
   elements.aiWorkbenchBtn?.classList.toggle('is-hidden', !state.authenticated);
   elements.serverAdminLoginBtn?.classList.toggle('is-hidden', !state.publicConfig.serverHostLoginAvailable || state.authenticated);
   const canManageServer = Boolean(state.authenticated && (state.capabilities.serverHost || state.capabilities.superAdmin));
@@ -4221,13 +4229,13 @@ function applyPublicConfig() {
   elements.serverSettingsLoginBtn?.classList.toggle('is-hidden', state.authenticated && !canManageServer);
   elements.resetAdminPasswordBtn?.classList.toggle('is-hidden', !serverMenu);
   elements.restartServerBtn?.classList.toggle('is-hidden', !canManageServer);
-  elements.downloadClientBtn?.classList.toggle('is-hidden', state.authenticated);
+  elements.downloadClientBtn?.classList.toggle('is-hidden', !showDownloads || state.authenticated);
   if (elements.downloadClientBtn) {
     elements.downloadClientBtn.title = state.publicConfig.clientDownloadAvailable ? '下载 Windows 服务器客户端' : '当前服务器尚未提供 Windows 客户端文件';
     elements.downloadClientBtn.dataset.available = String(Boolean(state.publicConfig.clientDownloadAvailable));
   }
-  elements.downloadClientMainBtn?.classList.toggle('is-hidden', !state.authenticated || !state.publicConfig.clientDownloadAvailable);
-  elements.downloadLoginApkBtn?.classList.toggle('is-hidden', state.authenticated);
+  elements.downloadClientMainBtn?.classList.toggle('is-hidden', !showDownloads || !state.authenticated || !state.publicConfig.clientDownloadAvailable);
+  elements.downloadLoginApkBtn?.classList.toggle('is-hidden', !showDownloads || state.authenticated);
   if (elements.downloadLoginApkBtn) {
     elements.downloadLoginApkBtn.title = state.publicConfig.androidApkAvailable ? '下载 Android 客户端' : '当前服务器尚未提供 Android 安装包';
     elements.downloadLoginApkBtn.dataset.available = String(Boolean(state.publicConfig.androidApkAvailable));
@@ -4235,12 +4243,14 @@ function applyPublicConfig() {
   const macServerEntries = macDownloadEntries('server');
   const macClientEntries = macDownloadEntries('client');
   for (const button of [elements.downloadMacServerBtn, elements.downloadMacServerMainBtn]) if (button) {
+    button.classList.toggle('is-hidden', !showDownloads || (button === elements.downloadMacServerMainBtn && !state.authenticated));
     button.dataset.available = String(macServerEntries.length > 0);
     button.title = macServerEntries.length
       ? macServerEntries.map((entry) => `${macArchitectureLabel(entry.architecture)} ${entry.formats.map((format) => format.toUpperCase()).join('/')}`).join('；')
       : '当前服务器尚未上传 macOS 服务器真实安装包';
   }
   for (const button of [elements.downloadMacClientBtn, elements.downloadMacClientMainBtn]) if (button) {
+    button.classList.toggle('is-hidden', !showDownloads || (button === elements.downloadMacClientMainBtn && !state.authenticated));
     button.dataset.available = String(macClientEntries.length > 0);
     button.title = macClientEntries.length
       ? macClientEntries.map((entry) => `${macArchitectureLabel(entry.architecture)} ${entry.formats.map((format) => format.toUpperCase()).join('/')}`).join('；')
@@ -4689,7 +4699,7 @@ async function downloadAndroidApk() {
   if (window.SyncWatchAndroid) {
     const link = document.createElement('a');
     link.href = new URL('/api/android-apk', location.href).href;
-    link.download = 'SyncWatch同步观影-v2.1.6.apk';
+    link.download = 'SyncWatch同步观影-v2.1.7.apk';
     link.rel = 'noopener'; document.body.appendChild(link); link.click(); link.remove();
     toast('已交给安卓下载管理器处理', 'success');
     return;
@@ -4706,7 +4716,7 @@ async function downloadAndroidApk() {
     const blob = await response.blob();
     if (!blob.size) throw new Error('服务器返回的安装包为空');
     const url = URL.createObjectURL(blob); const link = document.createElement('a');
-    link.href = url; link.download = 'SyncWatch同步观影-v2.1.6.apk';
+    link.href = url; link.download = 'SyncWatch同步观影-v2.1.7.apk';
     document.body.appendChild(link); link.click(); link.remove(); setTimeout(() => URL.revokeObjectURL(url), 60000);
     toast('安卓安装包已开始下载', 'success');
   } catch (error) { toast(`安卓安装包下载失败：${localizedError(error, '请稍后重试')}`, 'error'); }
@@ -5253,7 +5263,7 @@ async function batchDeleteManagedVideos() {
 
 function exportVideoManagement() {
   const files = manageableMediaFiles().map((file) => ({ id: file.id, originalName: file.originalName, collection: fileCollectionName(file), note: file.note || '', uploadedAt: file.uploadedAt, size: file.size }));
-  downloadJsonFile(`SyncWatch同步观影-影片管理-${new Date().toISOString().slice(0, 10)}.json`, { version: '2.1.6', type: 'syncwatch-media-management', files });
+  downloadJsonFile(`SyncWatch同步观影-影片管理-${new Date().toISOString().slice(0, 10)}.json`, { version: '2.1.7', type: 'syncwatch-media-management', files });
 }
 
 async function importVideoManagement() {
@@ -10163,6 +10173,9 @@ async function loadAdminSettings({ silent = false } = {}) {
     elements.brandingOwner.value = branding.owner || 'xuan';
     elements.brandingNotice.value = branding.notice || `版权所有 © ${branding.owner || 'xuan'}，保留所有权利。`;
     elements.brandingStatus.textContent = '当前版权信息已同步到所有访问端';
+    if (elements.f11PromptGlobalEnabled) elements.f11PromptGlobalEnabled.checked = result.admin.f11PromptEnabled !== false;
+    if (elements.initialPasswordReminderEnabled) elements.initialPasswordReminderEnabled.checked = result.admin.initialPasswordReminderEnabled !== false;
+    if (elements.downloadButtonsVisible) elements.downloadButtonsVisible.checked = result.admin.downloadButtonsVisible !== false;
     const loginCube = result.admin.loginCube || state.publicConfig.loginCube || {};
     state.publicConfig.loginCube = normalizeClientLoginCube(loginCube);
     renderLoginCubeSettings(state.publicConfig.loginCube);
@@ -10192,7 +10205,7 @@ async function loadAdminSettings({ silent = false } = {}) {
     elements.adminContactWechat.value = contact.wechat || ''; elements.adminContactEmail.value = contact.email || '';
     elements.adminContactPhone.value = contact.phone || ''; elements.adminContactNote.value = contact.note || '';
     const agreement = result.admin.legalAgreement || state.publicConfig.legalAgreement || {};
-    elements.legalAgreementVersion.value = agreement.version || '2.1.6'; elements.legalAgreementTitle.value = agreement.title || '';
+    elements.legalAgreementVersion.value = agreement.version || '2.1.7'; elements.legalAgreementTitle.value = agreement.title || '';
     elements.legalAgreementText.value = agreement.text || '';
     const marquee = result.admin.marqueeNotice || {};
     elements.marqueeEnabled.checked = Boolean(marquee.enabled);
@@ -10989,7 +11002,7 @@ async function exportServerData() {
   try {
     const response = await fetchWithTimeout(`/api/host/data/export?scopes=${encodeURIComponent(scopes.join(','))}${includesMedia ? '&format=binary' : ''}`, { headers: authHeaders() }, includesMedia ? 30 * 60 * 1000 : 2 * 60 * 1000);
     if (!response.ok) throw new Error((await response.text()) || `导出失败（${response.status}）`);
-    const blob = await readBackupResponseWithProgress(response); const link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = `SyncWatch同步观影-v2.1.6-${scope}-${new Date().toISOString().slice(0, 10)}.${includesMedia ? 'swbackup' : 'json'}`; document.body.appendChild(link); link.click(); link.remove(); setTimeout(() => URL.revokeObjectURL(link.href), 60000);
+    const blob = await readBackupResponseWithProgress(response); const link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = `SyncWatch同步观影-v2.1.7-${scope}-${new Date().toISOString().slice(0, 10)}.${includesMedia ? 'swbackup' : 'json'}`; document.body.appendChild(link); link.click(); link.remove(); setTimeout(() => URL.revokeObjectURL(link.href), 60000);
     elements.dataBackupStatus.textContent = '备份已生成并下载'; toast('数据备份已导出', 'success');
   } catch (error) { elements.dataBackupStatus.textContent = localizedError(error, '导出备份失败'); updateBackupExportProgress({ label: '备份导出失败', failed: true }); if (elements.dataBackupProgressDetail) elements.dataBackupProgressDetail.textContent = elements.dataBackupStatus.textContent; toast(elements.dataBackupStatus.textContent, 'error'); }
   finally { elements.exportDataBtn.disabled = false; }
@@ -13099,7 +13112,7 @@ async function profileDeleteSelected(kind) {
 
 function exportProfileCollection(kind) {
   const p = state.profile || {}; const data = kind === 'room' ? p.recentRooms : kind === 'favorites' ? p.favoriteFiles : kind === 'history' ? p.history : p.myFiles;
-  downloadJsonFile(`SyncWatch同步观影-${kind}-${new Date().toISOString().slice(0, 10)}.json`, { type: `syncwatch-profile-${kind}`, version: '2.1.6', data, meta: { favoriteMeta: p.favoriteMeta, roomMeta: p.roomMeta } });
+  downloadJsonFile(`SyncWatch同步观影-${kind}-${new Date().toISOString().slice(0, 10)}.json`, { type: `syncwatch-profile-${kind}`, version: '2.1.7', data, meta: { favoriteMeta: p.favoriteMeta, roomMeta: p.roomMeta } });
 }
 
 async function importProfileCollection(kind, file) {
@@ -13285,4 +13298,3 @@ function toastWithActions(message, actions = [], duration = 8000, type = '') {
   close.addEventListener('click', () => dismissToast(item)); item.appendChild(close); elements.toastRegion.appendChild(item); updateClearAllToastsVisibility();
   scheduleToastDismiss(item, duration); return item;
 }
-

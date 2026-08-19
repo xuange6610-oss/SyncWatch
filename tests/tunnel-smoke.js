@@ -373,9 +373,11 @@ app.whenReady().then(async () => {
     '运行时 cloudflared 没有优先复用安装包内置副本');
   assert.ok(fs.existsSync(verificationMarker), 'cloudflared 验签后没有写入复用标记');
   if (status.startsWith('运行异常：')) {
+    const failedStatus = await window.webContents.executeJavaScript(`fetch('/api/host/tunnel/status', { headers: authHeaders() })
+      .then(response => response.json()).then(result => result.status).catch(error => ({ diagnosticError: error.message }))`, true);
     const externalFailure = /超时|检查网络|下载 cloudflared|签名|连接|网络|cloudflared 已退出/i.test(status);
     assert.equal(externalFailure, true, `公网隧道出现非网络类启动异常：${status}`);
-    console.log(`⚠ 已跳过 Cloudflare 公网媒体与共享画面验收：当前网络无法建立 Quick Tunnel（${status}）；本地代理、WebSocket、Polling、Range 与媒体兼容测试仍由其他回归用例强制验证。`);
+    console.log(`⚠ 已跳过 Cloudflare 公网媒体与共享画面验收：当前网络无法建立 Quick Tunnel（${status}）；诊断=${JSON.stringify(failedStatus)}；本地代理、WebSocket、Polling、Range 与媒体兼容测试仍由其他回归用例强制验证。`);
     app.quit();
     return;
   }

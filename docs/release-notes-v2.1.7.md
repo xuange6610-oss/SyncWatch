@@ -1,0 +1,133 @@
+# SyncWatch同步观影 v2.1.7
+
+和朋友、家人、情侣远程一起看电影。v2.1.7 提供 Windows 一键安装/便携运行、Android、独立服务器，以及由真实 macOS runner 构建的 Intel / Apple Silicon 包。
+
+> 第一次使用请立即修改默认管理员密码，并先在局域网完成连接测试，再开启公网访问。
+
+| 下载文件 | 版本标识 | 最适合谁 | 一句话说明 |
+| --- | --- | --- | --- |
+| [`SyncWatch-Experience-Client-Portable-v2.1.7-x64.exe`](https://github.com/xuange6610-oss/SyncWatch/releases/download/2.1.7/SyncWatch-Experience-Client-Portable-v2.1.7-x64.exe) | 体验版 | Windows 普通成员 | 连接已有服务器，不在本机启动服务端 |
+| [`SyncWatch-Standard-Server-Portable-v2.1.7-x64.exe`](https://github.com/xuange6610-oss/SyncWatch/releases/download/2.1.7/SyncWatch-Standard-Server-Portable-v2.1.7-x64.exe) | 标准版 | 不想安装的 Windows 房主 | 内置运行环境和 cloudflared，绿色便携运行 |
+| [`SyncWatch-v2.1.7-Full-Offline-Installer-x64.exe`](https://github.com/xuange6610-oss/SyncWatch/releases/download/2.1.7/SyncWatch-v2.1.7-Full-Offline-Installer-x64.exe) | 完整版 | 需要离线全平台下载中心的 Windows 房主 | 安装向导、完整服务器运行时，并离线内嵌 Windows、Android 与 macOS 发布文件 |
+
+## v2.1.7 更新公告
+
+### 公网访问稳定性
+
+- 修复 Cloudflare 临时地址连续尝试三种连接方式仍超时的问题。原来的回退路径仍强制绕过系统代理，导致 VPN、TUN、PAC 或必须经过代理的家庭网络无法建立 Quick Tunnel。
+- 新增真正独立的系统网络回退策略：最后一次尝试恢复系统代理路由，不再把公网验证固定到物理网卡。
+- Node.js 网络探测新增 `HTTP_PROXY`、`HTTPS_PROXY` 和 `ALL_PROXY` 支持；Electron 环境优先复用操作系统网络设置。
+- 公网 URL 验证与 cloudflared 边缘连接解耦，避免本地验证策略反过来阻断已经建立的 Tunnel。
+- 实际公网回归覆盖 HTTPS、双客户端、40 次连续拖动中止、地址稳定性、H.264 播放和共享画面。
+
+### Windows 三种发布版本
+
+- **体验版**只保留加入现有服务器所需的 Windows 客户端，适合普通成员。
+- **标准版**是绿色便携服务器，内置 Electron/Node.js 运行时、FFmpeg、FFprobe 和 cloudflared，下载后直接双击。
+- **完整版**改为超过 1 GB 的离线安装程序，除完整 Windows 服务端外，还真实内嵌 Windows 客户端、Android 通用 APK、macOS Intel/Apple Silicon 的服务器和客户端 ZIP。
+- 完整版安装后，房主启动一个 EXE 即可通过登录页或账号菜单向不同设备分发客户端，不需要临时再从 GitHub 拉取这些文件。
+- 新增离线资源清单和最小体积校验；缺少任意平台文件、文件异常偏小或安装包达到 GitHub 2 GiB 上限时，发布流程会直接失败。
+
+### 下载入口管理
+
+- 管理中心的“通知/通告设置”新增“显示 Windows、Android 和 macOS 下载入口”。
+- 关闭后同时隐藏登录页和登录后的 Windows 客户端、Android 客户端、macOS 服务器、macOS 客户端入口，共八个按钮。
+- 设置持久保存到服务器，并通过 Socket.IO 实时同步给已在线用户；重新开启后无需重启服务器即可恢复。
+- 该设置只控制界面入口，不会删除完整版内嵌的离线文件。
+
+### 文档与发布规范
+
+- 应用、协议、下载路由、备份文件名、Android、macOS、Windows 构建和测试统一升级为 `2.1.7`。
+- README、GitHub Pages、发布文件地图、运行环境教程和 Wiki 源文档补充版本选择、离线完整版结构、cloudflared/Node.js 安装与常见错误。
+- Release 说明中的成品文件改为直接下载链接，并明确体验版、标准版、完整版的用途和边界。
+- 发布前继续执行隐私扫描，禁止发布包出现私人姓名；产品作者字段统一使用 `xuan`。
+
+## 普通用户怎么选
+
+### 体验版
+
+- **在线展示**：直接打开 [GitHub Pages](https://xuange6610-oss.github.io/SyncWatch/)，查看真实界面、功能截图和逐步教程。它是静态展示，不运行真实服务器。
+- **Windows 客户端**：[`SyncWatch-Experience-Client-Portable-v2.1.7-x64.exe`](https://github.com/xuange6610-oss/SyncWatch/releases/download/2.1.7/SyncWatch-Experience-Client-Portable-v2.1.7-x64.exe)。适合成员连接已经运行的服务器，不在本机启动服务端。
+
+### 标准版
+
+- **Windows 离线完整版**：[`SyncWatch-v2.1.7-Full-Offline-Installer-x64.exe`](https://github.com/xuange6610-oss/SyncWatch/releases/download/2.1.7/SyncWatch-v2.1.7-Full-Offline-Installer-x64.exe)。安装、卸载、桌面快捷方式、开始菜单和安装后启动；安装后登录页可直接下载内嵌的各平台文件。
+- **Windows 绿色标准版**：[`SyncWatch-Standard-Server-Portable-v2.1.7-x64.exe`](https://github.com/xuange6610-oss/SyncWatch/releases/download/2.1.7/SyncWatch-Standard-Server-Portable-v2.1.7-x64.exe)。双击即用，不需要 Git、Node.js 或 npm。
+- **Android 完整 APK**：[`SyncWatch-Android-v2.1.7-universal.apk`](https://github.com/xuange6610-oss/SyncWatch/releases/download/2.1.7/SyncWatch-Android-v2.1.7-universal.apk)。可加入房间；受支持设备可运行手机服务器。
+- **独立服务器 ZIP**：[`SyncWatch-Standalone-Server-v2.1.7.zip`](https://github.com/xuange6610-oss/SyncWatch/releases/download/2.1.7/SyncWatch-Standalone-Server-v2.1.7.zip)。适合 Node.js、Linux、Windows Server 或 Docker 长期部署。
+
+### 跨平台完整套装
+
+完整版把各平台已经真实构建的安装文件作为离线下载资源装进 Windows EXE。它不会在 Windows 上运行 APK 或 macOS ZIP，而是让房主启动 SyncWatch 后，成员从登录页或账号菜单直接下载适合自己设备的文件：
+
+1. 房主下载 Windows/macOS 服务器包或独立服务器 ZIP。
+2. Windows 成员下载客户端 EXE。
+3. Android 成员下载通用 APK。
+4. Mac 成员按 Intel x64 / Apple Silicon arm64 下载客户端。
+5. 临时公网访问所需 cloudflared 已内置在正式服务器包，也提供独立工具供管理员手工部署。
+
+内嵌资源包括 Windows 客户端、Android 通用 APK、macOS 服务器 x64/arm64 ZIP、macOS 客户端 x64/arm64 ZIP，以及服务器运行所需的 cloudflared。所有文件都是真实发布资产，不使用填充文件。管理员可在“管理中心 → 通知/通告设置”关闭“显示 Windows、Android 和 macOS 下载入口”，一次隐藏登录页和账号菜单中的全部平台下载按钮；关闭只隐藏入口，不删除离线文件。
+
+## 一键运行包含什么
+
+Windows 正式服务器包内置 Electron/Node.js 运行时、应用前后端、生产依赖、Socket.IO、FFmpeg、FFprobe 和 Windows cloudflared。启动时会初始化数据目录、读取配置、检测端口、启动 HTTP/WebSocket 服务、显示启动状态并打开 Electron 界面。
+
+同一数据目录只允许一个实例写入。连续双击时会显示已运行实例的聚焦/安全退出操作，不会启动两个服务写坏数据。不同目录仍可运行互相隔离的服务器。
+
+## macOS
+
+macOS 服务器/客户端各提供：
+
+- Intel 客户端：[DMG](https://github.com/xuange6610-oss/SyncWatch/releases/download/2.1.7/SyncWatch-Client-macOS-v2.1.7-x64.dmg) / [ZIP](https://github.com/xuange6610-oss/SyncWatch/releases/download/2.1.7/SyncWatch-Client-macOS-v2.1.7-x64.zip)
+- Apple Silicon 客户端：[DMG](https://github.com/xuange6610-oss/SyncWatch/releases/download/2.1.7/SyncWatch-Client-macOS-v2.1.7-arm64.dmg) / [ZIP](https://github.com/xuange6610-oss/SyncWatch/releases/download/2.1.7/SyncWatch-Client-macOS-v2.1.7-arm64.zip)
+- Intel 服务器：[DMG](https://github.com/xuange6610-oss/SyncWatch/releases/download/2.1.7/SyncWatch-Server-macOS-v2.1.7-x64.dmg) / [ZIP](https://github.com/xuange6610-oss/SyncWatch/releases/download/2.1.7/SyncWatch-Server-macOS-v2.1.7-x64.zip)
+- Apple Silicon 服务器：[DMG](https://github.com/xuange6610-oss/SyncWatch/releases/download/2.1.7/SyncWatch-Server-macOS-v2.1.7-arm64.dmg) / [ZIP](https://github.com/xuange6610-oss/SyncWatch/releases/download/2.1.7/SyncWatch-Server-macOS-v2.1.7-arm64.zip)
+
+这些资产由 GitHub Actions 的真实 `macos-14` runner 构建并检查文件大小、SHA-256 和隐私字段。现代 macOS 不支持 32 位应用，因此不会提供虚假的 macOS 32 位包。
+
+## 架构支持边界
+
+- Windows 正式桌面包：x64。当前 Electron 41 和媒体工具发布链不提供可完整验证的 Windows 32 位组合。
+- Android：通用 APK 包含 `armeabi-v7a`（32 位）、`arm64-v8a` 和 `x86_64`。
+- macOS：Intel x64 与 Apple Silicon arm64；无现代 macOS 32 位。
+- 独立服务端：以 Node.js 22+ 对目标系统和架构的官方支持为准。
+
+## cloudflared 独立工具
+
+- [`cloudflared-windows-x64.exe`](https://github.com/xuange6610-oss/SyncWatch/releases/download/2.1.7/cloudflared-windows-x64.exe)
+- [`cloudflared-macos-x64`](https://github.com/xuange6610-oss/SyncWatch/releases/download/2.1.7/cloudflared-macos-x64)
+- [`cloudflared-macos-arm64`](https://github.com/xuange6610-oss/SyncWatch/releases/download/2.1.7/cloudflared-macos-arm64)
+
+cloudflared 是 Cloudflare Tunnel 连接器，把本机 HTTP、Socket.IO 和媒体 Range 请求转发成 HTTPS 公网入口。它不保存 SyncWatch 的账号或影片。完整服务器包优先使用内置文件；独立工具仅供手工部署、诊断或修复。
+
+本次修复了“Cloudflare 临时地址接口连接超时”时三种策略实际都保持直连的问题。新版最后一次自动尝试会恢复系统网络/代理并取消物理网卡绑定。完整安装和排错步骤见 [cloudflared 与 Node.js 教程](https://github.com/xuange6610-oss/SyncWatch/blob/main/docs/runtime-installation.md)。
+
+## Node.js 官方环境包
+
+Node.js 只用于源码开发和独立服务端，Windows 正式 EXE 不需要另装 Node.js。本 Release 附带 Node.js 24.19.0 官方包：
+
+- [Windows x64 MSI](https://github.com/xuange6610-oss/SyncWatch/releases/download/2.1.7/node-v24.19.0-x64.msi)
+- [Windows arm64 MSI](https://github.com/xuange6610-oss/SyncWatch/releases/download/2.1.7/node-v24.19.0-arm64.msi)
+- [macOS x64 PKG](https://github.com/xuange6610-oss/SyncWatch/releases/download/2.1.7/node-v24.19.0-macos-x64.pkg)
+- [macOS arm64 TAR.GZ](https://github.com/xuange6610-oss/SyncWatch/releases/download/2.1.7/node-v24.19.0-darwin-arm64.tar.gz)
+
+安装后使用 `node --version` 和 `npm --version` 验证。来源为 [nodejs.org](https://nodejs.org/)，下载后请核对本页显示的 SHA-256。
+
+## 首次启动
+
+1. 下载与你的平台和角色匹配的文件。
+2. 双击 Windows 安装版/便携版，或安装 Android/macOS 包。
+3. 使用 `admin` / `admin888` 首次登录。
+4. 立即修改管理员密码。
+5. 创建带密码的房间，上传合法媒体并等待分析。
+6. 先用同一 Wi-Fi 的第二台设备验证同步播放。
+7. 需要异地连接时再开启 Cloudflare Tunnel 或自己的 HTTPS 域名。
+8. 结束后停止 Tunnel，并备份整个 `SyncWatch同步观影-Data/`。
+
+完整教程：[GitHub Pages](https://xuange6610-oss.github.io/SyncWatch/) · [仓库文档](https://github.com/xuange6610-oss/SyncWatch/tree/main/docs) · [Wiki](https://github.com/xuange6610-oss/SyncWatch/wiki)
+
+## 安全与许可
+
+本版本已通过仓库规范、隐私字段、桌面发布、Android 包、Cloudflared bundle 和核心集成检查。发布包未签署商业代码签名证书时，Windows/macOS 可能显示系统来源提示；请只从本 Release 下载并核对摘要。
+
+SyncWatch同步观影按 Apache-2.0 开源。原创项目设计和本仓库原始实现由 xuan 完成。再发布必须保留许可证、NOTICE 和适用的原始署名，标注修改，不得把原始项目或少量修改虚假宣称为自己的原创作品。

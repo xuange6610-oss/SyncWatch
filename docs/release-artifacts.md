@@ -6,8 +6,9 @@ GitHub Release 是给普通用户下载成品的地方；仓库首页的 `Source
 
 | 文件类型 | 文件名模式 | 谁下载 | 能做什么 | 注意事项 |
 | --- | --- | --- | --- | --- |
-| Windows 服务器 EXE | `SyncWatch同步观影-v版本.exe` | 房主、服务器管理员 | 启动完整服务器、管理房间、上传媒体和配置公网访问 | 当前构建为 Windows x64；首次登录后立即修改 `admin888` |
-| Windows 客户端 EXE | `SyncWatch同步观影-Client-v版本.exe` | 普通成员 | 输入服务器地址加入房间，不在本机运行服务器 | 当前构建为 Windows x64；需要房主先启动服务 |
+| Windows 体验版 | `SyncWatch-Experience-Client-Portable-v版本-x64.exe` | 普通成员 | 输入已有服务器地址加入房间，不在本机运行服务器 | 体积较小但不包含服务端；需要房主先启动服务 |
+| Windows 标准版 | `SyncWatch-Standard-Server-Portable-v版本-x64.exe` | 房主、服务器管理员 | 绿色便携运行，启动服务器、管理房间、上传媒体和配置公网访问 | 内置 Electron/Node、FFmpeg/FFprobe 和 cloudflared |
+| Windows 离线完整版 | `SyncWatch-v版本-Full-Offline-Installer-x64.exe` | 希望正常安装并给各平台成员分发客户端的房主 | 安装目录、快捷方式、卸载入口、完整 Windows 服务端和内嵌的 Windows/Android/macOS 下载文件 | 不需要另装 Node.js/cloudflared；文件超过 1 GB；首次登录立即修改 `admin888` |
 | Android APK | `SyncWatch同步观影-v版本.apk` | Android 用户 | 加入房间；支持的设备可以启动手机服务器 | 包含 `arm64-v8a`、`armeabi-v7a` 和 `x86_64` ABI |
 | 独立服务器 ZIP | `SyncWatch同步观影-Server-v版本.zip` | Windows/Linux/Docker 管理员 | 使用 Node.js、启动脚本或 Docker 长期部署 | 包含生产依赖、FFmpeg/FFprobe、cloudflared、客户端和 APK |
 | macOS 服务器 DMG/ZIP | `SyncWatch-Server-macOS-v版本-x64/arm64.*` | Mac 房主 | Intel 或 Apple Silicon 上运行服务器 | 必须由 macOS 主机或 macOS CI 生成，不能用 Windows 文件冒充 |
@@ -27,20 +28,22 @@ GitHub Release 是给普通用户下载成品的地方；仓库首页的 `Source
 在 Release 页面打开对应文件旁的 SHA-256 校验值，PowerShell 使用：
 
 ```powershell
-Get-FileHash .\SyncWatch同步观影-v2.1.6.exe -Algorithm SHA256
+Get-FileHash .\SyncWatch-v2.1.7-Full-Offline-Installer-x64.exe -Algorithm SHA256
 ```
 
 Linux/macOS 使用：
 
 ```bash
-shasum -a 256 SyncWatch同步观影-v2.1.6.apk
+shasum -a 256 SyncWatch同步观影-v2.1.7.apk
 ```
 
 如果哈希不同、文件大小为 0，或者文件名中的版本与 Release 不一致，请删除文件并重新下载。
 
-## 为什么不把所有平台塞进一个 EXE
+## 完整版为什么很大
 
-Windows、macOS、Android 的运行时、签名方式、CPU 架构和系统权限不同。服务器 EXE 不嵌入客户端 EXE、APK 或 macOS 文件，避免下载体积膨胀和错误启动；独立服务器 ZIP 才会按文档需要附带可下载的客户端和 APK。
+Windows、macOS、Android 的运行时、签名方式、CPU 架构和系统权限不同，不能互相运行。离线完整版不会把它们伪装成 Windows 功能，而是把真实构建的 Windows 客户端、Android APK、macOS x64/arm64 客户端与服务器 ZIP 作为本机下载资源保存。房主安装并启动后，成员通过登录页或账号菜单下载适合自己的文件，因此即使现场没有 GitHub 网络也能完成分发。标准版和体验版仍保持较小体积。
+
+cloudflared 与 Node.js 的区别、官方地址、安装步骤和命令示例见 [cloudflared 与 Node.js 安装使用教程](runtime-installation.md)。
 
 ## Release 备注应包含的内容
 

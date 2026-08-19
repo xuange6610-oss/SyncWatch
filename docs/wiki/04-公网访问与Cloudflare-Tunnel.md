@@ -16,4 +16,8 @@
 
 ## 连接失败
 
-允许 cloudflared 出站访问 TCP/UDP 443、7844；VPN/TUN 或 Fake-IP DNS 可能拦截连接，建议对 cloudflared 和 Cloudflare 域名设置直连。完整错误、平台和时间应从日志中心导出并脱敏。
+新版依次尝试 DoH Edge 直连、HTTP/2 自动出口和系统网络回退。系统网络回退会恢复代理环境并取消物理网卡绑定，用于处理 `api.trycloudflare.com` 只有经过系统代理才能访问的网络。
+
+允许 cloudflared 出站访问 TCP 443、TCP 7844 和 UDP 7844；VPN/TUN 或 Fake-IP DNS 可能拦截连接，建议对 cloudflared 和 Cloudflare 域名设置直连。必须经过代理时取消“绕过系统代理”，再运行“网络诊断与修复”。完整错误、平台和时间应从日志中心导出并脱敏。
+
+完整安装和命令示例见 [cloudflared 与 Node.js 安装使用](10-Cloudflared与Node安装)。

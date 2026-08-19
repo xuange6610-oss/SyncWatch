@@ -10,6 +10,7 @@ const json = (relative) => JSON.parse(read(relative));
 
 const manifest = json('package.json');
 const clientConfig = json('electron-builder-client.json');
+const fullInstallerConfig = json('electron-builder-windows-installer.json');
 const macClientConfig = json('electron-builder-mac-client.json');
 const macServerConfig = json('electron-builder-mac-server.json');
 const electronServer = read('electron-pink.js');
@@ -17,6 +18,7 @@ const electronClient = read('electron-client.js');
 const clientPreload = read('electron-client-preload.js');
 const launcher = read('client-launcher.html');
 const macReleaseWorkflow = read('.github/workflows/release-macos.yml');
+const windowsReleaseWorkflow = read('.github/workflows/release-windows.yml');
 const windowsBuildPath = path.join(root, 'build-windows.ps1');
 const windowsBuildBytes = fs.readFileSync(windowsBuildPath);
 const windowsBuild = windowsBuildBytes.toString('utf8').replace(/^\uFEFF/, '');
@@ -77,8 +79,9 @@ for (const rendererResource of ['public/vendor/three/three.min.js', 'public/vend
   assert.ok(macClientConfig.files.includes(rendererResource), `macOS client must package ${rendererResource}`);
 }
 
-// The main desktop executable contains only its Windows server runtime. Large
-// client, Android and macOS downloads are released beside it, never inside it.
+// The Standard portable executable contains only its Windows server runtime.
+// The explicitly named Full offline installer is a separate configuration and
+// embeds real platform downloads under resources/offline-downloads.
 const mainFiles = manifest.build.files.map(String);
 const mainUnpacked = (manifest.build.asarUnpack || []).map(String);
 const mainResources = (manifest.build.extraResources || []).map((entry) => String(entry.from || ''));
@@ -87,7 +90,7 @@ for (const required of [
   'server/index.js', 'server/ai-relay.js', 'public/**/*', 'package.json'
 ]) assert.ok(mainFiles.includes(required), `main desktop package missing ${required}`);
 for (const value of [...mainFiles, ...mainUnpacked, ...mainResources]) {
-  assert.doesNotMatch(value, /(^|[\\/])(?:mobile|mac)(?:[\\/]|$)|SyncWatch同步观影-Client-v2\.1\.6\.exe/i,
+  assert.doesNotMatch(value, /(^|[\\/])(?:mobile|mac)(?:[\\/]|$)|SyncWatch同步观影-Client-v2\.1\.7\.exe/i,
     `main desktop package embeds a separately released payload: ${value}`);
 }
 assert.match(windowsBuild, /release[\\/]windows-server/i);
@@ -97,11 +100,19 @@ assert.match(windowsBuild, /release[\\/]macos/i);
 assert.match(windowsBuild, /release[\\/]server-deployment/i);
 assert.doesNotMatch(windowsBuild, /win-unpacked\\resources\\mac/);
 assert.doesNotMatch(windowsBuild, /app\.asar\.unpacked\\mobile/);
+const fullResources = (fullInstallerConfig.extraResources || []).map((entry) => `${entry.from || ''} -> ${entry.to || ''}`);
+for (const directory of ['release/offline-bundle/windows', 'release/offline-bundle/android', 'release/offline-bundle/mac']) {
+  assert.ok(fullResources.some((entry) => entry.includes(directory)), `Full installer must embed ${directory}`);
+}
+assert.equal(fullInstallerConfig.nsis.artifactName, 'SyncWatch-v2.1.7-Full-Offline-Installer-${arch}.exe');
+assert.match(electronServer, /offline-downloads['"], ['"]windows/);
+assert.match(electronServer, /offline-downloads['"], ['"]android/);
+assert.match(electronServer, /offline-downloads['"], ['"]mac/);
 
 // The deployable server ZIP remains a separate offline artifact and is still
 // built after the two Windows executables have passed their own checks.
 assert.match(windowsBuild, /build-server-package\.ps1/);
-assert.match(windowsBuild, /SyncWatch同步观影-Client-v2\.1\.6\.exe/);
+assert.match(windowsBuild, /SyncWatch同步观影-Client-v2\.1\.7\.exe/);
 assert.match(windowsBuild, /SyncWatch同步观影-Server-v/i);
 
 // GitHub strips some non-ASCII characters from uploaded asset names. Keep the
@@ -115,5 +126,13 @@ for (const arch of ['x64', 'arm64']) {
 }
 assert.match(macReleaseWorkflow, /release_role="Client"/);
 assert.match(macReleaseWorkflow, /release_role="Server"/);
+for (const publicName of [
+  'SyncWatch-Experience-Client-Portable-v2.1.7-x64.exe',
+  'SyncWatch-Standard-Server-Portable-v2.1.7-x64.exe',
+  'SyncWatch-v2.1.7-Full-Offline-Installer-x64.exe'
+]) {
+  assert.match(windowsReleaseWorkflow, new RegExp(publicName.replaceAll('.', '\\.')),
+    `Windows release workflow must publish the tiered asset ${publicName}`);
+}
 
 console.log('desktop login visual, metadata and split-release contracts passed.');

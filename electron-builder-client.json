@@ -17,7 +17,7 @@
     "assets/app-icon.ico",
     "package.json"
   ],
-  "extraMetadata": { "main": "electron-client.js", "name": "syncwatch-client", "version": "2.1.6", "description": "SyncWatch同步观影" },
+  "extraMetadata": { "main": "electron-client.js", "name": "syncwatch-client", "version": "2.1.7", "description": "SyncWatch同步观影" },
   "win": {
     "target": [{ "target": "portable", "arch": ["x64"] }],
     "icon": "assets/app-icon.ico",
@@ -25,5 +25,5 @@
     "requestedExecutionLevel": "asInvoker",
     "signExecutable": false
   },
-  "portable": { "artifactName": "SyncWatch同步观影-Client-v2.1.6.exe" }
+  "portable": { "artifactName": "SyncWatch同步观影-Client-v2.1.7.exe" }
 }

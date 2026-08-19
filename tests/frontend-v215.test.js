@@ -76,14 +76,25 @@ assert.match(app, /maxBitrate = 320000/);
 assert.match(app, /maxaveragebitrate=320000/);
 assert.match(app, /jitterBufferTarget = 0\.08/);
 
-// 9) The web surface stays on v2.1.6 and the standalone client uses the
+// 9) The web surface stays on v2.1.7 and the standalone client uses the
 // unified desktop product identity introduced by the split release.
-assert.match(html, /版本 v2\.1\.6 · 版权所有/);
-assert.match(html, /id="versionText">v2\.1\.6</);
+assert.match(html, /版本 v2\.1\.7 · 版权所有/);
+assert.match(html, /id="versionText">v2\.1\.7</);
 assert.match(launcher, /<title>同步观影<\/title>/);
 assert.match(launcher, /SYNCWATCH DESKTOP/);
 assert.doesNotMatch(html, /v2\.0\.5|2\.0\.5/);
 assert.doesNotMatch(app, /v2\.0\.5|2\.0\.5/);
 assert.doesNotMatch(launcher, /v2\.0\.5|2\.0\.5/);
 
-console.log('Frontend v2.1.6 guest, marquee, cube, rate prompt, mail, verification, account views, audio and version contracts passed.');
+// 10) One server setting controls all four platform download categories on
+// both the login screen and the authenticated account menu.
+assert.match(html, /id="downloadButtonsVisible"/);
+for (const id of [
+  'downloadClientBtn', 'downloadClientMainBtn', 'downloadLoginApkBtn', 'androidApkBtn',
+  'downloadMacServerBtn', 'downloadMacServerMainBtn', 'downloadMacClientBtn', 'downloadMacClientMainBtn'
+]) assert.match(html, new RegExp(`id=["']${id}["']`));
+assert.match(app, /const showDownloads = state\.publicConfig\.downloadButtonsVisible !== false/);
+assert.match(app, /notice-preferences-updated/);
+assert.match(app, /downloadButtonsVisible: elements\.downloadButtonsVisible\?\.checked !== false/);
+
+console.log('Frontend v2.1.7 guest, marquee, cube, rate prompt, mail, verification, account views, audio and version contracts passed.');

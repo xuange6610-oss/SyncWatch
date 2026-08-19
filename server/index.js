@@ -37,7 +37,7 @@ function resolveDefaultDataDir(root = process.cwd()) {
   catch (_) { return legacy; }
 }
 
-const APP_VERSION = 'v2.1.6';
+const APP_VERSION = 'v2.1.7';
 const DEFAULT_MARQUEE_TEXT = '欢迎使用SyncWatch同步观影~ 此软件由xuan独立开发  SyncWatch同步观影为您带来极致的同步观影体验~ 如需更改此公告请前往设置中进行修改哦~';
 const LOGIN_CUBE_FACE_IDS = Object.freeze(['front', 'back', 'right', 'left', 'top', 'bottom']);
 const DEFAULT_LOGIN_CUBE_FACES = Object.freeze([
@@ -96,7 +96,7 @@ const DATA_LOCK_OWNER_FILE = 'owner.json';
 const DATA_LOCK_CONTROL_FILE = 'control.json';
 const DATA_LOCK_HEARTBEAT_MS = 10000;
 const ROOM_EMPTY_CLOSE_MS = 90 * 1000;
-const DEFAULT_LEGAL_AGREEMENT_VERSION = '2.1.6';
+const DEFAULT_LEGAL_AGREEMENT_VERSION = '2.1.7';
 const DANGEROUS_ACTION_CONFIRMATION = '我已知道这个风险';
 const SHARED_WEB_URL_LIMIT = 8192;
 const MAIL_TEMPLATE_HTML_LIMIT = 100000;
@@ -994,6 +994,7 @@ function freshState() {
       lanAccessEnabled: true,
       f11PromptEnabled: true,
       initialPasswordReminderEnabled: true,
+      downloadButtonsVisible: true,
       mediaCompatibilityConcurrency: DEFAULT_MEDIA_COMPATIBILITY_CONCURRENCY,
       experiencePerMinute: 1,
       defaultAccountPasswordHash: makePasswordHash('123456'),
@@ -1057,6 +1058,7 @@ function migrateState(input) {
     next.admin.lanAccessEnabled = input.admin.lanAccessEnabled !== false;
     next.admin.f11PromptEnabled = input.admin.f11PromptEnabled !== false;
     next.admin.initialPasswordReminderEnabled = input.admin.initialPasswordReminderEnabled !== false;
+    next.admin.downloadButtonsVisible = input.admin.downloadButtonsVisible !== false;
     next.admin.mediaCompatibilityConcurrency = Math.max(1, Math.min(MAX_MEDIA_COMPATIBILITY_CONCURRENCY,
       Math.floor(Number(input.admin.mediaCompatibilityConcurrency) || DEFAULT_MEDIA_COMPATIBILITY_CONCURRENCY)));
     next.admin.experiencePerMinute = Number.isFinite(Number(input.admin.experiencePerMinute))
@@ -1733,7 +1735,7 @@ async function startSyncWatchServer(options = {}) {
   const mailKeyFile = path.join(secretsDir, 'mail.key');
   const hostControlToken = String(options.hostControlToken || '');
   const tunnelManager = options.tunnelManager || null;
-  const androidApkPath = path.resolve(options.androidApkPath || path.join(__dirname, '..', 'mobile', 'SyncWatch同步观影-v2.1.6.apk'));
+  const androidApkPath = path.resolve(options.androidApkPath || path.join(__dirname, '..', 'mobile', 'SyncWatch同步观影-v2.1.7.apk'));
   const clientDownloadPath = options.clientDownloadPath ? path.resolve(options.clientDownloadPath) : '';
   const macServerDownloadPaths = normalizeMacDownloadPaths(options.macServerDownloadPaths);
   const macClientDownloadPaths = normalizeMacDownloadPaths(options.macClientDownloadPaths);
@@ -5494,6 +5496,7 @@ async function startSyncWatchServer(options = {}) {
     loginVideo: normalizeLoginVideo(state.admin.loginVideo),
     f11PromptEnabled: state.admin.f11PromptEnabled !== false,
     initialPasswordReminderEnabled: state.admin.initialPasswordReminderEnabled !== false,
+    downloadButtonsVisible: state.admin.downloadButtonsVisible !== false,
     roomEntryNotice: normalizeRoomEntryNotice(state.admin.roomEntryNotice),
     defaultPlaybackQuality: (requestUsesForwardedHttps(req) || requestUsesPublicProxy(req) || requestUsesConfiguredPublicHost(req)) ? 'smooth' : 'original', branding: normalizeBranding(state.admin.branding), roomIdPolicy: normalizeRoomIdPolicy(state.admin.roomIdPolicy),
     clientIp: normalizeIp(getRequestIp(req))
@@ -5533,7 +5536,7 @@ async function startSyncWatchServer(options = {}) {
 
   app.get('/api/client-download', httpRateLimit('client-download', 12, 60 * 60 * 1000), (req, res) => {
     if (!clientDownloadPath || !fs.existsSync(clientDownloadPath)) return res.status(404).json({ success: false, error: '电脑客户端安装程序尚未放入服务器部署目录' });
-    return serveFileDownload(req, res, clientDownloadPath, 'SyncWatch同步观影-Client-v2.1.6.exe');
+    return serveFileDownload(req, res, clientDownloadPath, 'SyncWatch同步观影-Client-v2.1.7.exe');
   });
 
   app.get('/api/macos-server-download', httpRateLimit('macos-server-download', 12, 60 * 60 * 1000), (req, res) => {
@@ -5543,7 +5546,7 @@ async function startSyncWatchServer(options = {}) {
       availableArchitectures: availableMacArchitectures(macServerDistribution),
       error: '苹果服务器安装包尚未提供。请在 macOS 构建机或 CI 生成 DMG/ZIP，或在 mac/mac-distribution.json 配置 HTTPS 发布地址。'
     });
-    const filename = `SyncWatch同步观影-服务器-v2.1.6-${selected.architecture}.${selected.artifact.format}`;
+    const filename = `SyncWatch同步观影-服务器-v2.1.7-${selected.architecture}.${selected.artifact.format}`;
     if (selected.artifact.source === 'remote') {
       res.setHeader('Referrer-Policy', 'no-referrer');
       return res.redirect(302, selected.artifact.url);
@@ -5558,7 +5561,7 @@ async function startSyncWatchServer(options = {}) {
       availableArchitectures: availableMacArchitectures(macClientDistribution),
       error: '苹果客户端安装包尚未提供。请在 macOS 构建机或 CI 生成 DMG/ZIP，或在 mac/mac-distribution.json 配置 HTTPS 发布地址。'
     });
-    const filename = `SyncWatch同步观影-客户端-v2.1.6-${selected.architecture}.${selected.artifact.format}`;
+    const filename = `SyncWatch同步观影-客户端-v2.1.7-${selected.architecture}.${selected.artifact.format}`;
     if (selected.artifact.source === 'remote') {
       res.setHeader('Referrer-Policy', 'no-referrer');
       return res.redirect(302, selected.artifact.url);
@@ -5643,7 +5646,7 @@ async function startSyncWatchServer(options = {}) {
 
   app.get('/api/android-apk', httpRateLimit('android-apk-download', 12, 60 * 60 * 1000), (req, res) => {
     if (!fs.existsSync(androidApkPath)) return res.status(404).json({ success: false, error: '安卓安装包尚未生成' });
-    return serveFileDownload(req, res, androidApkPath, 'SyncWatch同步观影-v2.1.6.apk');
+    return serveFileDownload(req, res, androidApkPath, 'SyncWatch同步观影-v2.1.7.apk');
   });
 
   const mediaRoute = (req, res) => {
@@ -7065,7 +7068,7 @@ async function startSyncWatchServer(options = {}) {
 
   async function streamBackupArchive(res, metadata, entries) {
     res.type('application/vnd.syncwatch.backup');
-    res.setHeader('Content-Disposition', attachmentContentDisposition(`SyncWatch同步观影-v2.1.6-${metadata.scope}.swbackup`));
+    res.setHeader('Content-Disposition', attachmentContentDisposition(`SyncWatch同步观影-v2.1.7-${metadata.scope}.swbackup`));
     const metadataBuffer = Buffer.from(JSON.stringify(metadata), 'utf8');
     const entryBuffers = entries.map((entry) => ({
       entry,
@@ -7320,7 +7323,7 @@ async function startSyncWatchServer(options = {}) {
         const entries = fullSnapshot ? backupDataEntries(scopes) : (scopes.includes('media-index') ? backupArtifactEntries(state.files) : []);
         return await streamBackupArchive(res, output, entries);
       }
-      res.setHeader('Content-Disposition', attachmentContentDisposition(`SyncWatch同步观影-v2.1.6-${output.scope}.json`));
+      res.setHeader('Content-Disposition', attachmentContentDisposition(`SyncWatch同步观影-v2.1.7-${output.scope}.json`));
       return res.json(output);
     } catch (error) { return next(error); }
   });
@@ -11047,6 +11050,7 @@ async function startSyncWatchServer(options = {}) {
         branding: normalizeBranding(state.admin.branding), loginCube: normalizeLoginCubeSettings(state.admin.loginCube), loginMusic: normalizeLoginMusic(state.admin.loginMusic), loginVideo: normalizeLoginVideo(state.admin.loginVideo), marqueeNotice: normalizeMarqueeNotice(state.admin.marqueeNotice),
         f11PromptEnabled: state.admin.f11PromptEnabled !== false,
         initialPasswordReminderEnabled: state.admin.initialPasswordReminderEnabled !== false,
+        downloadButtonsVisible: state.admin.downloadButtonsVisible !== false,
         roomEntryNotice: normalizeRoomEntryNotice(state.admin.roomEntryNotice),
         roomEntryNoticeTargets: Object.values(state.rooms)
           .filter((entry) => visibleRoom(entry) && (serverAdmin || entry.ownerUsername === user.username))
@@ -12188,10 +12192,12 @@ async function startSyncWatchServer(options = {}) {
       if (action === 'set-notice-preferences') {
         state.admin.f11PromptEnabled = payload.f11PromptEnabled !== false;
         state.admin.initialPasswordReminderEnabled = payload.initialPasswordReminderEnabled !== false;
+        state.admin.downloadButtonsVisible = payload.downloadButtonsVisible !== false;
         persist();
         const preferences = {
           f11PromptEnabled: state.admin.f11PromptEnabled,
-          initialPasswordReminderEnabled: state.admin.initialPasswordReminderEnabled
+          initialPasswordReminderEnabled: state.admin.initialPasswordReminderEnabled,
+          downloadButtonsVisible: state.admin.downloadButtonsVisible
         };
         io.emit('notice-preferences-updated', preferences);
         recordOperation({ actor: user.username, action: 'notice-preferences', summary: '更新登录和全屏提醒设置', scope: 'server' });
@@ -12763,7 +12769,7 @@ async function startSyncWatchServer(options = {}) {
       discoverySocket.on('message', (message, remote) => {
         if (!privateOrLoopbackAddress(remote.address) || String(message).trim() !== 'SYNCWATCH_DISCOVER_V1') return;
         const payload = Buffer.from(JSON.stringify({
-          protocol: 'SYNCWATCH_DISCOVER_V1', name: 'SyncWatch同步观影-v2.1.6', server: os.hostname(), version: APP_VERSION,
+          protocol: 'SYNCWATCH_DISCOVER_V1', name: 'SyncWatch同步观影-v2.1.7', server: os.hostname(), version: APP_VERSION,
           port: actualPort, addresses: networkAddresses(actualPort),
           rooms: Object.values(state.rooms).filter((room) => visibleRoom(room) && !room.archived).map((room) => ({
             id: room.id, name: room.name, maxUsers: room.maxUsers, online: roomUsers(room.id).length, passwordRequired: Boolean(room.passwordHash)
@@ -12960,4 +12966,3 @@ module.exports = {
     createMacDistribution, macDownloadSummary, selectMacArtifact
   }
 };
-

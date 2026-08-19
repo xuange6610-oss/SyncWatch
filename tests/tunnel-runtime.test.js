@@ -136,6 +136,33 @@ const pinnedStrategies = _test.tunnelConnectionStrategies('quick', {
 });
 assert.equal(pinnedStrategies[0].id, 'direct-http2-pinned-edge');
 assert.deepEqual(pinnedStrategies[0].edgeAddresses, ['198.41.192.7']);
+assert.deepEqual(pinnedStrategies.map((strategy) => strategy.id), [
+  'direct-http2-pinned-edge', 'direct-http2', 'system-http2-fallback'
+]);
+assert.equal(pinnedStrategies.at(-1).bypassProxy, false,
+  'quick tunnels must finally retry with the system network when every direct attempt times out');
+assert.equal(pinnedStrategies.at(-1).bindAddress, '');
+assert.deepEqual(pinnedStrategies.at(-1).edgeAddresses, []);
+assert.equal(_test.tunnelProbeLocalAddress({ bypassProxy: true, bindAddress: '192.168.110.188' }, true), '',
+  'public URL verification must use the viewer route even when cloudflared is edge-bound');
+assert.equal(_test.tunnelProbeLocalAddress({ bypassProxy: true, bindAddress: '' }, true), '',
+  'an unbound attempt must verify through the active system route instead of forcing a physical adapter');
+assert.equal(_test.tunnelProbeLocalAddress({ bypassProxy: false, bindAddress: '192.168.110.188' }, true), '');
+assert.equal(_test.tunnelProbeTransport('192.168.110.188'), 'bound-native-https');
+assert.equal(_test.tunnelProbeTransport('', {}), 'electron-system-network',
+  'an unbound/system fallback probe must honor the operating-system proxy and TUN route');
+assert.equal(_test.tunnelProbeTransport('', { HTTPS_PROXY: 'http://127.0.0.1:7890' }), 'environment-proxy',
+  'an unbound/system fallback probe must honor the proxy inherited by cloudflared');
+assert.deepEqual(_test.parseTunnelProbeResponse(200, JSON.stringify({ name: 'SyncWatch同步观影', version: 'v2.1.7' })), {
+  ok: true, statusCode: 200
+});
+assert.equal(_test.parseTunnelProbeResponse(530, 'Cloudflare error code: 1033').cloudflareErrorCode, 1033);
+assert.match(source, /undiciFetch\(url, \{ \.\.\.request, dispatcher \}\)/,
+  'environment-proxy tunnel verification must use the explicit proxy dispatcher');
+assert.match(source, /net\.fetch\(url, request\)/,
+  'system-network tunnel verification must use Electron net.fetch so Windows proxy/PAC is honored');
+assert.match(source, /strategy\.bypassProxy[^\n]+bypassProxy/,
+  'each launch attempt must honor the strategy-specific proxy mode');
 assert.equal(_test.classifyTunnelFailure('TLS handshake with edge error: read tcp 198.18.0.1:1234->198.18.0.59:7844: i/o timeout').code, 'VPN_TUN_FAKE_IP');
 assert.equal(_test.classifyTunnelFailure('dial tcp 203.0.113.8:7844: i/o timeout').code, 'EDGE_PORT_7844_BLOCKED');
 const waitingForConnector = _test.applyTunnelHealthProbe(

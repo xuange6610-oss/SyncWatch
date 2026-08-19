@@ -22,6 +22,7 @@ const { execFile, spawn } = require('child_process');
 const { Readable } = require('stream');
 const { pipeline } = require('stream/promises');
 const zlib = require('zlib');
+const { fetch: undiciFetch, EnvHttpProxyAgent } = require('undici');
 const {
   app, BrowserWindow, Menu, Tray, clipboard, dialog, shell, ipcMain,
   desktopCapturer, session, screen, net
@@ -122,6 +123,7 @@ function resolveMacDownloadPaths(kind, {
   const releaseVersion = String(version || APP_VERSION).replace(/^v/i, '');
   const siblingDirectory = portableExecutableDir || (portableExecutableFile ? path.dirname(portableExecutableFile) : '');
   const roots = [...new Set([
+    resourcesPath ? path.join(resourcesPath, 'offline-downloads', 'mac') : '',
     resourcesPath ? path.join(resourcesPath, 'mac') : '', siblingDirectory ? path.join(siblingDirectory, 'mac') : '',
     siblingDirectory, developmentDirectory ? path.join(developmentDirectory, 'mac') : '', developmentDirectory
   ].filter(Boolean))];
@@ -143,7 +145,7 @@ function resolveMacDownloadPaths(kind, {
 function resolveClientDownloadPath({ isPackaged = false, resourcesPath = '', portableExecutableDir = '', portableExecutableFile = '', developmentClientPath = '' } = {}) {
   const siblingDirectory = portableExecutableDir || (portableExecutableFile ? path.dirname(portableExecutableFile) : '');
   const candidates = isPackaged
-    ? [resourcesPath ? path.join(resourcesPath, 'client', 'SyncWatch同步观影-Client-v2.1.6.exe') : '', siblingDirectory ? path.join(siblingDirectory, 'SyncWatch同步观影-Client-v2.1.6.exe') : '']
+    ? [resourcesPath ? path.join(resourcesPath, 'offline-downloads', 'windows', 'SyncWatch同步观影-Client-v2.1.7.exe') : '', resourcesPath ? path.join(resourcesPath, 'client', 'SyncWatch同步观影-Client-v2.1.7.exe') : '', siblingDirectory ? path.join(siblingDirectory, 'SyncWatch同步观影-Client-v2.1.7.exe') : '']
     : [developmentClientPath];
   return candidates.find((candidate) => candidate && fs.existsSync(candidate)) || '';
 }
@@ -750,7 +752,58 @@ function verifyCloudflaredReleaseFile(filename, asset, { requireDigest = false }
   }
 }
 
+function tunnelSystemProxyConfigured(environment = process.env) {
+  return ['HTTPS_PROXY', 'HTTP_PROXY', 'ALL_PROXY', 'https_proxy', 'http_proxy', 'all_proxy']
+    .some((key) => Boolean(String(environment?.[key] || '').trim()));
+}
+
+function tunnelProbeTransport(localAddress = '', environment = process.env) {
+  if (String(localAddress || '').trim()) return 'bound-native-https';
+  return tunnelSystemProxyConfigured(environment) ? 'environment-proxy' : 'electron-system-network';
+}
+
+function parseTunnelProbeResponse(statusCode, body = '') {
+  if (statusCode !== 200) {
+    const cloudflareErrorCode = /(?:error\s*(?:code)?\s*[:#]?\s*|code=)(1033)\b/i.test(body) ? 1033 : null;
+    const failureCode = cloudflareErrorCode === 1033
+      ? 'CLOUDFLARE_TUNNEL_1033'
+      : statusCode === 530 ? 'CLOUDFLARE_HTTP_530' : '';
+    return { ok: false, statusCode, cloudflareErrorCode, failureCode };
+  }
+  try {
+    const result = JSON.parse(body);
+    return { ok: result?.name === 'SyncWatch同步观影' && typeof result.version === 'string', statusCode };
+  } catch (_) { return { ok: false, statusCode }; }
+}
+
+async function probeHttpsThroughSystemNetwork(url) {
+  const startedAt = Date.now();
+  const useEnvironmentProxy = tunnelSystemProxyConfigured();
+  const dispatcher = useEnvironmentProxy ? new EnvHttpProxyAgent() : null;
+  try {
+    // Match cloudflared's system-network fallback: explicit proxy environment
+    // variables take precedence, otherwise use Electron's OS proxy/PAC/TUN
+    // network service. Node's native https client supports neither path.
+    const request = {
+      method: 'GET', signal: AbortSignal.timeout(8000),
+      headers: { 'User-Agent': `SyncWatch/${APP_VERSION}`, Accept: 'application/json,text/html' }
+    };
+    const response = useEnvironmentProxy
+      ? await undiciFetch(url, { ...request, dispatcher })
+      : await net.fetch(url, request);
+    const body = (await response.text()).slice(0, 64 * 1024);
+    return { ...parseTunnelProbeResponse(response.status, body), latencyMs: Math.max(0, Date.now() - startedAt) };
+  } catch (_) {
+    return { ok: false, latencyMs: Math.max(0, Date.now() - startedAt) };
+  } finally {
+    if (dispatcher) await dispatcher.close().catch(() => {});
+  }
+}
+
 function probeHttpsDetailed(url, { localAddress = '' } = {}) {
+  if (tunnelProbeTransport(localAddress) !== 'bound-native-https') {
+    return probeHttpsThroughSystemNetwork(url);
+  }
   return new Promise((resolve) => {
     let settled = false;
     const startedAt = Date.now();
@@ -765,17 +818,7 @@ function probeHttpsDetailed(url, { localAddress = '' } = {}) {
         if (body.length > 64 * 1024) response.destroy();
       });
       response.on('end', () => {
-        if (response.statusCode !== 200) {
-          const cloudflareErrorCode = /(?:error\s*(?:code)?\s*[:#]?\s*|code=)(1033)\b/i.test(body) ? 1033 : null;
-          const failureCode = cloudflareErrorCode === 1033
-            ? 'CLOUDFLARE_TUNNEL_1033'
-            : response.statusCode === 530 ? 'CLOUDFLARE_HTTP_530' : '';
-          return finish({ ok: false, statusCode: response.statusCode, cloudflareErrorCode, failureCode });
-        }
-        try {
-          const result = JSON.parse(body);
-          finish({ ok: result?.name === 'SyncWatch同步观影' && typeof result.version === 'string', statusCode: response.statusCode });
-        } catch (_) { finish({ ok: false, statusCode: response.statusCode }); }
+        finish(parseTunnelProbeResponse(response.statusCode, body));
       });
       response.on('aborted', () => finish({ ok: false }));
       response.on('error', () => finish({ ok: false }));
@@ -997,31 +1040,44 @@ function tunnelConnectionStrategies(mode, {
     strategies.push({
       id: 'direct-http2-pinned-edge',
       label: `HTTP/2 IPv4 直连（DoH Edge ${pinnedEdges.length} 个）`,
-      protocol: 'http2', edgeIpVersion: '4', bindAddress, edgeAddresses: pinnedEdges
+      protocol: 'http2', edgeIpVersion: '4', bindAddress, edgeAddresses: pinnedEdges, bypassProxy: true
     });
   }
   if (bypassProxy && bindAddress) {
-    strategies.push({ id: 'direct-http2-bound', label: `HTTP/2 IPv4 直连（${bindAddress}）`, protocol: 'http2', edgeIpVersion: '4', bindAddress });
+    strategies.push({ id: 'direct-http2-bound', label: `HTTP/2 IPv4 直连（${bindAddress}）`, protocol: 'http2', edgeIpVersion: '4', bindAddress, bypassProxy: true });
   }
   strategies.push({
     id: bypassProxy ? 'direct-http2' : 'system-http2',
     label: bypassProxy ? 'HTTP/2 IPv4 直连（自动出口）' : 'HTTP/2 IPv4（系统网络）',
-    protocol: 'http2', edgeIpVersion: '4', bindAddress: ''
+    protocol: 'http2', edgeIpVersion: '4', bindAddress: '', bypassProxy: Boolean(bypassProxy)
   });
   strategies.push({
     id: bypassProxy ? 'direct-auto' : 'system-auto',
     label: bypassProxy ? 'QUIC/HTTP/2 自动降级直连' : 'QUIC/HTTP/2 自动降级（系统网络）',
-    protocol: 'auto', edgeIpVersion: '4', bindAddress: ''
+    protocol: 'auto', edgeIpVersion: '4', bindAddress: '', bypassProxy: Boolean(bypassProxy)
   });
   if (mode === 'quick' && strategies.length < QUICK_TUNNEL_MAX_ATTEMPTS) {
     strategies.push({
       id: bypassProxy ? 'direct-http2-retry' : 'system-http2-retry',
       label: bypassProxy ? 'HTTP/2 IPv4 直连（DNS 刷新后重试）' : 'HTTP/2 IPv4（最终重试）',
-      protocol: 'http2', edgeIpVersion: '4', bindAddress: '', retry: true
+      protocol: 'http2', edgeIpVersion: '4', bindAddress: '', retry: true, bypassProxy: Boolean(bypassProxy)
     });
   }
   const limit = mode === 'quick' ? QUICK_TUNNEL_MAX_ATTEMPTS : 2;
+  if (mode === 'quick' && bypassProxy) {
+    return [...strategies.filter((strategy) => strategy.id !== 'direct-http2-bound').slice(0, limit - 1), {
+      id: 'system-http2-fallback', label: 'HTTP/2 IPv4（系统网络最终回退）',
+      protocol: 'http2', edgeIpVersion: '4', bindAddress: '', edgeAddresses: [], bypassProxy: false, retry: true
+    }].slice(0, limit);
+  }
   return strategies.slice(0, limit);
+}
+
+function tunnelProbeLocalAddress() {
+  // The connector's edge route and a viewer's public HTTPS route are
+  // independent. Always verify the published URL through the same system or
+  // proxy path a browser uses, even when cloudflared itself is edge-bound.
+  return '';
 }
 
 function sanitizeTunnelLog(value, limit = 6000) {
@@ -1516,18 +1572,21 @@ function createTunnelManager(dataDir, getPort, { onAutoStartChanged = null } = {
 
   async function launchTunnelAttempt({ startId, mode, publicUrl, token, bypassProxy, strategy, attemptIndex, attemptCount }) {
     const startedAt = Date.now();
+    const attemptBypassProxy = Object.prototype.hasOwnProperty.call(strategy, 'bypassProxy')
+      ? strategy.bypassProxy !== false : Boolean(bypassProxy);
     const args = tunnelCommandArgs(mode, getPort(), {
-      bypassProxy, bindAddress: strategy.bindAddress,
+      bypassProxy: attemptBypassProxy, bindAddress: strategy.bindAddress,
       protocol: strategy.protocol, edgeIpVersion: strategy.edgeIpVersion, retries: 12,
       edgeAddresses: strategy.edgeAddresses || []
     });
-    const environment = tunnelEnvironment(bypassProxy, mode === 'named' ? { TUNNEL_TOKEN: token.trim() } : {});
+    const environment = tunnelEnvironment(attemptBypassProxy, mode === 'named' ? { TUNNEL_TOKEN: token.trim() } : {});
     current = {
       ...current, state: attemptIndex === 0 ? 'starting' : 'reconnecting', mode,
       publicUrl: '', error: '', verified: false,
       bypassProxy, bindAddress: strategy.bindAddress || '', strategy: strategy.id,
       edgeAddresses: normalizeTunnelEdgeAddresses(strategy.edgeAddresses || []),
-      strategyLabel: strategy.label, attempt: attemptIndex + 1, maxAttempts: attemptCount,
+      strategyLabel: strategy.label, activeNetworkMode: attemptBypassProxy ? 'direct' : 'system',
+      attempt: attemptIndex + 1, maxAttempts: attemptCount,
       attempts: [...attemptHistory]
     };
 
@@ -1771,7 +1830,7 @@ function createTunnelManager(dataDir, getPort, { onAutoStartChanged = null } = {
       const tunnelProcess = attempt.process;
       const establishedUrl = attempt.publicUrl;
       const verifiedResult = await waitForPublicUrl(establishedUrl, 8000, {
-        localAddress: bypassProxy ? (strategy.bindAddress || bindAddress) : ''
+        localAddress: tunnelProbeLocalAddress(strategy, bypassProxy)
       });
       const processRunning = operationId === startId && child === tunnelProcess
         && tunnelProcess.exitCode === null && !tunnelProcess.signalCode;
@@ -2138,9 +2197,9 @@ async function startApplication() {
   const startPort = resolvedStartPort(activeServerSettings);
   const dataDir = process.env.SYNCWATCH_DATA_DIR || DEFAULT_DATA_DIR;
   const androidApkPath = app.isPackaged
-    ? path.join(process.resourcesPath, 'app.asar.unpacked', 'mobile', 'SyncWatch同步观影-v2.1.6.apk')
-    : path.join(__dirname, 'mobile', 'SyncWatch同步观影-v2.1.6.apk');
-  const developmentClientPath = path.join(__dirname, 'SyncWatch同步观影-Client-v2.1.6.exe');
+    ? path.join(process.resourcesPath, 'offline-downloads', 'android', 'SyncWatch同步观影-v2.1.7.apk')
+    : path.join(__dirname, 'mobile', 'SyncWatch同步观影-v2.1.7.apk');
+  const developmentClientPath = path.join(__dirname, 'SyncWatch同步观影-Client-v2.1.7.exe');
   const clientDownloadPath = resolveClientDownloadPath({
     isPackaged: app.isPackaged,
     resourcesPath: process.resourcesPath,
@@ -2226,5 +2285,6 @@ module.exports = { _test: {
   cloudflaredRuntime, fileSha256, extractCloudflaredTarGz, physicalNetworkCandidates,
   preferredPhysicalIpv4, tunnelRestartDelayMs, isPublicIpv4Address,
   normalizeTunnelEdgeAddresses, cloudflareEdgeTargetsFromSrv, publicIpv4AddressesFromDnsAnswer,
-  queryDnsOverHttps, resolveCloudflareEdgeAddressesViaDoh, CLOUDFLARE_EDGE_PORT
+  queryDnsOverHttps, resolveCloudflareEdgeAddressesViaDoh, tunnelProbeLocalAddress, tunnelSystemProxyConfigured,
+  tunnelProbeTransport, parseTunnelProbeResponse, CLOUDFLARE_EDGE_PORT
 } };

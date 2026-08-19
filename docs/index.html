@@ -39,7 +39,7 @@
 
   <main id="main">
     <section id="top" class="hero" aria-labelledby="hero-title">
-      <div class="hero__image" role="img" aria-label="SyncWatch同步观影真实登录界面"></div>
+      <div class="hero__image" role="img" aria-label="SyncWatch同步观影真实主界面，包含媒体库、同步播放、房主控制和在线成员"></div>
       <div class="hero__shade" aria-hidden="true"></div>
       <div class="hero__body shell">
         <div class="hero__copy">
@@ -178,6 +178,14 @@
           <p>点击任意截图可放大查看。这里展示的是实际软件界面，不是重新绘制的概念图。</p>
         </div>
         <div class="gallery">
+          <button class="gallery-item gallery-item--wide" type="button" aria-label="查看 SyncWatch同步观影项目封面" data-gallery-item data-image="screenshots/project-cover.png" data-caption="项目封面：开源、自托管、跨平台同步观影">
+            <img src="screenshots/project-cover.png" alt="SyncWatch同步观影项目封面，展示产品定位与真实播放界面">
+            <span><strong>项目封面</strong><small>开源、自托管、跨平台，和重要的人在不同的地方看同一刻</small></span>
+          </button>
+          <button class="gallery-item gallery-item--wide" type="button" aria-label="查看完整主界面截图" data-gallery-item data-image="screenshots/main-interface.png" data-caption="完整主界面：媒体库、同步播放、房主控制和在线成员">
+            <img src="screenshots/main-interface.png" alt="SyncWatch同步观影完整主界面，包含媒体库、同步播放、房主控制和在线成员">
+            <span><strong>完整主界面</strong><small>一张图查看媒体库、上传、播放同步、房主控制和成员状态</small></span>
+          </button>
           <button class="gallery-item gallery-item--wide" type="button" aria-label="查看登录与房间入口截图" data-gallery-item data-image="screenshots/login.png" data-caption="登录、服务器与房间入口">
             <img src="screenshots/login.png" alt="SyncWatch同步观影登录、服务器与房间入口">
             <span><strong>登录与房间入口</strong><small>先连接服务器，再选择身份和房间</small></span>
@@ -349,9 +357,10 @@ npm start</code></pre>
           <a class="button button--quiet" href="https://github.com/xuange6610-oss/SyncWatch/blob/main/docs/user-guide.md">阅读完整使用说明</a>
         </div>
         <ul class="download-notes">
-          <li><strong>服务器版</strong><span>房主运行，保存账号、房间、媒体和配置。</span></li>
-          <li><strong>客户端</strong><span>成员连接已有服务器，不在本机运行完整服务。</span></li>
-          <li><strong>源码</strong><span>需要 Node.js 和依赖安装，适合开发与审查。</span></li>
+          <li><strong>Experience 体验版</strong><span>Windows 成员客户端，只连接已有服务器。</span></li>
+          <li><strong>Standard 标准版</strong><span>Windows 绿色便携服务器，内置运行环境与 cloudflared。</span></li>
+          <li><strong>Full Installer 完整版</strong><span>Windows 安装向导、快捷方式、卸载入口和完整服务器运行时。</span></li>
+          <li><strong>源码与独立服务端</strong><span>需要 Node.js，适合开发、审查或长期部署。</span></li>
           <li><strong>macOS</strong><span>Intel 为 x64，Apple Silicon 为 arm64；现代 macOS 不支持 32 位应用。</span></li>
         </ul>
       </div>
@@ -381,6 +390,7 @@ npm start</code></pre>
           <a href="troubleshooting.md"><strong>常见错误与报错处理</strong><span>启动、端口、登录、媒体、Android、Tunnel、邮件和备份问题</span></a>
           <a href="tips-and-advantages.md"><strong>使用技巧与优势</strong><span>部署顺序、权限策略、备份技巧和自托管优势</span></a>
           <a href="release-artifacts.html"><strong>发布文件与下载说明</strong><span>服务器、客户端、APK、macOS、ZIP 和校验方式</span></a>
+          <a href="runtime-installation.html"><strong>cloudflared 与 Node.js</strong><span>官方地址、安装步骤、命令示例与 Tunnel 超时修复</span></a>
           <a href="repository-map.html"><strong>仓库文件地图</strong><span>截图中每个文件夹、规范文件和构建入口的职责</span></a>
           <a href="quick-start.html"><strong>新手快速开始</strong><span>双击启动、首次登录、建房、邀请成员和备份</span></a>
           <a href="https://github.com/xuange6610-oss/SyncWatch/blob/main/CONTRIBUTING.md"><strong>参与贡献</strong><span>分支、格式、测试和 Pull Request 要求</span></a>

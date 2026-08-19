@@ -15,6 +15,7 @@
 7. [故障排查](07-故障排查) - 端口、启动、媒体、邮件、APK、Tunnel 和权限问题。
 8. [开发与贡献](08-开发与贡献) - 分支、测试、构建、PR 审核和 Apache-2.0 许可。
 9. [技术原理与架构](09-技术原理与架构) - Node.js、Express、Socket.IO、Electron、Android、FFmpeg 和调用链。
+10. [cloudflared 与 Node.js 安装使用](10-Cloudflared与Node安装) - 官方下载、Windows/macOS 安装、命令示例和 Tunnel 超时修复。
 
 ## 快速入口
 

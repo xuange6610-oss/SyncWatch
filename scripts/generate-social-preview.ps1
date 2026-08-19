@@ -3,7 +3,7 @@ Add-Type -AssemblyName System.Drawing
 
 $root = Split-Path -Parent $PSScriptRoot
 $output = Join-Path $root 'docs\social-preview.png'
-$source = Join-Path $root 'docs\screenshots\synchronized-playback.png'
+$source = Join-Path $root 'docs\screenshots\main-interface.png'
 
 $canvas = New-Object System.Drawing.Bitmap 1280, 640
 $graphics = [System.Drawing.Graphics]::FromImage($canvas)

@@ -5,13 +5,21 @@ const fs = require('fs');
 const os = require('os');
 const http = require('http');
 const path = require('path');
-const { createStandaloneTunnelManager, extractPublicUrl, connectorRegistered, sanitizeEnvironment, requestPublicConfig } = require('../server/standalone-tunnel');
+const { createStandaloneTunnelManager, extractPublicUrl, connectorRegistered, sanitizeEnvironment, requestPublicConfig, connectionStrategies } = require('../server/standalone-tunnel');
 const { cloudflaredRuntime, ensureCloudflaredBinary } = require('../server/cloudflared-installer');
 
 assert.equal(extractPublicUrl('INF https://api.trycloudflare.com/provision https://bright-river-123.trycloudflare.com'), 'https://bright-river-123.trycloudflare.com');
 assert.equal(extractPublicUrl('https://api.trycloudflare.com'), '');
 assert.equal(connectorRegistered('Registered tunnel connection connIndex=0'), true);
 assert.equal(connectorRegistered('quick tunnel created'), false);
+const fallbackStrategies = connectionStrategies({ mode: 'quick', bypassProxy: true }, {
+  physicalIpv4: '192.168.1.20', edgeAddresses: ['198.41.192.7']
+});
+assert.deepEqual(fallbackStrategies.map((strategy) => strategy.id), [
+  'direct-http2-pinned-edge', 'direct-http2', 'direct-auto', 'system-http2-fallback'
+]);
+assert.equal(fallbackStrategies.at(-1).bypassProxy, false);
+assert.equal(fallbackStrategies.at(-1).bindAddress, '');
 
 const originalProxy = process.env.HTTP_PROXY;
 process.env.HTTP_PROXY = 'http://proxy.invalid:8080';

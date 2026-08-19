@@ -6,7 +6,7 @@ on:
       tag:
         description: Existing release tag
         required: true
-        default: 2.1.6
+        default: 2.1.7
 
 permissions:
   contents: write
@@ -26,7 +26,7 @@ jobs:
         kind: [client, server]
     env:
       CSC_IDENTITY_AUTO_DISCOVERY: "false"
-      VERSION: "2.1.6"
+      VERSION: "2.1.7"
     steps:
       - name: Checkout release source
         uses: actions/checkout@v4

@@ -51,6 +51,21 @@ jobs:
           npx electron-builder --win portable
           npm run build:client
 
+      - name: Prepare Full offline bundle
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path release/offline-bundle/windows,release/offline-bundle/android,release/offline-bundle/mac | Out-Null
+          Copy-Item 'dist-client/SyncWatch同步观影-Client-v2.1.7.exe' 'release/offline-bundle/windows/SyncWatch同步观影-Client-v2.1.7.exe' -Force
+          gh release download '${{ inputs.tag || github.ref_name }}' --repo '${{ github.repository }}' --pattern 'SyncWatch-Android-v2.1.7-universal.apk' --dir release/offline-bundle/android --clobber
+          Move-Item 'release/offline-bundle/android/SyncWatch-Android-v2.1.7-universal.apk' 'release/offline-bundle/android/SyncWatch同步观影-v2.1.7.apk' -Force
+          gh release download '${{ inputs.tag || github.ref_name }}' --repo '${{ github.repository }}' --pattern 'SyncWatch-Server-macOS-v2.1.7-*.zip' --dir release/offline-bundle/mac --clobber
+          gh release download '${{ inputs.tag || github.ref_name }}' --repo '${{ github.repository }}' --pattern 'SyncWatch-Client-macOS-v2.1.7-*.zip' --dir release/offline-bundle/mac --clobber
+          Get-ChildItem release/offline-bundle/mac -Filter 'SyncWatch-Server-macOS-*.zip' | ForEach-Object { Rename-Item $_.FullName ($_.Name -replace 'SyncWatch-Server-macOS-', 'SyncWatch同步观影-服务器-') }
+          Get-ChildItem release/offline-bundle/mac -Filter 'SyncWatch-Client-macOS-*.zip' | ForEach-Object { Rename-Item $_.FullName ($_.Name -replace 'SyncWatch-Client-macOS-', 'SyncWatch同步观影-客户端-') }
+          node scripts/verify-full-offline-bundle.js
+
       - name: Build NSIS server installer
         shell: pwsh
         run: npx electron-builder --config electron-builder-windows-installer.json --win nsis
@@ -58,12 +73,40 @@ jobs:
       - name: Collect release assets
         shell: pwsh
         run: |
+          $version = '2.1.7'
           New-Item -ItemType Directory -Force -Path release\windows-installer | Out-Null
           New-Item -ItemType Directory -Force -Path release\windows-server | Out-Null
           New-Item -ItemType Directory -Force -Path release\windows-client | Out-Null
-          Get-ChildItem dist-installer -Filter *.exe | Copy-Item -Destination release\windows-installer -Force
-          Get-ChildItem dist -Filter *.exe -ErrorAction SilentlyContinue | Copy-Item -Destination release\windows-server -Force
-          Get-ChildItem dist-client -Filter *.exe -ErrorAction SilentlyContinue | Copy-Item -Destination release\windows-client -Force
+          $installer = Get-ChildItem dist-installer -Filter *.exe | Select-Object -First 1
+          $server = Get-ChildItem dist -Filter *.exe -ErrorAction SilentlyContinue | Select-Object -First 1
+          $client = Get-ChildItem dist-client -Filter *.exe -ErrorAction SilentlyContinue | Select-Object -First 1
+          if (-not $installer -or -not $server -or -not $client) { throw 'A required Windows release package is missing.' }
+          Copy-Item $installer.FullName "release\windows-installer\SyncWatch-v$version-Full-Offline-Installer-x64.exe" -Force
+          Copy-Item $server.FullName "release\windows-server\SyncWatch-Standard-Server-Portable-v$version-x64.exe" -Force
+          Copy-Item $client.FullName "release\windows-client\SyncWatch-Experience-Client-Portable-v$version-x64.exe" -Force
+
+      - name: Verify release tiers and embedded runtime
+        shell: pwsh
+        run: |
+          $expected = @(
+            'release\windows-installer\SyncWatch-v2.1.7-Full-Offline-Installer-x64.exe',
+            'release\windows-server\SyncWatch-Standard-Server-Portable-v2.1.7-x64.exe',
+            'release\windows-client\SyncWatch-Experience-Client-Portable-v2.1.7-x64.exe'
+          )
+          foreach ($file in $expected) {
+            if (-not (Test-Path -LiteralPath $file -PathType Leaf)) { throw "Missing release asset: $file" }
+            if ((Get-Item -LiteralPath $file).Length -lt 50MB) { throw "Release asset is unexpectedly small: $file" }
+            Get-FileHash -Algorithm SHA256 -LiteralPath $file
+          }
+          if (-not (Test-Path -LiteralPath 'vendor\cloudflared.exe') -or (Get-Item 'vendor\cloudflared.exe').Length -lt 1MB) {
+            throw 'The Full and Standard server builds require the bundled cloudflared.exe.'
+          }
+          if ((Get-Item 'release\windows-installer\SyncWatch-v2.1.7-Full-Offline-Installer-x64.exe').Length -lt 1GB) {
+            throw 'The Full offline installer does not contain all platform downloads.'
+          }
+          if ((Get-Item 'release\windows-installer\SyncWatch-v2.1.7-Full-Offline-Installer-x64.exe').Length -ge 2GB) {
+            throw 'The Full offline installer exceeds the GitHub Release 2 GiB per-asset limit.'
+          }
 
       - name: Upload workflow artifacts
         uses: actions/upload-artifact@v4

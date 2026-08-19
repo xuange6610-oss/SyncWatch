@@ -14,13 +14,15 @@ SyncWatch 是一个开源、自托管、跨平台的 Watch Party / 同步观影�
 [![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Android%20%7C%20macOS%20%7C%20Web-1769aa)](https://github.com/xuange6610-oss/SyncWatch/releases)
 [![Self Hosted](https://img.shields.io/badge/self--hosted-yes-success)](https://github.com/xuange6610-oss/SyncWatch)
 
-![SyncWatch同步观影同步播放界面](docs/screenshots/synchronized-playback.png)
+![SyncWatch同步观影项目封面：跨平台、自托管、同步播放](docs/screenshots/project-cover.png)
+
+![SyncWatch同步观影主界面：媒体库、同步播放、房主控制和在线成员](docs/screenshots/main-interface.png)
 
 Windows · Android · macOS · Web  ·  同步播放 · 弹幕 · 聊天 · 语音 · 屏幕共享
 
 [立即下载](https://github.com/xuange6610-oss/SyncWatch/releases/latest) · [在线预览](https://xuange6610-oss.github.io/SyncWatch/) · [新手快速开始](docs/quick-start.html) · [部署教程](docs/server-deployment-guide.md) · [GitHub Wiki](https://github.com/xuange6610-oss/SyncWatch/wiki)
 
-> 当前版本：v2.1.6 · 许可证：[Apache-2.0](LICENSE) · 作者：xuan
+> 当前版本：v2.1.7 · 许可证：[Apache-2.0](LICENSE) · 作者：xuan
 
 ## 在线参观
 
@@ -41,8 +43,9 @@ Windows · Android · macOS · Web  ·  同步播放 · 弹幕 · 聊天 · 语�
 
 | 类型 | 适合谁 | 作用 |
 | --- | --- | --- |
-| Windows 服务器版 | 房主、服务器管理员 | 启动服务、保存数据并打开完整管理界面 |
-| Windows 客户端 | 普通成员 | 输入服务器地址后加入房间，不运行完整服务 |
+| [`SyncWatch-Experience-Client-Portable-v2.1.7-x64.exe`](https://github.com/xuange6610-oss/SyncWatch/releases/download/2.1.7/SyncWatch-Experience-Client-Portable-v2.1.7-x64.exe) | 体验版；普通成员 | 输入已有服务器地址加入房间，不启动服务端 |
+| [`SyncWatch-Standard-Server-Portable-v2.1.7-x64.exe`](https://github.com/xuange6610-oss/SyncWatch/releases/download/2.1.7/SyncWatch-Standard-Server-Portable-v2.1.7-x64.exe) | 标准版；房主 | 绿色便携服务器，内置运行环境和 cloudflared，双击即用 |
+| [`SyncWatch-v2.1.7-Full-Offline-Installer-x64.exe`](https://github.com/xuange6610-oss/SyncWatch/releases/download/2.1.7/SyncWatch-v2.1.7-Full-Offline-Installer-x64.exe) | 完整版；房主 | 安装向导和完整服务器运行时；离线内嵌 Windows 客户端、Android APK、macOS x64/arm64 客户端与服务器 ZIP |
 | Android APK | Android 用户 | 加入已有房间；完整包可在受支持设备上运行手机服务器 |
 | macOS 服务器/客户端 | Mac 用户 | Intel Mac 使用 x64，Apple Silicon 使用 arm64 |
 | 独立服务器 ZIP | Windows/Linux 服务器管理员 | 使用 Node.js 启动服务，适合长期部署和 Docker |
@@ -54,8 +57,8 @@ Releases 页面只应列出已经真实构建和验证的文件。某个平台�
 
 ### 使用服务器 EXE
 
-1. 从 Releases 下载 Windows 服务器版，放进一个普通文件夹。
-2. 双击运行。Windows 防火墙询问时，只按你的实际网络环境允许访问。
+1. 从 Releases 下载 `Full-Offline-Installer` 安装完整版，或下载 `Standard-Server-Portable` 绿色标准版。
+2. 安装版按向导选择目录并启动；便携版放进普通文件夹后双击。Windows 防火墙询问时，只按你的实际网络环境允许访问。
 3. 浏览器会打开 `http://127.0.0.1:5000`；如果端口被占用，以软件显示的地址为准。
 4. 使用默认管理员账号 `admin`、密码 `admin888` 登录。
 5. 立即进入安全设置修改管理员密码。
@@ -102,10 +105,12 @@ pnpm start
 ### 跨网络连接
 
 1. 在“服务器设置 > 公网访问”中选择临时公网访问，或配置自己的域名和 HTTPS 反向代理。
-2. 源码/独立服务端第一次需要 cloudflared 时，会从 Cloudflare 官方 GitHub Release 下载与系统匹配的文件并校验 SHA-256；完整安装包优先使用内置文件。
+2. 源码/独立服务端第一次需要 cloudflared 时，会从 Cloudflare 官方 GitHub Release 下载与系统匹配的文件并校验 SHA-256；安装完整版和便携标准版优先使用内置文件。
 3. 等待界面显示 HTTPS 地址并通过连接诊断。
 4. 只把成员链接发给可信成员，不公开带房主权限的链接、令牌或管理密码。
 5. 临时地址可能在重启后变化；需要固定域名时请阅读服务器部署教程。
+
+如果出现“Cloudflare 临时地址接口连接超时”，新版会在直连失败后自动切换到系统网络；仍失败时取消“绕过系统代理”并运行“网络诊断与修复”。独立安装、官方地址、Windows/macOS 命令和 Node.js 教程见 [cloudflared 与 Node.js 安装使用教程](docs/runtime-installation.md)。
 
 ## 主要功能
 

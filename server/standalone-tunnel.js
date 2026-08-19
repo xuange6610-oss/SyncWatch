@@ -143,11 +143,17 @@ async function runPreflight(bypassProxy) {
 function connectionStrategies(options, preflight = {}) {
   const direct = options.bypassProxy !== false; const bind = preflight.physicalIpv4 || '';
   const strategies = [];
-  if (direct && bind && preflight.edgeAddresses?.length) strategies.push({ id: 'direct-http2-pinned-edge', protocol: 'http2', bindAddress: bind, edgeAddresses: preflight.edgeAddresses });
-  if (direct && bind) strategies.push({ id: 'direct-http2-bound', protocol: 'http2', bindAddress: bind, edgeAddresses: [] });
-  strategies.push({ id: direct ? 'direct-http2' : 'system-http2', protocol: 'http2', bindAddress: '', edgeAddresses: [] });
-  strategies.push({ id: direct ? 'direct-auto' : 'system-auto', protocol: 'auto', bindAddress: '', edgeAddresses: [] });
-  return strategies.slice(0, options.mode === 'quick' ? QUICK_ATTEMPT_COUNT : 2);
+  if (direct && bind && preflight.edgeAddresses?.length) strategies.push({ id: 'direct-http2-pinned-edge', protocol: 'http2', bindAddress: bind, edgeAddresses: preflight.edgeAddresses, bypassProxy: true });
+  if (direct && bind) strategies.push({ id: 'direct-http2-bound', protocol: 'http2', bindAddress: bind, edgeAddresses: [], bypassProxy: true });
+  strategies.push({ id: direct ? 'direct-http2' : 'system-http2', protocol: 'http2', bindAddress: '', edgeAddresses: [], bypassProxy: direct });
+  strategies.push({ id: direct ? 'direct-auto' : 'system-auto', protocol: 'auto', bindAddress: '', edgeAddresses: [], bypassProxy: direct });
+  const limit = options.mode === 'quick' ? QUICK_ATTEMPT_COUNT : 2;
+  if (options.mode === 'quick' && direct) {
+    return [...strategies.filter((strategy) => strategy.id !== 'direct-http2-bound').slice(0, limit - 1), {
+      id: 'system-http2-fallback', protocol: 'http2', bindAddress: '', edgeAddresses: [], bypassProxy: false
+    }].slice(0, limit);
+  }
+  return strategies.slice(0, limit);
 }
 
 function classifyTunnelFailure(log, code = null, signal = '') {
@@ -266,15 +272,17 @@ function createStandaloneTunnelManager({ rootDir, dataDir, getPort, installCloud
     const port = Number(getPort?.()) || 5000;
     const mode = options.mode === 'named' ? 'named' : 'quick';
     if (mode === 'named' && !options.token) throw new Error('稳定隧道需要 Cloudflare Tunnel 令牌');
+    const attemptBypassProxy = Object.prototype.hasOwnProperty.call(strategy, 'bypassProxy')
+      ? strategy.bypassProxy !== false : options.bypassProxy !== false;
     const protocol = strategy.protocol || 'http2';
     const args = mode === 'quick'
       ? ['tunnel', '--url', `http://127.0.0.1:${port}`, '--protocol', protocol, '--edge-ip-version', '4']
       : ['tunnel', '--protocol', protocol, '--edge-ip-version', '4'];
     for (const edge of normalizeEdgeAddresses(strategy.edgeAddresses || [])) args.push('--edge', `${edge}:${CLOUDFLARE_EDGE_PORT}`);
-    if (options.bypassProxy && strategy.bindAddress) args.push('--edge-bind-address', strategy.bindAddress);
+    if (attemptBypassProxy && strategy.bindAddress) args.push('--edge-bind-address', strategy.bindAddress);
     args.push('--retries', '12', '--no-autoupdate');
     if (mode === 'named') args.push('run');
-    const env = sanitizeEnvironment(options.bypassProxy);
+    const env = sanitizeEnvironment(attemptBypassProxy);
     if (mode === 'named') env.TUNNEL_TOKEN = options.token;
     const startedAt = Date.now();
     const localGeneration = generation;
@@ -315,7 +323,7 @@ function createStandaloneTunnelManager({ rootDir, dataDir, getPort, installCloud
     for (let index = 0; index < 4; index += 1) {
       const probeStarted = Date.now();
       const probe = await requestPublicConfig(ready.candidateUrl, VERIFY_TIMEOUT_MS, {
-        localAddress: options.bypassProxy ? strategy.bindAddress || '' : ''
+        localAddress: attemptBypassProxy ? strategy.bindAddress || '' : ''
       });
       if (probe.ok) { verified = true; latencyMs = Date.now() - probeStarted; break; }
       await new Promise((resolve) => setTimeout(resolve, 500 * (index + 1)));
@@ -448,4 +456,4 @@ function createStandaloneTunnelManager({ rootDir, dataDir, getPort, installCloud
   };
 }
 
-module.exports = { createStandaloneTunnelManager, extractPublicUrl, connectorRegistered, resolveBinary, sanitizeEnvironment, requestPublicConfig };
+module.exports = { createStandaloneTunnelManager, extractPublicUrl, connectorRegistered, resolveBinary, sanitizeEnvironment, requestPublicConfig, connectionStrategies };

@@ -190,7 +190,7 @@ select {
 
 .hero__image {
   z-index: -2;
-  background: var(--ink) url("../screenshots/login.png") center center / cover no-repeat;
+  background: var(--ink) url("../screenshots/main-interface.png") center center / cover no-repeat;
   filter: saturate(0.9) contrast(1.04);
 }
 

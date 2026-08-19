@@ -36,6 +36,10 @@ const requiredFiles = [
   'docs/cloud-media-deployment.md',
   'docs/macos-build.md',
   'docs/troubleshooting.md',
+  'docs/runtime-installation.md',
+  'docs/runtime-installation.html',
+  'docs/screenshots/main-interface.png',
+  'docs/wiki/10-Cloudflared与Node安装.md',
   'docs/tips-and-advantages.md',
   'docs/standalone-server.md',
   'build-windows.ps1',
@@ -84,6 +88,8 @@ assert.match(readme, /Apache-2\.0/);
 assert.match(readme, /QQ:\s*2590813506/);
 assert.match(readme, /微信:\s*love_020804/);
 assert.match(readme, /xuange6610-oss\.github\.io\/SyncWatch\//);
+assert.match(readme, /docs\/screenshots\/main-interface\.png/);
+assert.match(readme, /SyncWatch-v2\.1\.7-Full-Offline-Installer-x64\.exe/);
 
 const pages = read('.github/workflows/pages.yml');
 assert.match(pages, /pages:\s*write/);

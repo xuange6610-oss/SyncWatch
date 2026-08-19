@@ -22,7 +22,14 @@ function Get-Sha256([string]$path) {
     if (-not (Test-Path -LiteralPath $path -PathType Leaf)) {
         throw "Required file was not found: $path"
     }
-    return (Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash.ToUpperInvariant()
+    $stream = [System.IO.File]::OpenRead($path)
+    $algorithm = [System.Security.Cryptography.SHA256]::Create()
+    try {
+        return ([System.BitConverter]::ToString($algorithm.ComputeHash($stream)) -replace '-', '').ToUpperInvariant()
+    } finally {
+        $algorithm.Dispose()
+        $stream.Dispose()
+    }
 }
 
 function Assert-NodeMobileRuntime([string]$root) {
@@ -400,7 +407,7 @@ function Assert-ApkPayload([string]$apkPath, [string]$repositoryRoot) {
             }
         }
 
-        if ($entries.Keys | Where-Object { $_ -match '^assets/syncwatch/(?:mobile/)?SyncWatch同步观影-v2\.1\.6\.apk$' }) {
+        if ($entries.Keys | Where-Object { $_ -match '^assets/syncwatch/(?:mobile/)?SyncWatch同步观影-v2\.1\.7\.apk$' }) {
             throw 'APK recursively contains another SyncWatch同步观影 Android APK.'
         }
 
@@ -489,7 +496,7 @@ if ($env:SYNCWATCH_ANDROID_OFFLINE -eq '1') { $gradleArgs = @('--offline') + $gr
 if ($LASTEXITCODE -ne 0) { throw 'Android release build failed.' }
 
 $builtApk = Join-Path $PSScriptRoot 'app\build\outputs\apk\release\app-release.apk'
-$deliveryApk = Join-Path $PSScriptRoot 'SyncWatch同步观影-v2.1.6.apk'
+$deliveryApk = Join-Path $PSScriptRoot 'SyncWatch同步观影-v2.1.7.apk'
 if (-not (Test-Path -LiteralPath $builtApk)) { throw 'Gradle completed without the expected release APK.' }
 
 $buildTools = Join-Path $sdk 'build-tools\35.0.0'
@@ -504,7 +511,7 @@ try {
     $aaptExitCode = $LASTEXITCODE
     $badging = $badgingOutput | Select-Object -First 1
     if ($aaptExitCode -ne 0 -or $badging -notmatch "name='com\.xuan\.syncwatch'" -or
-        $badging -notmatch "versionCode='20106'" -or $badging -notmatch "versionName='2\.1\.6'") {
+        $badging -notmatch "versionCode='20106'" -or $badging -notmatch "versionName='2\.1\.7'") {
         throw "APK package metadata verification failed: $badging"
     }
 
@@ -540,12 +547,12 @@ try {
 $publishId = [Guid]::NewGuid().ToString('N')
 $stagedApk = Join-Path $PSScriptRoot ('.syncwatch-apk-' + $publishId + '.tmp')
 $backupApk = Join-Path $PSScriptRoot ('.syncwatch-apk-' + $publishId + '.bak')
-$builtApkHash = (Get-FileHash -Algorithm SHA256 -LiteralPath $builtApk).Hash
+$builtApkHash = Get-Sha256 $builtApk
 $deliveryWasReplaced = $false
 $deliveryWasCreated = $false
 try {
     Copy-Item -LiteralPath $builtApk -Destination $stagedApk
-    if ((Get-FileHash -Algorithm SHA256 -LiteralPath $stagedApk).Hash -ne $builtApkHash) {
+    if ((Get-Sha256 $stagedApk) -ne $builtApkHash) {
         throw 'APK staging verification failed; the existing delivery APK was preserved.'
     }
 
@@ -557,7 +564,7 @@ try {
         $deliveryWasCreated = $true
     }
 
-    if ((Get-FileHash -Algorithm SHA256 -LiteralPath $deliveryApk).Hash -ne $builtApkHash) {
+    if ((Get-Sha256 $deliveryApk) -ne $builtApkHash) {
         throw 'Published APK hash verification failed.'
     }
     if (Test-Path -LiteralPath $backupApk) { Remove-Item -LiteralPath $backupApk -Force }
@@ -581,7 +588,7 @@ try {
 }
 
 $apkInfo = Get-Item -LiteralPath $deliveryApk
-$apkHash = (Get-FileHash -Algorithm SHA256 -LiteralPath $deliveryApk).Hash
+$apkHash = Get-Sha256 $deliveryApk
 Write-Host "Build complete: $deliveryApk" -ForegroundColor Green
 Write-Host "Size: $($apkInfo.Length) bytes" -ForegroundColor Green
 Write-Host "SHA256: $apkHash" -ForegroundColor Green
