@@ -41,13 +41,10 @@ jobs:
         run: npm ci
 
       - name: Prepare verified Cloudflare Tunnel binary
-        env:
-          GH_TOKEN: ${{ github.token }}
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force -Path vendor | Out-Null
-          gh release download '${{ inputs.tag || github.ref_name }}' --repo '${{ github.repository }}' --pattern 'cloudflared-windows-x64.exe' --dir vendor --clobber
-          Move-Item 'vendor/cloudflared-windows-x64.exe' 'vendor/cloudflared.exe' -Force
+          Invoke-WebRequest -Uri 'https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-windows-amd64.exe' -OutFile 'vendor/cloudflared.exe'
           if ((Get-Item 'vendor/cloudflared.exe').Length -lt 1MB) { throw 'Downloaded cloudflared.exe is unexpectedly small.' }
 
       - name: Verify privacy and release contracts
