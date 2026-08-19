@@ -29,6 +29,15 @@ const requiredFiles = [
   'SECURITY.md',
   'docs/index.html',
   'docs/management-center.html',
+  'docs/management-center-guide.html',
+  'docs/troubleshooting.html',
+  'docs/architecture.html',
+  'docs/assets/guide.css',
+  'docs/assets/guide.js',
+  'docs/assets/document-guide.css',
+  'docs/assets/document-guide.js',
+  'docs/assets/module-guide.css',
+  'docs/assets/module-guide.js',
   'docs/assets/site.css',
   'docs/assets/site.js',
   'docs/server-deployment-guide.md',
@@ -39,6 +48,20 @@ const requiredFiles = [
   'docs/troubleshooting.md',
   'docs/runtime-installation.md',
   'docs/runtime-installation.html',
+  'docs/user-guide.html',
+  'docs/server-deployment-guide.html',
+  'docs/macos-build.html',
+  'docs/cloud-media-deployment.html',
+  'docs/tips-and-advantages.html',
+  'docs/release-artifacts.html',
+  'docs/repository-map.html',
+  'docs/quick-start.html',
+  'docs/quick-start.md',
+  'docs/contributing.html',
+  'docs/wiki-guide.html',
+  'docs/assets/contact/qq-friend.jpg',
+  'docs/assets/contact/wechat-friend.png',
+  'docs/assets/contact/wechat-pay.png',
   'docs/screenshots/main-interface.png',
   'docs/wiki/10-Cloudflared与Node安装.md',
   'docs/wiki/12-服务器部署完整教程.md',
@@ -148,6 +171,75 @@ assert.match(site, /<html\s+lang="zh-CN">/);
 assert.match(site, /<title>SyncWatch同步观影/);
 assert.match(site, /<h1[^>]*>[^<]*SyncWatch同步观影/s);
 assert.match(site, /GitHub Pages 仅提供静态展示/);
+assert.match(site, /href="architecture\.html"[^>]*>阅读完整技术架构</,
+  'architecture action must open the designed HTML guide');
+
+const managementCenter = read('docs/management-center.html');
+assert.match(managementCenter, /href="troubleshooting\.html"[^>]*>查看错误处理</,
+  'management center troubleshooting action must open the designed HTML guide');
+assert.match(managementCenter, /href="management-center-guide\.html"[^>]*>查看完整图文教程</,
+  'management center guide action must open the designed HTML guide');
+
+const troubleshootingGuide = read('docs/troubleshooting.html');
+assert.match(troubleshootingGuide, /<html\s+lang="zh-CN">/);
+assert.match(troubleshootingGuide, /data-diagnostic-console/);
+assert.match(troubleshootingGuide, /href="troubleshooting\.md"/,
+  'troubleshooting HTML must preserve access to the Markdown source');
+
+const managementGuide = read('docs/management-center-guide.html');
+assert.match(managementGuide, /<html\s+lang="zh-CN">/);
+assert.match(managementGuide, /data-control-map/);
+assert.match(managementGuide, /href="management-center\.md"/,
+  'management HTML guide must preserve access to the Markdown source');
+
+const architectureGuide = read('docs/architecture.html');
+assert.match(architectureGuide, /<html\s+lang="zh-CN">/);
+assert.match(architectureGuide, /data-architecture-stage/);
+assert.match(architectureGuide, /data-tilt/,
+  'architecture guide must expose pointer-driven 3D interaction');
+assert.match(architectureGuide, /href="architecture\.md"/,
+  'architecture HTML must preserve access to the Markdown source');
+
+const designedDocRoutes = [
+  ['user-guide.html', 'user-guide.md'],
+  ['server-deployment-guide.html', 'server-deployment-guide.md'],
+  ['macos-build.html', 'macos-build.md'],
+  ['cloud-media-deployment.html', 'cloud-media-deployment.md'],
+  ['tips-and-advantages.html', 'tips-and-advantages.md'],
+  ['release-artifacts.html', 'release-artifacts.md'],
+  ['runtime-installation.html', 'runtime-installation.md'],
+  ['repository-map.html', 'repository-map.md'],
+  ['quick-start.html', 'quick-start.md']
+];
+for (const [htmlPath, markdownPath] of designedDocRoutes) {
+  const html = read(`docs/${htmlPath}`);
+  assert.match(html, /data-guide-stage/, `${htmlPath} must include the animated guide stage`);
+  assert.match(html, /data-doc-tilt/, `${htmlPath} must include pointer-driven 3D interaction`);
+  assert.ok(html.includes(`href="${markdownPath}"`), `${htmlPath} must preserve its Markdown source link`);
+}
+
+const moduleRoutes = [
+  'room-upload', 'all-rooms', 'members-permissions', 'chat-records',
+  'accounts-registration', 'application-center', 'account-levels',
+  'notifications', 'mail-settings', 'log-center', 'server-settings'
+];
+for (const route of moduleRoutes) {
+  const html = read(`docs/modules/${route}.html`);
+  const imagePaths = [...html.matchAll(/data-module-image[^>]+data-src="([^"]+)"/g)].map((match) => match[1]);
+  assert.equal(imagePaths.length, 5, `${route} must present exactly five module screenshots`);
+  assert.equal(new Set(imagePaths).size, 5, `${route} screenshots must not repeat`);
+  imagePaths.forEach((imagePath) => assert.ok(exists(path.join('docs/modules', imagePath)), `missing module screenshot: ${imagePath}`));
+  assert.match(html, /data-module-stage/, `${route} must include the interactive 3D monitor`);
+}
+
+assert.match(site, /data-contact-image="assets\/contact\/qq-friend\.jpg"/,
+  'footer QQ action must open the public friend QR image');
+assert.match(site, /data-contact-image="assets\/contact\/wechat-friend\.png"/,
+  'footer WeChat action must open the public friend QR image');
+assert.match(site, /data-support-action/,
+  'footer must expose the donation QR action');
+assert.match(read('docs/assets/site.js'), /dblclick/,
+  'donation QR must open on double click');
 
 for (const relative of ['build-server-package.ps1', 'mobile/app/build.gradle']) {
   assert.doesNotMatch(read(relative), /[A-Z]:[\\/]Users[\\/]Administrator/i,

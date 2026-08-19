@@ -1,0 +1,69 @@
+# SyncWatch同步观影 新手快速开始
+
+## 先选择最适合你的方式
+
+- 只想加入别人的房间：下载 Experience 体验版客户端。
+- 想在 Windows 上自己开房：下载 Standard 标准版或 Full Offline 完整版。
+- 想安装到开始菜单：选择 Full Offline Installer 安装版。
+- 想阅读和修改源代码：按下面的源码启动步骤操作。
+
+普通用户不要把 GitHub 自动生成的 `Source code (zip)` 当作安装包。它只包含源码，不保证包含 `cloudflared.exe`、FFmpeg 或各平台离线客户端。
+
+## Windows 从源码启动
+
+1. 打开开始菜单，输入 `PowerShell` 或“终端”，点击打开。黑色或蓝色命令窗口就是输入命令的地方。
+2. 建议先输入 `cd $HOME\Desktop` 并按回车，这样项目会下载到桌面。若不执行这一步，项目会下载到终端当前所在的文件夹。
+3. 依次输入下面四条命令，每输入一条就按一次回车，等待命令结束后再输入下一条。
+
+```powershell
+git clone https://github.com/xuange6610-oss/SyncWatch.git
+cd SyncWatch
+npm ci
+npm start
+```
+
+看到服务器地址后，在浏览器打开 `http://127.0.0.1:5000`。如果页面正常出现登录界面，说明源码服务器已经启动。
+
+项目源码默认位于你执行 `git clone` 时所在目录下的 `SyncWatch` 文件夹。按上面的推荐步骤操作时，通常是 `C:\Users\你的用户名\Desktop\SyncWatch`。在资源管理器地址栏粘贴路径即可查看。
+
+## macOS 从源码启动
+
+1. 打开“访达 → 应用程序 → 实用工具 → 终端”。
+2. 输入 `cd ~/Desktop`，让项目下载到桌面。
+3. 依次执行 `git clone`、`cd SyncWatch`、`npm ci` 和 `npm start`。
+4. 在 Safari 或 Chrome 打开 `http://127.0.0.1:5000`。
+
+若 `node --version` 或 `npm --version` 提示找不到命令，先按照运行环境教程安装 Node.js，再关闭并重新打开终端。
+
+## 第一次登录和建房
+
+1. 使用初始管理员账号登录，并立即修改默认密码。
+2. 打开管理中心，进入“房间与上传”，创建房间并设置独立的房间密码。
+3. 上传合法媒体，等待上传和分析完成，再加入播放队列。
+4. 先让另一台设备连接同一 Wi-Fi，通过局域网地址加入房间，验证播放、暂停、拖动和聊天。
+5. 局域网验证成功后，再按需开启 Cloudflare Tunnel 公网访问。
+
+## 怎样停止和下次重新启动
+
+正在运行服务器的终端窗口中按 `Ctrl+C`，出现确认时按 `Y` 或再次按 `Ctrl+C`，即可停止。不要直接强制关机，避免正在写入的数据损坏。
+
+下次启动不需要重新下载和安装依赖。重新打开 PowerShell 或终端，进入源码文件夹并启动：
+
+```powershell
+cd $HOME\Desktop\SyncWatch
+npm start
+```
+
+## 数据默认放在哪里
+
+源码文件位于 `SyncWatch/`。运行产生的账号、房间、媒体索引、聊天、设置和密钥位于程序显示的 `SyncWatch同步观影-Data/`。它不是源码的一部分，也不要提交到 GitHub。
+
+迁移或重装前先停止服务器，再完整复制数据目录。只复制 `config.json` 会丢失媒体、记录或密钥。
+
+## 出现问题先检查
+
+- `git` 找不到：安装 Git for Windows 或 Xcode Command Line Tools。
+- `node` / `npm` 找不到：安装 Node.js LTS，然后重开终端。
+- `npm ci` 失败：确认网络可访问 npm，且命令是在 `SyncWatch` 目录执行。
+- 端口被占用：关闭旧服务器，或按软件提示使用新端口。
+- 公网地址超时：先确认本机地址可打开，再进入网络诊断与修复。

@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#101318">
+  <meta name="description" content="SyncWatch同步观影交互式错误诊断、网络排查与恢复教程。">
+  <title>错误诊断与处理 | SyncWatch同步观影</title>
+  <link rel="stylesheet" href="assets/guide.css">
+</head>
+<body>
+  <!-- THESIS: 把报错文本变成可执行诊断路径，拒绝只有长段落的错误清单。 OWN-WORLD: 放映控制台、纸面分诊台、同步绿状态与珊瑚风险提示。 STORY: 先保存证据，再缩小问题层级，最后验证恢复。 FIRST VIEWPORT: 左侧恢复原则，右侧可暂停的五级诊断控制台。 FORM: established-world Read surface / troubleshooting-console. FINISH: unreviewed and undocumented is unfinished; this build ends with the finish review, the verdict, and DESIGN.md. -->
+  <a class="skip" href="#main">跳到正文</a>
+  <header class="guide-header"><div class="shell guide-topbar"><a class="guide-brand" href="index.html">SyncWatch同步观影</a><nav class="guide-nav" aria-label="主要导航"><a href="management-center.html">管理中心</a><a href="architecture.html">技术架构</a><a href="troubleshooting.md">Markdown 原文</a><a href="https://github.com/xuange6610-oss/SyncWatch">GitHub</a></nav></div></header>
+  <main id="main">
+    <section class="guide-hero"><div class="shell guide-hero-grid">
+      <div><h1>从报错文字，走到可验证的修复</h1><p>不要一看到错误就重装。先记录版本、平台、启动方式、完整错误、发生时间和网络类型，再沿“进程 → 本机 → 网络 → 权限 → 数据”逐层排查。每次只改一个变量，修复后用原操作重新验证。</p><div class="hero-actions"><a class="button primary" href="#triage">选择你的症状</a><a class="button" href="#issues">查看全部错误</a><a class="button" href="troubleshooting.md">阅读 Markdown 原文</a></div></div>
+      <div class="diagnostic-console" data-diagnostic-console data-tilt aria-label="交互式五级诊断流程">
+        <div class="console-head"><span class="console-title">DIAGNOSTIC / v2.1.7</span><button class="button small" type="button" data-motion-toggle>暂停动画</button></div>
+        <div class="diagnostic-rail">
+          <div class="diagnostic-step" data-diagnostic-step data-output="[01] 已保存版本、平台、时间和完整错误文本"><b></b><strong>保存现场</strong><span>version / platform / time</span></div>
+          <div class="diagnostic-step" data-diagnostic-step data-output="[02] 正在确认服务器进程、端口和数据目录"><b></b><strong>检查本机</strong><span>process / port / data</span></div>
+          <div class="diagnostic-step" data-diagnostic-step data-output="[03] 正在验证 HTTP、WebSocket、DNS 与 Tunnel"><b></b><strong>检查连接</strong><span>http / socket / dns</span></div>
+          <div class="diagnostic-step" data-diagnostic-step data-output="[04] 正在核对账号、房间与服务端权限"><b></b><strong>核对权限</strong><span>account / room / policy</span></div>
+          <div class="diagnostic-step" data-diagnostic-step data-output="[05] 修复完成，请重复原操作并检查日志结果"><b></b><strong>复测与收尾</strong><span>retry / verify / redact</span></div>
+        </div><p class="console-output" data-diagnostic-output aria-live="polite"></p>
+      </div>
+    </div></section>
+
+    <section id="triage" class="guide-section paper"><div class="shell"><div class="section-heading"><h2>先判断问题在哪一层</h2><p>选择最接近的现象，右侧会给出第一轮三步检查。它不会替代下面的完整说明，但能避免从错误方向开始。</p></div><div class="triage-layout">
+      <aside class="triage-index"><h3>我现在遇到的是</h3><input class="triage-search" type="search" placeholder="搜索错误关键词" aria-label="搜索错误关键词" data-issue-search><div class="symptom-list">
+        <button class="symptom-button" type="button" data-symptom data-title="服务器无法启动" data-summary="优先检查进程、端口和运行环境，不要先改房间或公网配置。" data-step1="关闭重复启动的 SyncWatch 进程。" data-step2="确认当前端口没有被其他程序占用。" data-step3="源码运行时确认 Node.js 版本和 npm ci 已完成。" data-target="startup">服务器无法启动</button>
+        <button class="symptom-button" type="button" data-symptom data-title="公网地址无法创建" data-summary="先证明本机服务可用，再排查 cloudflared、DNS、代理和出站端口。" data-step1="打开 http://127.0.0.1:5000 验证本机服务。" data-step2="在服务器设置运行网络诊断。" data-step3="检查 VPN/TUN、TCP 443 和 TCP/UDP 7844。" data-target="network">公网访问异常</button>
+        <button class="symptom-button" type="button" data-symptom data-title="成员不能加入" data-summary="地址能打开不等于登录、房间和 WebSocket 都成功。" data-step1="核对房间号、密码和服务器是否仍在线。" data-step2="重新登录，排除旧令牌。" data-step3="在日志中心查看权限、Origin/Host 或房间错误。" data-target="account">登录或入房失败</button>
+        <button class="symptom-button" type="button" data-symptom data-title="媒体不能正常播放" data-summary="先区分文件损坏、编码不兼容、缓冲不足和同步状态冲突。" data-step1="在服务器本机直接播放原文件。" data-step2="等待 FFprobe 分析并尝试兼容版。" data-step3="让房主暂停后重新从队列播放。" data-target="media">播放、上传或不同步</button>
+        <button class="symptom-button" type="button" data-symptom data-title="数据或设置异常" data-summary="恢复前停止服务器，并确认备份范围是否包含媒体、密钥和聊天。" data-step1="保留当前 Data 目录副本。" data-step2="确认备份类型和来源版本。" data-step3="恢复后逐项检查账号、房间、uploads 与 secrets。" data-target="data">邮件、备份或数据异常</button>
+      </div></aside><div class="triage-result" data-triage-result aria-live="polite"></div>
+    </div></div></section>
+
+    <section id="issues" class="guide-section"><div class="shell"><div class="section-heading"><h2>完整错误处理手册</h2><p>每项都按“先确认 → 再修复 → 最后验证”展开。命令只用于定位，不要删除不认识的进程、数据目录或备份。</p></div><div class="issue-groups">
+      <section id="startup" class="issue-group"><h3>启动与运行环境</h3><div class="issue-list">
+        <details class="issue" data-issue open><summary><span>未找到内置 cloudflared</span><small>完整版 / vendor / 校验</small></summary><div class="issue-body"><p>完整服务器包应包含 <code>vendor/cloudflared.exe</code>。体验版或源码压缩包可能不含该文件。</p><h4>处理步骤</h4><ol><li>先确认下载文件名属于“完整版”，不要把 GitHub 自动生成的 Source code zip 当安装包。</li><li>在“服务器设置 → 公网访问”点击修复 cloudflared，让程序从 Cloudflare 官方 Release 下载并校验 SHA-256。</li><li>杀毒软件隔离过文件时，从 Release 重新下载并核对哈希；不要使用第三方网盘中的替换版。</li><li>修复后先运行版本检查，再重新开启临时公网地址。</li></ol><div class="command"><code>.\vendor\cloudflared.exe --version</code><button class="copy-command" type="button" data-copy>复制</button></div></div></details>
+        <details class="issue" data-issue><summary><span>端口已被占用 / EADDRINUSE</span><small>process / port</small></summary><div class="issue-body"><p>通常是旧服务仍在运行，或其他程序已经监听同一端口。</p><ol><li>关闭所有 SyncWatch 窗口并在任务管理器确认旧进程已退出。</li><li>用下面命令查找监听 5000 端口的 PID。</li><li>确认进程身份后关闭它，或在服务器设置改用未占用端口。</li><li>重启后重新复制局域网地址，旧端口链接不再有效。</li></ol><div class="command"><code>netstat -ano | findstr :5000</code><button class="copy-command" type="button" data-copy>复制</button></div></div></details>
+        <details class="issue" data-issue><summary><span>Node.js、npm 或依赖安装失败</span><small>source / npm ci</small></summary><div class="issue-body"><p>源码部署需要 Node.js 22+，推荐 Node.js 24 LTS。普通用户下载 Release 成品不需要单独安装 Node.js。</p><ol><li>重新打开终端，确认 <code>node</code> 与 <code>npm</code> 都能执行。</li><li>确认当前目录是仓库根目录并存在 <code>package-lock.json</code>。</li><li>执行 <code>npm ci</code>，不要把其他 Node 版本生成的 <code>node_modules</code> 复制进来。</li><li>依赖成功后执行 <code>npm run test:repo</code>，再启动服务。</li></ol><div class="command"><code>node --version &amp;&amp; npm --version &amp;&amp; npm ci</code><button class="copy-command" type="button" data-copy>复制</button></div></div></details>
+      </div></section>
+
+      <section id="account" class="issue-group"><h3>登录、房间与权限</h3><div class="issue-list">
+        <details class="issue" data-issue><summary><span>页面能打开但登录失败</span><small>token / password / room</small></summary><div class="issue-body"><ol><li>确认页面地址仍指向当前服务器和端口。</li><li>首次账号为 <code>admin</code> / <code>admin888</code>，登录后必须立即修改。</li><li>提示令牌过期时退出并重新登录，不要复制旧 Cookie。</li><li>日志中心检查是密码错误、账号禁用、设备限制还是服务器时间异常。</li></ol></div></details>
+        <details class="issue" data-issue><summary><span>成员无法加入房间</span><small>room / firewall / websocket</small></summary><div class="issue-body"><ol><li>确认房主服务仍运行，房间号大小写和密码完全一致。</li><li>局域网先检查 Windows 防火墙是否允许当前网络类型。</li><li>公网连接确认 HTTPS 地址没有过期，WebSocket 没有被代理拦截。</li><li>管理员查看日志，区分房间不存在、权限拒绝、Origin/Host 拦截或令牌过期。</li></ol></div></details>
+        <details class="issue" data-issue><summary><span>按钮消失或提示无权限</span><small>permission / role</small></summary><div class="issue-body"><p>按钮可见性来自服务端返回的角色与权限，不是浏览器渲染故障。</p><ol><li>确认当前登录账号和当前房间。</li><li>在“成员与权限组”核对权限组、房主状态和临时控制权。</li><li>保存权限后让成员重新连接并复测。</li><li>不要修改浏览器脚本绕过按钮，服务端仍会拒绝未授权操作。</li></ol></div></details>
+      </div></section>
+
+      <section id="media" class="issue-group"><h3>上传、媒体与同步</h3><div class="issue-list">
+        <details class="issue" data-issue><summary><span>上传卡住或审核后看不到</span><small>disk / approval / processing</small></summary><div class="issue-body"><ol><li>检查磁盘剩余空间、单文件大小和上传时长策略。</li><li>确认上传者有权限，文件仍位于 <code>uploads/</code>。</li><li>开启审核时需要管理员点击“批准上传”。</li><li>日志中依次确认 upload、media-processing、approval 事件。</li></ol></div></details>
+        <details class="issue" data-issue><summary><span>视频黑屏、无声或无法播放</span><small>codec / ffprobe / ffmpeg</small></summary><div class="issue-body"><ol><li>先在服务器本机播放原片，排除损坏文件。</li><li>等待 FFprobe 完成分析，确认视频、音频轨道和时长。</li><li>浏览器不支持 HEVC 或特殊音轨时，让 FFmpeg 生成兼容版并切换播放源。</li><li>DRM 保护、损坏或无授权内容不能由 SyncWatch 自动修复。</li></ol></div></details>
+        <details class="issue" data-issue><summary><span>成员不同步或进度反复跳回</span><small>authority / latency / buffer</small></summary><div class="issue-body"><ol><li>房主先暂停，等待所有成员连接和缓冲稳定。</li><li>从当前播放队列重新选择媒体，不要让多人同时拖动。</li><li>检查浏览器后台节流、设备性能和网络延迟。</li><li>服务器是权威时钟；确认日志中没有重复房主或频繁重连。</li></ol></div></details>
+      </div></section>
+
+      <section id="network" class="issue-group"><h3>桌面、Android 与公网</h3><div class="issue-list">
+        <details class="issue" data-issue><summary><span>Cloudflare 临时地址接口连接超时</span><small>dns / vpn / 7844</small></summary><div class="issue-body"><ol><li>先打开 <code>http://127.0.0.1:5000</code>，本机失败时不要继续查 Tunnel。</li><li>运行“网络诊断与修复”，查看 DNS、系统代理、网卡绑定和 Cloudflare 边缘连接。</li><li>允许 TCP 443、TCP/UDP 7844 出站；VPN/TUN 使用 Fake-IP 时把 cloudflared 和 Cloudflare 域名设为直连。</li><li>临时地址仍失败时改用自有 HTTPS 反向代理或稳定 Tunnel，不要反复重启导致日志被覆盖。</li></ol></div></details>
+        <details class="issue" data-issue><summary><span>Android 手机服务器启动不了</span><small>apk / foreground / battery</small></summary><div class="issue-body"><ol><li>确认安装的是包含 Node.js Mobile 的完整 APK。</li><li>允许通知、前台服务、网络和文件访问权限。</li><li>检查端口冲突，并把 SyncWatch 电池策略设为“不限制”。</li><li>锁屏后确认前台服务通知仍存在，再从同一 Wi-Fi 设备访问。</li></ol></div></details>
+        <details class="issue" data-issue><summary><span>Windows 或 macOS 阻止应用打开</span><small>hash / gatekeeper / firewall</small></summary><div class="issue-body"><ol><li>只从本仓库 GitHub Release 下载，并核对 SHA-256。</li><li>Windows 首次运行只允许实际使用的网络类型通过防火墙。</li><li>macOS 在“系统设置 → 隐私与安全性”允许已阻止应用。</li><li>屏幕共享、麦克风和摄像头权限需按功能单独授权。</li></ol></div></details>
+      </div></section>
+
+      <section id="data" class="issue-group"><h3>邮件、备份与安全收尾</h3><div class="issue-list">
+        <details class="issue" data-issue><summary><span>SMTP 测试邮件失败</span><small>host / tls / auth code</small></summary><div class="issue-body"><ol><li>按服务商文档填写 SMTP 主机、端口和 TLS。</li><li>QQ 等邮箱使用应用专用授权码，不是网页登录密码。</li><li>保存后向自己的测试邮箱发送，并查看邮件日志。</li><li>授权码出现在日志或截图中时立即撤销并重新生成。</li></ol></div></details>
+        <details class="issue" data-issue><summary><span>恢复后缺少媒体、聊天或密钥</span><small>scope / data directory</small></summary><div class="issue-body"><ol><li>先停止服务器并复制当前完整 Data 目录。</li><li>只导入 <code>config.json</code> 不等于完整恢复；选择包含媒体的二进制备份或完整目录。</li><li>检查 <code>uploads/</code>、<code>secrets/</code>、聊天、缩略图和媒体索引。</li><li>启动后分别验证登录、房间、媒体和公网配置。</li></ol></div></details>
+      </div></section>
+    </div>
+    <div class="privacy-strip"><strong>提交 Issue 前必须脱敏：</strong>删除真实姓名、私人邮箱、内外网 IP、管理员密码、SMTP 授权码、Tunnel 令牌、房间邀请链接、媒体文件名和聊天内容。安全问题请按仓库 <a href="../SECURITY.md">SECURITY.md</a> 私密报告。</div>
+    </div></section>
+  </main>
+  <footer class="guide-footer"><div class="shell"><span>SyncWatch同步观影 · 错误诊断手册 · Apache-2.0</span><nav><a href="troubleshooting.md">Markdown 原文</a><a href="management-center-guide.html">管理中心完整教程</a><a href="index.html">返回在线展示</a></nav></div></footer>
+  <script src="assets/guide.js"></script>
+</body>
+</html>

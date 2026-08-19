@@ -1148,6 +1148,47 @@ td:nth-child(1) {
   font-style: normal;
 }
 
+.contact-action {
+  min-height: 44px;
+  padding: 8px 0;
+  border: 0;
+  border-bottom: 1px solid transparent;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.contact-action:hover {
+  border-bottom-color: var(--green);
+  color: var(--green);
+}
+
+.contact-action--support {
+  color: var(--amber);
+  font-weight: 800;
+}
+
+.contact-dialog {
+  width: min(calc(100% - 28px), 560px);
+  max-height: calc(100dvh - 28px);
+  padding: 0;
+  overflow: hidden auto;
+  border: 1px solid var(--line-dark);
+  border-radius: 6px;
+  background: var(--ink);
+  color: var(--text);
+  box-shadow: 4px 16px 50px rgba(0, 0, 0, .56);
+}
+
+.contact-dialog::backdrop { background: rgba(0, 0, 0, .82); }
+.contact-dialog__bar { min-height: 58px; display: flex; align-items: center; justify-content: space-between; gap: 18px; padding: 10px 14px; border-bottom: 1px solid var(--line-dark); }
+.contact-dialog__bar h2 { margin: 0; font-size: 20px; }
+.contact-dialog__bar button { width: 44px; height: 44px; border: 1px solid var(--line-dark); border-radius: 4px; background: transparent; color: var(--text); font-size: 24px; cursor: pointer; }
+.contact-dialog img { width: 100%; max-height: calc(100dvh - 160px); display: block; object-fit: contain; background: #fff; }
+.contact-dialog p { margin: 0; padding: 12px 16px 16px; color: var(--muted); text-align: center; }
+
 .site-footer small {
   grid-column: 1 / -1;
   color: #89949b;

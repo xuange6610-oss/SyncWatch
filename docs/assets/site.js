@@ -102,3 +102,33 @@ if (architectureConsole && architectureSteps.length > 0) {
     });
   }
 }
+
+const contactDialog = document.querySelector('[data-contact-dialog]');
+const contactDialogTitle = document.getElementById('contact-dialog-title');
+const contactDialogImage = contactDialog?.querySelector('img');
+const contactDialogHelp = contactDialog?.querySelector('[data-contact-help]');
+
+function openContactDialog({ image, title, alt, help }) {
+  if (!contactDialog || !contactDialogTitle || !contactDialogImage || !contactDialogHelp) return;
+  contactDialogTitle.textContent = title;
+  contactDialogImage.src = image;
+  contactDialogImage.alt = alt;
+  contactDialogHelp.textContent = help;
+  if (!contactDialog.open) contactDialog.showModal();
+}
+
+document.querySelectorAll('[data-contact-image]').forEach((button) => button.addEventListener('click', () => openContactDialog({
+  image: button.dataset.contactImage,
+  title: button.dataset.contactTitle,
+  alt: button.dataset.contactAlt,
+  help: button.dataset.contactTitle.includes('QQ') ? '请使用 QQ 扫一扫添加好友。' : '请使用微信扫一扫添加好友。'
+})));
+
+document.querySelectorAll('[data-support-image]').forEach((button) => {
+  const openSupport = () => openContactDialog({ image: button.dataset.supportImage, title: '支持 SyncWatch同步观影', alt: '微信支付收款码', help: '自愿支持项目开发，请在付款前核对收款方信息。' });
+  button.addEventListener('dblclick', openSupport);
+  button.addEventListener('keydown', (event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); openSupport(); } });
+});
+
+contactDialog?.querySelector('[data-contact-close]')?.addEventListener('click', () => contactDialog.close());
+contactDialog?.addEventListener('click', (event) => { if (event.target === contactDialog) contactDialog.close(); });

@@ -6,10 +6,8 @@
 
 ## 一眼分清用途
 
-| 工具 | 是什么 | 什么时候需要 | 官方网站 |
-| --- | --- | --- | --- |
-| cloudflared | Cloudflare Tunnel 连接器，把本机 `http://127.0.0.1:5000` 转发成 HTTPS 地址 | 手工开启临时公网地址、固定 Tunnel、网络诊断 | [Cloudflare Tunnel 文档](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/) · [官方下载](https://github.com/cloudflare/cloudflared/releases/latest) |
-| Node.js | SyncWatch 服务端 JavaScript 运行环境，同时提供 `npm` | 从源码启动、运行独立服务器 ZIP、参与开发 | [Node.js 官网](https://nodejs.org/) · [官方下载](https://nodejs.org/en/download) · [API 文档](https://nodejs.org/docs/latest/api/) |
+- **cloudflared：** Cloudflare Tunnel 连接器，把本机 `http://127.0.0.1:5000` 转发成 HTTPS 地址。手工开启临时公网地址、配置固定 Tunnel 或进行网络诊断时使用。参考 [Cloudflare Tunnel 文档](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/) 和 [官方下载](https://github.com/cloudflare/cloudflared/releases/latest)。
+- **Node.js：** SyncWatch 服务端 JavaScript 运行环境，同时提供 `npm`。从源码启动、运行独立服务器 ZIP 或参与开发时使用。参考 [Node.js 官网](https://nodejs.org/)、[官方下载](https://nodejs.org/en/download) 和 [API 文档](https://nodejs.org/docs/latest/api/)。
 
 ## Windows 安装 cloudflared
 

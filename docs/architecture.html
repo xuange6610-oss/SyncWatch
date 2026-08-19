@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#101318">
+  <meta name="description" content="SyncWatch同步观影交互式技术架构、数据流、组件与部署边界说明。">
+  <title>技术架构与实现 | SyncWatch同步观影</title>
+  <link rel="stylesheet" href="assets/guide.css">
+</head>
+<body>
+  <!-- THESIS: 让一次同步操作在系统里的完整旅程可见，拒绝静态技术名词堆叠。 OWN-WORLD: 影院控制台、倾斜服务平面、同步信号绿与琥珀数据脉冲。 STORY: 从客户端意图进入服务端权威状态，经持久化和广播抵达所有设备。 FIRST VIEWPORT: 左侧说明与入口，右侧可倾斜的七节点调用平面。 FORM: established-world Read surface / service-routing-plane. FINISH: unreviewed and undocumented is unfinished; this build ends with the finish review, the verdict, and DESIGN.md. -->
+  <a class="skip" href="#main">跳到正文</a>
+  <header class="guide-header"><div class="shell guide-topbar"><a class="guide-brand" href="index.html">SyncWatch同步观影</a><nav class="guide-nav" aria-label="主要导航"><a href="management-center.html">管理中心</a><a href="troubleshooting.html">错误处理</a><a href="architecture.md">Markdown 原文</a><a href="https://github.com/xuange6610-oss/SyncWatch">GitHub</a></nav></div></header>
+  <main id="main">
+    <section class="guide-hero"><div class="shell guide-hero-grid">
+      <div><h1>一次操作，怎样成为所有人的同一画面</h1><p>客户端不直接互相修改播放器。播放、暂停、进度和倍速先发送到服务器；服务端完成认证、权限校验、房间状态更新与持久化，再通过 Socket.IO 广播权威结果。客户端按服务器时间和网络延迟校正播放位置。</p><div class="hero-actions"><a class="button primary" href="#request-flow">跟随一次调用</a><a class="button" href="#stack">查看组件</a><a class="button" href="architecture.md">阅读 Markdown 原文</a><button class="button" type="button" data-architecture-toggle>暂停动画</button></div></div>
+      <div class="architecture-stage" data-architecture-stage data-tilt aria-label="可交互的 SyncWatch 技术架构调用图">
+        <div class="architecture-node"><strong>桌面与移动端</strong><small>Electron / Android</small></div><div class="architecture-node"><strong>浏览器客户端</strong><small>HTML / CSS / JS</small></div><div class="architecture-node"><strong>服务端核心</strong><small>Express + Socket.IO</small></div><div class="architecture-node"><strong>媒体流水线</strong><small>FFprobe / FFmpeg</small></div><div class="architecture-node"><strong>本地数据目录</strong><small>config / uploads / secrets</small></div><div class="architecture-node"><strong>HTTPS 公网入口</strong><small>cloudflared</small></div><div class="architecture-node"><strong>邮件与可选 AI</strong><small>SMTP / relay</small></div>
+        <div class="architecture-plane"></div><i class="architecture-beam"></i><i class="architecture-beam"></i><i class="architecture-beam"></i><i class="architecture-beam"></i><i class="architecture-pulse"></i>
+      </div>
+    </div></section>
+
+    <section id="request-flow" class="guide-section"><div class="shell"><div class="section-heading"><h2>播放按钮按下后的完整调用链</h2><p>下面以“房主点击播放”为例。上传、改权限、发公告和切换房间也遵循同样的可信边界：客户端提出意图，服务端决定结果。</p></div><div class="flow-lanes">
+      <div class="flow-lane"><strong>1. 产生意图</strong><p>房主在 Web、Electron 或 Android WebView 中点击播放。前端收集房间号、媒体 ID、播放位置和客户端时间，不把本地 UI 状态当作最终结果。</p></div>
+      <div class="flow-lane"><strong>2. 建立连接</strong><p>REST 请求通过 <code>fetch</code> 进入 Express；实时事件通过 Socket.IO/WebSocket 进入同一个 Node.js 服务。公网部署时 HTTPS 请求先经过 Cloudflare Tunnel 或自己的反向代理。</p></div>
+      <div class="flow-lane"><strong>3. 认证与授权</strong><p>服务端检查会话令牌、设备状态、房间成员身份、房主/管理员角色和具体操作权限。隐藏按钮只是体验层，真正的安全边界始终在服务端。</p></div>
+      <div class="flow-lane"><strong>4. 更新权威状态</strong><p>权限通过后更新房间的媒体、播放状态、进度、倍速和服务器时间戳。对媒体操作会调用 FFprobe 检测；需要兼容转换时启动 FFmpeg 子进程。</p></div>
+      <div class="flow-lane"><strong>5. 持久化与审计</strong><p>账号、房间、媒体索引、设置和记录写入服务器数据目录。敏感信息与普通配置分开保存，操作日志记录谁在什么时候对哪个范围做了什么。</p></div>
+      <div class="flow-lane"><strong>6. 广播与校正</strong><p>Socket.IO 将新的权威状态广播给房间成员。客户端以服务器时间推算当前播放点，对超过阈值的偏差跳转校正，小偏差则通过正常播放消化。</p></div>
+    </div></div></section>
+
+    <section id="stack" class="guide-section"><div class="shell"><div class="section-heading"><h2>用了什么语言、环境和组件</h2><p>运行时和平台能力分层组合。GitHub Pages 只承载这套静态文档，不运行服务器、WebSocket、上传或 Tunnel。</p></div><div class="architecture-stack">
+      <article data-tilt><h3>网页与实时通信</h3><p>界面使用原生 HTML、CSS 和 JavaScript；Express 提供页面与 REST API；Socket.IO 负责房间事件、聊天、在线状态、权限变化和同步播放广播。</p></article>
+      <article data-tilt><h3>桌面与移动端</h3><p>Windows/macOS 使用 Electron 连接网页界面与桌面能力；Android 使用 Java、C++ JNI、WebView 与 Node.js Mobile，前台服务维持手机服务器。</p></article>
+      <article data-tilt><h3>媒体与网络</h3><p>FFprobe 识别媒体格式和轨道；FFmpeg 生成浏览器兼容版本与缩略图；cloudflared 只在用户开启公网访问时建立 HTTPS Tunnel。</p></article>
+      <article data-tilt><h3>构建与验证</h3><p>npm/pnpm 管理依赖，Electron Builder 生成桌面成品，Gradle 构建 APK，GitHub Actions 执行 CI、Pages 和平台发布流程。</p></article>
+    </div></div></section>
+
+    <section class="guide-section paper"><div class="shell"><div class="section-heading"><h2>模块边界和代码入口</h2><p>开发者先从职责找到入口，再沿调用链阅读；不要在前端重复实现服务端权限或数据规则。</p></div><table class="button-table"><thead><tr><th>区域</th><th>主要路径</th><th>职责</th><th>验证重点</th></tr></thead><tbody>
+      <tr><td>桌面启动</td><td><code>electron-pink.js</code><br><code>electron-main-preload.js</code></td><td>窗口、托盘、系统能力、打包资源和主进程通信</td><td>窗口生命周期、权限、资源路径</td></tr>
+      <tr><td>服务端</td><td><code>server/index.js</code><br><code>server-standalone.js</code></td><td>Express、Socket.IO、认证、房间、媒体、Tunnel、数据和日志</td><td>鉴权、输入校验、并发和持久化</td></tr>
+      <tr><td>浏览器界面</td><td><code>public/index.html</code><br><code>public/js/app.js</code></td><td>登录、播放器、管理中心、聊天、共享和客户端状态</td><td>权限呈现、断线恢复、响应式布局</td></tr>
+      <tr><td>Android</td><td><code>mobile/app/src/main</code></td><td>原生壳、WebView、前台服务、Node.js Mobile 与 ABI 资源</td><td>权限、省电、端口和包内运行时</td></tr>
+      <tr><td>发布与测试</td><td><code>.github/workflows/</code><br><code>tests/</code></td><td>CI、Pages、Windows/macOS 构建、隐私和发布契约</td><td>实际产物、架构声明和敏感信息</td></tr>
+    </tbody></table></div></section>
+
+    <section class="guide-section"><div class="shell"><div class="section-heading"><h2>数据怎样落盘</h2><p><code>SyncWatch同步观影-Data/</code> 是运行数据根目录。它不是源码，也不应提交到 GitHub。</p></div><div class="flow-lanes">
+      <div class="flow-lane"><strong><code>config.json</code></strong><p>账号、房间、权限、服务器设置和媒体索引。修改应经过服务端接口，不建议停机外直接手改。</p></div>
+      <div class="flow-lane"><strong><code>uploads/</code></strong><p>用户上传的影片、音频、字幕、图片和文档；备份时必须和媒体索引保持一致。</p></div>
+      <div class="flow-lane"><strong><code>secrets/</code></strong><p>邮件凭据与管理员验证材料。绝不能出现在截图、Issue、日志粘贴或公开仓库。</p></div>
+      <div class="flow-lane"><strong>兼容媒体与日志</strong><p>兼容文件可由原片重建；日志和崩溃信息用于诊断，但分享前必须删除 IP、令牌、邮箱、姓名和媒体名称。</p></div>
+    </div><div class="validation"><strong>备份原则：</strong>停止服务后复制整个数据目录，或在软件里导出“全部数据与配置”。只保存 <code>config.json</code> 不是完整备份。</div></div></section>
+
+    <section class="guide-section paper"><div class="shell"><div class="section-heading"><h2>不同部署环境分别需要什么</h2><p>支持平台以 Release 中实际存在的构建为准。macOS 不支持现代 32 位应用，不能把 Windows x86 声明套到所有系统。</p></div><table class="button-table"><thead><tr><th>场景</th><th>需要的环境</th><th>启动入口</th><th>网络边界</th></tr></thead><tbody>
+      <tr><td>Windows 完整版</td><td>成品内置 Electron/Node/FFmpeg/cloudflared</td><td>安装快捷方式或独立 EXE</td><td>局域网；可选 Tunnel</td></tr>
+      <tr><td>源码开发</td><td>Node.js 22+，推荐 24 LTS；npm 依赖</td><td><code>npm ci</code> 后 <code>npm start</code></td><td>开发机端口与防火墙</td></tr>
+      <tr><td>独立服务端</td><td>Node.js 或 Release 服务端包</td><td><code>npm run start:server</code></td><td>反向代理、HTTPS、WebSocket、Range</td></tr>
+      <tr><td>Android 服务器</td><td>完整 APK 内置 Node.js Mobile</td><td>应用内启动前台服务</td><td>通知权限、省电策略、移动网络限制</td></tr>
+      <tr><td>Docker</td><td>Node.js 24 Linux 镜像及持久卷</td><td>容器启动命令</td><td>映射端口与数据卷，Tunnel 可选</td></tr>
+    </tbody></table><div class="chapter-actions"><a class="button primary" href="runtime-installation.html">查看运行环境教程</a><a class="button" href="repository-map.html">查看仓库文件地图</a><a class="button" href="architecture.md">查看 Markdown 原文</a></div></div></section>
+  </main>
+  <footer class="guide-footer"><div class="shell"><span>SyncWatch同步观影 · 技术架构与实现 · Apache-2.0</span><nav><a href="architecture.md">Markdown 原文</a><a href="management-center-guide.html">管理中心教程</a><a href="index.html">返回在线展示</a></nav></div></footer>
+  <script src="assets/guide.js"></script>
+</body>
+</html>
