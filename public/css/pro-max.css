@@ -1,0 +1,56 @@
+/* UI UX Pro Max operational layer. Existing themes and all application content stay intact. */
+:root {
+  --bg: #0b1018;
+  --panel: #131b27;
+  --panel-2: #192332;
+  --panel-3: #223044;
+  --text: #f8fafc;
+  --muted: #aebccc;
+  --pink: #22c55e;
+  --pink-2: #86efac;
+  --green: #4ade80;
+  --line: #94a3b833;
+  --shadow: 0 20px 54px #020617a8;
+  --radius: 8px;
+}
+
+body { background: var(--bg); color: var(--text); }
+.topbar { background: color-mix(in srgb, var(--panel) 84%, transparent); border-color: var(--line); box-shadow: 0 12px 34px #02061738; backdrop-filter: blur(18px) saturate(130%); }
+.brand-mark { color: #052e16; background: var(--pink); box-shadow: 0 8px 24px color-mix(in srgb, var(--pink) 26%, transparent); }
+.status-badge, .account-button, .header-feature-button:hover { background: color-mix(in srgb, var(--panel-3) 76%, transparent); border-color: var(--line); }
+
+input, select, textarea { min-height: 42px; border-color: var(--line); border-radius: 8px; background-color: color-mix(in srgb, var(--bg) 84%, transparent); transition: border-color 180ms ease, background-color 180ms ease, box-shadow 180ms ease; }
+input:hover, select:hover, textarea:hover { border-color: color-mix(in srgb, var(--pink) 56%, var(--line)); }
+input:focus, select:focus, textarea:focus { border-color: var(--pink); box-shadow: 0 0 0 3px color-mix(in srgb, var(--pink) 22%, transparent); }
+
+.primary-button, .send-button { background: var(--pink); color: #052e16; box-shadow: 0 8px 22px color-mix(in srgb, var(--pink) 20%, transparent); }
+.primary-button:hover, .send-button:hover { filter: brightness(1.08); transform: translateY(-1px); }
+.secondary-button, .ghost-button, .header-feature-button, .account-button, .management-command, .settings-card, .user-card, .global-room-item { transition: border-color 180ms ease, background-color 180ms ease, color 180ms ease, transform 180ms cubic-bezier(.16,1,.3,1), box-shadow 180ms ease; }
+.secondary-button:hover, .management-command:hover, .settings-card:hover { border-color: color-mix(in srgb, var(--pink) 54%, var(--line)); }
+
+.auth-card, .modal-card, .account-dropdown, .management-hub-card, .permission-notice-card, .control-request-overlay {
+  background: color-mix(in srgb, var(--panel-2) 88%, transparent);
+  border-color: var(--line);
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(16px) saturate(125%);
+}
+.auth-card { border-radius: 10px; }
+.modal { background: #020617c7; backdrop-filter: blur(10px); }
+.modal-card { border-radius: 10px; }
+
+.sidebar, .chat-panel, .management-nav { background: color-mix(in srgb, var(--panel) 92%, transparent); border-color: var(--line); }
+.player-panel, .file-panel, .account-content, .management-content { background-color: color-mix(in srgb, var(--bg) 94%, var(--panel)); }
+.management-nav button.active, .chat-mode.active { background: var(--pink); color: #052e16; }
+.management-command:hover, .user-card:hover, .global-room-item:hover { border-color: color-mix(in srgb, var(--pink) 52%, var(--line)); box-shadow: 0 10px 24px #02061732; transform: translateY(-1px); }
+
+button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible, [tabindex]:focus-visible { outline: 3px solid #f8fafc; outline-offset: 3px; box-shadow: 0 0 0 6px color-mix(in srgb, var(--pink) 44%, transparent); }
+
+@media (max-width: 760px) {
+  button:not(.modal-close):not(.reaction-bar button), .header-feature-button, .chat-mode { min-height: 48px; }
+  .topbar { backdrop-filter: blur(12px); }
+  .modal-card { max-height: calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 24px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .primary-button, .send-button, .secondary-button, .ghost-button, .header-feature-button, .account-button, .management-command, .settings-card, .user-card, .global-room-item { transition: none !important; }
+}

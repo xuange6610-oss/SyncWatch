@@ -1,0 +1,10 @@
+:root { --teal: #22c55e; --teal-soft: #86efac; --pro-line: rgba(148,163,184,.3); }
+body { background: #0b1018; color: #f8fafc; }
+.shell { border-color: var(--pro-line); background: rgba(19,27,39,.88); box-shadow: 0 26px 70px rgba(2,6,23,.55); backdrop-filter: blur(16px) saturate(125%); }
+.visual, .connection { background: rgba(15,23,42,.72); }
+.login-cube-face { border-color: color-mix(in srgb, var(--teal) 68%, var(--pro-line)); background: rgba(25,35,50,.9); }
+input { border-color: var(--pro-line); border-radius: 8px; background: rgba(2,6,23,.62); }
+input:focus { border-color: var(--teal); box-shadow: 0 0 0 3px rgba(34,197,94,.2); }
+button { border-color: var(--teal); border-radius: 8px; background: var(--teal); color: #052e16; box-shadow: 0 10px 28px rgba(34,197,94,.18); }
+button:focus-visible, input:focus-visible, [tabindex]:focus-visible { outline: 3px solid #f8fafc; outline-offset: 3px; box-shadow: 0 0 0 6px rgba(34,197,94,.38); }
+@media (prefers-reduced-motion: reduce) { button, input { transition: none !important; } }

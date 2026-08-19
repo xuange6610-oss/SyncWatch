@@ -11,6 +11,19 @@ function setupStage() {
   let timer = 0;
   let visible = true;
   let running = !reduceMotion;
+  let rotateX = -12;
+  let rotateY = 18;
+  let scale = 1;
+  let dragging = false;
+  let lastX = 0;
+  let lastY = 0;
+  const reset = stage.querySelector('[data-guide-reset]');
+  const renderView = () => {
+    stage.style.setProperty('--doc-rotate-x', `${rotateX}deg`);
+    stage.style.setProperty('--doc-rotate-y', `${rotateY}deg`);
+    stage.style.setProperty('--doc-scale', scale.toFixed(2));
+  };
+  const resetView = () => { rotateX = -12; rotateY = 18; scale = 1; renderView(); };
   const render = () => nodes.forEach((node, index) => node.classList.toggle('is-active', index === active));
   const stop = () => { window.clearInterval(timer); timer = 0; stage.classList.remove('is-running'); };
   const start = () => {
@@ -19,6 +32,48 @@ function setupStage() {
     timer = window.setInterval(() => { active = (active + 1) % nodes.length; render(); }, 920);
   };
   render();
+  renderView();
+  reset?.addEventListener('click', resetView);
+  stage.addEventListener('pointerdown', (event) => {
+    if (event.target.closest('button')) return;
+    dragging = true;
+    lastX = event.clientX;
+    lastY = event.clientY;
+    stage.classList.add('is-dragging');
+    stage.setPointerCapture?.(event.pointerId);
+  });
+  stage.addEventListener('pointermove', (event) => {
+    if (!dragging) return;
+    rotateY += (event.clientX - lastX) * .45;
+    rotateX = Math.max(-80, Math.min(80, rotateX - (event.clientY - lastY) * .35));
+    lastX = event.clientX;
+    lastY = event.clientY;
+    renderView();
+  });
+  const stopDrag = (event) => {
+    dragging = false;
+    stage.classList.remove('is-dragging');
+    if (event?.pointerId != null) stage.releasePointerCapture?.(event.pointerId);
+  };
+  stage.addEventListener('pointerup', stopDrag);
+  stage.addEventListener('pointercancel', stopDrag);
+  stage.addEventListener('pointerleave', (event) => { if (dragging && event.buttons === 0) stopDrag(event); });
+  stage.addEventListener('wheel', (event) => {
+    event.preventDefault();
+    scale = Math.max(.78, Math.min(1.18, scale - event.deltaY * .001));
+    renderView();
+  }, { passive: false });
+  stage.addEventListener('keydown', (event) => {
+    const step = event.shiftKey ? 12 : 5;
+    if (event.key === 'ArrowLeft') rotateY -= step;
+    else if (event.key === 'ArrowRight') rotateY += step;
+    else if (event.key === 'ArrowUp') rotateX = Math.max(-80, rotateX - step);
+    else if (event.key === 'ArrowDown') rotateX = Math.min(80, rotateX + step);
+    else if (event.key === '0') return resetView();
+    else return;
+    event.preventDefault();
+    renderView();
+  });
   if (reduceMotion) { if (toggle) { toggle.textContent = '已减少动画'; toggle.disabled = true; } return; }
   start();
   toggle?.addEventListener('click', () => { running = !running; toggle.textContent = running ? '暂停动画' : '继续动画'; if (running) start(); else stop(); });

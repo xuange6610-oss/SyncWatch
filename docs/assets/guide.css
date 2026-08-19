@@ -160,11 +160,12 @@ code { color: var(--amber); font-size: .92em; }
 [data-tilt].is-tilting { transition: border-color 220ms ease, box-shadow 220ms ease; }
 [data-tilt] > * { transform: translateZ(1px); }
 
-.architecture-stage { position: relative; min-height: 470px; perspective: 1300px; }
+.architecture-stage { position: relative; min-height: clamp(390px, 42vw, 500px); perspective: 1300px; overflow: visible; transform: perspective(1400px) rotateX(var(--stage-rotate-x,-12deg)) rotateY(var(--stage-rotate-y,18deg)) scale(var(--stage-scale,1)); transform-style: preserve-3d; touch-action: none; cursor: grab; transition: transform 380ms var(--ease); }
+.architecture-stage.is-dragging { cursor: grabbing; transition: none; }
 .architecture-plane { position: absolute; inset: 34px 10px; border: 1px solid var(--line); transform: perspective(900px) rotateX(62deg) rotateZ(-9deg); background: #07090c; box-shadow: 4px 24px 56px rgba(0,0,0,.42); }
 .architecture-plane::before, .architecture-plane::after { position: absolute; inset: 16%; border: 1px solid rgba(40,212,144,.28); content: ""; }
 .architecture-plane::after { inset: 32%; border-color: rgba(242,184,74,.3); }
-.architecture-node { position: absolute; z-index: 3; min-width: 136px; padding: 13px 14px; border: 1px solid var(--line); border-radius: 4px; background: var(--panel-raised); box-shadow: 3px 10px 24px rgba(0,0,0,.28); text-align: center; }
+.architecture-node { position: absolute; z-index: 3; width: clamp(112px, 30%, 146px); min-width: 0; padding: 13px 10px; border: 1px solid var(--line); border-radius: 4px; background: var(--panel-raised); box-shadow: 3px 10px 24px rgba(0,0,0,.28); text-align: center; }
 .architecture-node strong { display: block; color: var(--text); font-size: 14px; }
 .architecture-node small { color: var(--muted); font: 11px "Cascadia Code", Consolas, monospace; }
 .architecture-node.is-active { border-color: var(--signal); box-shadow: 4px 16px 34px rgba(0,0,0,.36); }
@@ -183,6 +184,9 @@ code { color: var(--amber); font-size: .92em; }
 .architecture-beam:nth-of-type(12) { transform: rotate(322deg); }
 .architecture-pulse { position: absolute; z-index: 4; top: 50%; left: 50%; width: 10px; height: 10px; border-radius: 50%; background: var(--amber); box-shadow: 3px 4px 12px rgba(0,0,0,.3); }
 .architecture-stage.is-running .architecture-pulse { animation: architecture-route 6s var(--ease) infinite; }
+.architecture-controls { position: absolute; z-index: 8; right: 8px; bottom: 0; display: flex; align-items: center; justify-content: flex-end; gap: 8px; flex-wrap: wrap; color: var(--muted); font-size: 12px; }
+.architecture-controls button { min-height: 36px; padding: 7px 11px; border: 1px solid var(--line); border-radius: 5px; background: rgba(16,19,24,.92); color: var(--text); font: 700 12px inherit; cursor: pointer; }
+.architecture-controls button:hover { border-color: var(--signal); color: var(--signal); }
 @keyframes architecture-route {
   0% { transform: translate(-50%,-50%); }
   18% { transform: translate(-300px,-160px); }
@@ -231,8 +235,11 @@ code { color: var(--amber); font-size: .92em; }
   @keyframes map-orbit { to { transform: translate(-50%, -50%) rotate(360deg) translateX(132px) rotate(-360deg); } }
   .shot-pair { grid-template-columns: 1fr; }
   .button-table { display: block; overflow-x: auto; }
-  .architecture-stage { min-height: 390px; transform: scale(.9); margin-inline: -24px; }
-  .architecture-node { min-width: 108px; padding: 9px; }
+  .architecture-stage { min-height: 390px; margin: 10px 0 0; --stage-scale: .92; }
+  .architecture-node { width: 108px; padding: 9px 7px; }
+  .architecture-node strong { font-size: 12px; }
+  .architecture-node small { font-size: 9px; }
+  .architecture-controls { right: 0; bottom: -2px; }
   .architecture-stack { grid-template-columns: 1fr; }
   .architecture-stack article { min-height: 0; border-right: 0; border-bottom: 1px solid var(--line); }
   .flow-lane { grid-template-columns: 1fr; gap: 6px; }

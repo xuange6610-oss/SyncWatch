@@ -214,8 +214,16 @@ const designedDocRoutes = [
 for (const [htmlPath, markdownPath] of designedDocRoutes) {
   const html = read(`docs/${htmlPath}`);
   assert.match(html, /data-guide-stage/, `${htmlPath} must include the animated guide stage`);
-  assert.match(html, /data-doc-tilt/, `${htmlPath} must include pointer-driven 3D interaction`);
+  assert.match(html, /data-guide-stage[^>]*tabindex="0"/, `${htmlPath} must expose keyboard-accessible 3D interaction`);
+  assert.match(html, /data-guide-reset/, `${htmlPath} must expose a 3D view reset control`);
   assert.ok(html.includes(`href="${markdownPath}"`), `${htmlPath} must preserve its Markdown source link`);
+}
+
+for (const htmlPath of fs.readdirSync(path.join(root, 'docs'), { recursive: true })
+  .filter((entry) => typeof entry === 'string' && entry.endsWith('.html'))) {
+  const html = read(path.join('docs', htmlPath));
+  assert.match(html, /(?:\.\.\/|)assets\/pro-max\.css/,
+    `${htmlPath} must load the shared Pro Max design layer`);
 }
 
 const moduleRoutes = [
@@ -230,6 +238,7 @@ for (const route of moduleRoutes) {
   assert.equal(new Set(imagePaths).size, 5, `${route} screenshots must not repeat`);
   imagePaths.forEach((imagePath) => assert.ok(exists(path.join('docs/modules', imagePath)), `missing module screenshot: ${imagePath}`));
   assert.match(html, /data-module-stage/, `${route} must include the interactive 3D monitor`);
+  assert.match(html, /href="\.\.\/assets\/pro-max\.css"/, `${route} must load the shared Pro Max design layer`);
 }
 
 assert.match(site, /data-contact-image="assets\/contact\/qq-friend\.jpg"/,

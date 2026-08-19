@@ -20,11 +20,32 @@ const guides = [
 ];
 
 function escapeHtml(value) { return value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+const visualDocumentPages = new Map([
+  ['user-guide.md', 'user-guide.html'],
+  ['server-deployment-guide.md', 'server-deployment-guide.html'],
+  ['macos-build.md', 'macos-build.html'],
+  ['cloud-media-deployment.md', 'cloud-media-deployment.html'],
+  ['tips-and-advantages.md', 'tips-and-advantages.html'],
+  ['release-artifacts.md', 'release-artifacts.html'],
+  ['runtime-installation.md', 'runtime-installation.html'],
+  ['repository-map.md', 'repository-map.html'],
+  ['quick-start.md', 'quick-start.html'],
+  ['management-center.md', 'management-center-guide.html'],
+  ['architecture.md', 'architecture.html'],
+  ['troubleshooting.md', 'troubleshooting.html'],
+  ['wiki-guide.md', 'wiki-guide.html'],
+  ['../CONTRIBUTING.md', 'contributing.html']
+]);
+function visualDocumentHref(href) {
+  const [target, fragment] = href.split('#');
+  const visual = visualDocumentPages.get(target);
+  return visual ? `${visual}${fragment ? `#${fragment}` : ''}` : href;
+}
 function inline(value) {
   let result = escapeHtml(value);
   result = result.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, '<img class="doc-inline-image" src="$2" alt="$1" loading="lazy">');
   result = result.replace(/`([^`]+)`/g, '<code>$1</code>');
-  result = result.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2">$1</a>');
+  result = result.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_, label, href) => `<a href="${visualDocumentHref(href)}">${label}</a>`);
   result = result.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
   return result;
 }
@@ -53,7 +74,7 @@ function markdownToSections(source) {
 }
 
 function stageHtml() {
-  return `<div class="doc-stage" data-guide-stage data-doc-tilt aria-label="教程执行过程的三维数据流"><div class="doc-stage__plane"></div><div class="doc-node"><strong>打开入口</strong><small>route / menu</small></div><div class="doc-node"><strong>填写配置</strong><small>input / policy</small></div><div class="doc-node"><strong>保存状态</strong><small>server / data</small></div><div class="doc-node"><strong>验证结果</strong><small>client / check</small></div><div class="doc-node"><strong>记录审计</strong><small>log / trace</small></div><div class="doc-node"><strong>成员反馈</strong><small>socket / event</small></div><div class="doc-node"><strong>可恢复</strong><small>backup / restore</small></div><i class="doc-beam"></i><i class="doc-beam"></i><i class="doc-beam"></i><i class="doc-beam"></i><i class="doc-pulse"></i><button type="button" class="doc-stage-toggle" data-guide-toggle>暂停动画</button></div>`;
+  return `<div class="doc-stage" data-guide-stage tabindex="0" aria-label="教程执行过程的三维数据流，可拖动进行 360 度旋转"><div class="doc-stage__plane"></div><div class="doc-node"><strong>打开入口</strong><small>route / menu</small></div><div class="doc-node"><strong>填写配置</strong><small>input / policy</small></div><div class="doc-node"><strong>保存状态</strong><small>server / data</small></div><div class="doc-node"><strong>验证结果</strong><small>client / check</small></div><div class="doc-node"><strong>记录审计</strong><small>log / trace</small></div><div class="doc-node"><strong>成员反馈</strong><small>socket / event</small></div><div class="doc-node"><strong>可恢复</strong><small>backup / restore</small></div><i class="doc-beam"></i><i class="doc-beam"></i><i class="doc-beam"></i><i class="doc-beam"></i><i class="doc-pulse"></i><div class="doc-stage-controls"><button type="button" class="doc-stage-reset" data-guide-reset>复位视角</button><button type="button" class="doc-stage-toggle" data-guide-toggle>暂停动画</button><span>拖动 360° · 滚轮缩放 · 方向键微调</span></div></div>`;
 }
 
 function evidence(images, title) {
@@ -62,9 +83,10 @@ function evidence(images, title) {
 
 function page(slug, title, kicker, intro, sourcePath, images, sections) {
   const sourceHref = sourcePath.startsWith('../') ? `https://github.com/xuange6610-oss/SyncWatch/blob/main/${sourcePath.slice(3)}` : sourcePath;
+  const visualHref = `${slug}.html`;
   const toc = sections.map((section, index) => `<a href="#chapter-${index + 1}">${escapeHtml(section.title)}</a>`).join('');
   const chapters = sections.map((section, index) => `<section class="doc-section" id="chapter-${index + 1}"><h2>${escapeHtml(section.title)}</h2>${section.body.join('')}</section>`).join('');
-  return `<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#10161b"><meta name="description" content="${escapeHtml(title)} | SyncWatch同步观影"><title>${escapeHtml(title)} | SyncWatch同步观影</title><link rel="icon" href="favicon.ico"><link rel="stylesheet" href="assets/guide.css"><link rel="stylesheet" href="assets/document-guide.css"></head><body class="doc-page"><div class="doc-progress"></div><a class="skip" href="#main">跳到正文</a><header class="guide-header"><div class="shell guide-topbar"><a class="guide-brand" href="index.html">SyncWatch同步观影</a><nav class="guide-nav" aria-label="教程导航"><a href="index.html">在线展示</a><a href="management-center.html">管理中心</a><a href="quick-start.html">快速开始</a><a href="https://github.com/xuange6610-oss/SyncWatch">GitHub主页</a></nav></div></header><section class="doc-hero"><div class="doc-shell doc-hero-grid"><div><div class="doc-kicker">${escapeHtml(kicker)} / v2.1.7</div><h1>${escapeHtml(title)}</h1><p>${escapeHtml(intro)}</p><div class="doc-actions"><a class="doc-button primary" href="#chapter-1">开始阅读</a><a class="doc-button" href="${sourceHref}">查看 Markdown 原文</a><a class="doc-button" href="index.html">回到展示站</a></div><p class="doc-source-note">页面内容从维护中的 Markdown 生成，网页负责阅读体验，原文负责版本审阅。</p></div>${stageHtml()}</div></section><main id="main" class="doc-main"><div class="doc-shell doc-layout"><aside class="doc-toc"><strong>本页章节</strong>${toc}</aside><article>${chapters}${evidence(images, title)}<div class="doc-callout">操作完成后请回到真实应用验证结果。不要在公开 Issue、截图或日志中提交密码、令牌、真实 IP、邮箱或私人媒体信息。</div></article></div></main><footer class="doc-footer"><div class="doc-shell">SyncWatch同步观影 · Apache-2.0 · 作者：xuan<nav><a href="${sourceHref}">Markdown 原文</a><a href="index.html">在线展示</a><a href="https://github.com/xuange6610-oss/SyncWatch">GitHub主页</a></nav></div></footer><script src="assets/document-guide.js"></script></body></html>`;
+  return `<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#10161b"><meta name="description" content="${escapeHtml(title)} | SyncWatch同步观影"><title>${escapeHtml(title)} | SyncWatch同步观影</title><link rel="icon" href="favicon.ico"><link rel="stylesheet" href="assets/guide.css"><link rel="stylesheet" href="assets/document-guide.css"></head><body class="doc-page"><div class="doc-progress"></div><a class="skip" href="#main">跳到正文</a><header class="guide-header"><div class="shell guide-topbar"><a class="guide-brand" href="index.html">SyncWatch同步观影</a><nav class="guide-nav" aria-label="教程导航"><a href="index.html">在线展示</a><a href="management-center.html">管理中心</a><a href="quick-start.html">快速开始</a><a href="https://github.com/xuange6610-oss/SyncWatch">GitHub主页</a></nav></div></header><section class="doc-hero"><div class="doc-shell doc-hero-grid"><div><div class="doc-kicker">${escapeHtml(kicker)} / v2.1.7</div><h1>${escapeHtml(title)}</h1><p>${escapeHtml(intro)}</p><div class="doc-actions"><a class="doc-button primary" href="#chapter-1">开始阅读</a><a class="doc-button" href="${visualHref}">可视化阅读</a><a class="doc-button" href="${sourceHref}" download>下载 Markdown 源文档</a><a class="doc-button" href="index.html">回到展示站</a></div><p class="doc-source-note">页面内容从维护中的 Markdown 生成，网页负责阅读体验；源码入口单独提供下载。</p></div>${stageHtml()}</div></section><main id="main" class="doc-main"><div class="doc-shell doc-layout"><aside class="doc-toc"><strong>本页章节</strong>${toc}</aside><article>${chapters}${evidence(images, title)}<div class="doc-callout">操作完成后请回到真实应用验证结果。不要在公开 Issue、截图或日志中提交密码、令牌、真实 IP、邮箱或私人媒体信息。</div></article></div></main><footer class="doc-footer"><div class="doc-shell">SyncWatch同步观影 · Apache-2.0 · 作者：xuan<nav><a href="${visualHref}">可视化阅读</a><a href="${sourceHref}" download>下载 Markdown 源文档</a><a href="index.html">在线展示</a><a href="https://github.com/xuange6610-oss/SyncWatch">GitHub主页</a></nav></div></footer><script src="assets/document-guide.js"></script></body></html>`;
 }
 
 for (const [slug, title, kicker, intro, sourcePath, images] of guides) {
@@ -72,6 +94,7 @@ for (const [slug, title, kicker, intro, sourcePath, images] of guides) {
   let source = fs.readFileSync(absolute, 'utf8');
   const sections = markdownToSections(source);
   let rendered = page(slug, title, kicker, intro, sourcePath, images, sections);
+  rendered = rendered.replace('<link rel="stylesheet" href="assets/document-guide.css">', '<link rel="stylesheet" href="assets/document-guide.css"><link rel="stylesheet" href="assets/pro-max.css">');
   if (slug === 'contributing') rendered = rendered.replace(/href="LICENSE"/g, 'href="https://github.com/xuange6610-oss/SyncWatch/blob/main/LICENSE"');
   fs.writeFileSync(path.join(docs, `${slug}.html`), rendered, 'utf8');
 }
@@ -81,5 +104,5 @@ const managementSections = markdownToSections(managementSource);
 const managementLinks = ['room-upload','all-rooms','members-permissions','chat-records','accounts-registration','application-center','account-levels','notifications','mail-settings','log-center','server-settings'];
 const managementBody = managementLinks.map((slug, index) => `<a class="doc-button" href="modules/${slug}.html">${String(index + 1).padStart(2, '0')} ${slug}</a>`).join('');
 const managementPage = page('management-center-guide', '管理中心完整图文教程', 'ADMIN CONSOLE', '从登录、权限初始化，到 11 个管理模块的按钮、字段、结果和真实截图，按“打开入口 → 修改 → 保存 → 验证 → 记录”完成一次完整管理流程。', 'management-center.md', ['main-interface.png', 'member-panel.png', 'public-access-settings.png'], managementSections);
-fs.writeFileSync(path.join(docs, 'management-center-guide.html'), managementPage.replace('data-guide-stage data-doc-tilt', 'data-guide-stage data-control-map data-doc-tilt').replace('</article>', `<div class="doc-callout"><strong>11 个独立模块：</strong>${managementBody}</div></article>`), 'utf8');
+fs.writeFileSync(path.join(docs, 'management-center-guide.html'), managementPage.replace('<link rel="stylesheet" href="assets/document-guide.css">', '<link rel="stylesheet" href="assets/document-guide.css"><link rel="stylesheet" href="assets/pro-max.css">').replace('data-guide-stage tabindex="0"', 'data-guide-stage data-control-map tabindex="0"').replace('</article>', `<div class="doc-callout"><strong>11 个独立模块：</strong>${managementBody}</div></article>`), 'utf8');
 console.log(`generated ${guides.length + 1} document guide pages`);

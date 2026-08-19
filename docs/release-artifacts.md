@@ -15,7 +15,8 @@ GitHub Release 是给普通用户下载成品的地方；仓库首页的 `Source
 | macOS 服务器 DMG/ZIP | `SyncWatch-Server-macOS-v版本-x64/arm64.*` | Mac 房主 | Intel 或 Apple Silicon 上运行服务器 | 必须由 macOS 主机或 macOS CI 生成，不能用 Windows 文件冒充 |
 | macOS 客户端 DMG/ZIP | `SyncWatch-Client-macOS-v版本-x64/arm64.*` | Mac 成员 | Intel 或 Apple Silicon 上加入房间 | 需要系统允许网络、麦克风或屏幕共享权限时按提示授权 |
 | macOS 完整版 DMG/ZIP | `SyncWatch-Full-Offline-macOS-v版本-x64/arm64.*` | Mac 房主 | 当前架构的完整服务端、cloudflared 和全平台离线下载中心 | Intel 选 x64，Apple Silicon 选 arm64；每个文件超过 1 GB |
-| cloudflared 安装包 | `cloudflared-windows-x64-installer.msi` / `cloudflared-windows-x86-installer.msi` | 需要手工配置 Tunnel 的 Windows 管理员 | MSI 提供安装入口；安装后可在终端调用 `cloudflared` | 只从 Cloudflare 官方 Release 下载并校验 SHA-256；命令行 EXE 双击不会显示安装向导 |
+| cloudflared 安装包 | `cloudflared-windows-x64-installer.msi` / `cloudflared-windows-x86-installer.msi` | 需要手工配置 Tunnel 的 Windows 管理员 | MSI 提供安装入口；安装后可在终端调用 `cloudflared` | 只从 [Cloudflare 官网](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/) 或 [官方 Release 下载](https://github.com/cloudflare/cloudflared/releases/latest) 并校验 SHA-256；命令行 EXE 双击不会显示安装向导 |
+| Node.js 环境包 | `node-v24.19.0-x64.msi` / `arm64.msi` / macOS 包 | 源码开发、独立服务器管理员 | 提供 `node` 与 `npm`，用于源码安装依赖和启动独立服务器 | 从 [Node.js 官网](https://nodejs.org/) 或 [官方下载](https://nodejs.org/en/download) 获取对应平台包；正式 Windows EXE 已内置 Node.js |
 
 ## 选择流程
 

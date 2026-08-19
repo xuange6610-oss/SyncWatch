@@ -8,6 +8,8 @@ const root = path.resolve(__dirname, '..');
 const html = fs.readFileSync(path.join(root, 'public', 'index.html'), 'utf8');
 const app = fs.readFileSync(path.join(root, 'public', 'js', 'app.js'), 'utf8');
 const css = fs.readFileSync(path.join(root, 'public', 'css', 'style.css'), 'utf8');
+const proMaxCss = fs.readFileSync(path.join(root, 'public', 'css', 'pro-max.css'), 'utf8');
+const launcherProMaxCss = fs.readFileSync(path.join(root, 'public', 'css', 'pro-max-launcher.css'), 'utf8');
 const launcher = fs.readFileSync(path.join(root, 'client-launcher.html'), 'utf8');
 
 // 1) Guest login UI: button, socket event, occupied-IP handling, no remembered session.
@@ -97,4 +99,12 @@ assert.match(app, /const showDownloads = state\.publicConfig\.downloadButtonsVis
 assert.match(app, /notice-preferences-updated/);
 assert.match(app, /downloadButtonsVisible: elements\.downloadButtonsVisible\?\.checked !== false/);
 
-console.log('Frontend v2.1.7 guest, marquee, cube, rate prompt, mail, verification, account views, audio and version contracts passed.');
+// 11) The application and standalone launcher both load the shared Pro Max
+// redesign without reducing the existing 48 px Android touch targets.
+assert.match(html, /href="\/css\/pro-max\.css"/);
+assert.match(launcher, /href="public\/css\/pro-max-launcher\.css"/);
+assert.match(proMaxCss, /@media \(max-width:\s*760px\)[\s\S]*?button:not\([^}]+min-height:\s*48px/);
+assert.doesNotMatch(proMaxCss, /min-height:\s*44px/);
+assert.match(launcherProMaxCss, /focus-visible/);
+
+console.log('Frontend v2.1.7 product, accessibility and Pro Max redesign contracts passed.');

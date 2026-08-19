@@ -28,7 +28,8 @@
 .doc-button:hover { border-color: var(--doc-green); transform: translateY(-2px); }
 .doc-button.primary { border-color: var(--doc-green); background: var(--doc-green); color: #07120e; }
 .doc-source-note { margin-top: 18px; color: var(--doc-muted); font-size: 13px; }
-.doc-stage { position: relative; min-height: 410px; perspective: 1200px; }
+.doc-stage { position: relative; min-height: 410px; perspective: 1200px; overflow: visible; transform: perspective(1400px) rotateX(var(--doc-rotate-x,-12deg)) rotateY(var(--doc-rotate-y,18deg)) scale(var(--doc-scale,1)); transform-style: preserve-3d; touch-action: none; cursor: grab; transition: transform 380ms var(--doc-ease); }
+.doc-stage.is-dragging { cursor: grabbing; transition: none; }
 .doc-stage__plane { position: absolute; inset: 34px 10px; border: 1px solid var(--doc-line); background: #070b0f; transform: rotateX(58deg) rotateZ(-9deg); box-shadow: 5px 22px 54px rgba(0,0,0,.5); }
 .doc-stage__plane::before, .doc-stage__plane::after { position: absolute; inset: 14%; border: 1px solid rgba(40,212,144,.28); content: ""; }
 .doc-stage__plane::after { inset: 31%; border-color: rgba(242,184,74,.32); }
@@ -53,9 +54,12 @@
 .doc-stage[data-doc-tilt], .doc-evidence [data-doc-tilt] { transform: perspective(1100px) rotateX(var(--tilt-x, 0deg)) rotateY(var(--tilt-y, 0deg)); transform-style: preserve-3d; transition: transform 380ms var(--doc-ease), border-color 220ms ease; }
 .doc-stage.is-running .doc-pulse { animation: doc-route 6s var(--doc-ease) infinite; }
 @keyframes doc-route { 0% { transform: translate(-50%,-50%); } 18% { transform: translate(-270px,-145px); } 34% { transform: translate(240px,-140px); } 52% { transform: translate(-50%,-50%); } 70% { transform: translate(-260px,150px); } 88% { transform: translate(235px,145px); } 100% { transform: translate(-50%,-50%); } }
-.doc-stage-toggle { position: absolute; right: 12px; bottom: 12px; z-index: 6; min-height: 38px; padding: 7px 11px; border: 1px solid var(--doc-line); border-radius: 4px; background: var(--doc-panel); color: var(--doc-text); cursor: pointer; }
+.doc-stage-controls { position: absolute; right: 12px; bottom: 12px; z-index: 6; display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 8px; color: var(--doc-muted); font-size: 12px; }
+.doc-stage-controls button { min-height: 38px; padding: 7px 11px; border: 1px solid var(--doc-line); border-radius: 4px; background: var(--doc-panel); color: var(--doc-text); cursor: pointer; }
+.doc-stage-controls button:hover { border-color: var(--doc-green); color: var(--doc-green); }
 .doc-main { padding-block: 76px; }
 .doc-layout { display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 46px; align-items: start; }
+.doc-layout > * { min-width: 0; }
 .doc-toc { position: sticky; top: 92px; max-height: calc(100vh - 116px); overflow: auto; padding-right: 14px; border-right: 1px solid var(--doc-line); }
 .doc-toc strong { display: block; margin-bottom: 12px; color: var(--doc-green); }
 .doc-toc a { display: block; padding: 7px 0; color: var(--doc-muted); font-size: 14px; text-decoration: none; }
@@ -90,6 +94,6 @@
 .doc-footer nav { display: flex; flex-wrap: wrap; gap: 16px; margin-top: 12px; }
 .doc-footer a { color: var(--doc-green); }
 
-@media (max-width: 920px) { .doc-hero-grid { grid-template-columns: 1fr; gap: 22px; } .doc-stage { max-width: 700px; width: 100%; margin-inline: auto; } .doc-layout { grid-template-columns: 1fr; } .doc-toc { position: static; max-height: none; display: flex; gap: 14px; overflow-x: auto; padding: 0 0 12px; border-right: 0; border-bottom: 1px solid var(--doc-line); } .doc-toc strong { display: none; } .doc-toc a { flex: 0 0 auto; white-space: nowrap; } }
-@media (max-width: 640px) { .doc-shell { width: min(calc(100% - 28px), var(--doc-max)); } .doc-hero-grid { min-height: 0; padding-block: 52px 44px; } .doc-hero h1 { font-size: 42px; } .doc-stage { min-height: 350px; transform: scale(.88); margin-block: -22px; } .doc-node { min-width: 104px; padding: 8px; font-size: 13px; } .doc-node strong, .doc-node small { font-size: 13px; } .doc-section h2 { font-size: 31px; } .doc-evidence { grid-template-columns: 1fr; } .doc-main { padding-block: 58px; } }
-@media (prefers-reduced-motion: reduce) { .doc-stage.is-running .doc-pulse { animation: none; } .doc-node, .doc-evidence img, .doc-button, .doc-stage[data-doc-tilt], .doc-evidence [data-doc-tilt] { transition: none; transform: none; } }
+@media (max-width: 920px) { .doc-hero-grid { grid-template-columns: 1fr; gap: 22px; } .doc-stage { max-width: 700px; width: 100%; margin-inline: auto; } .doc-layout { grid-template-columns: minmax(0, 1fr); } .doc-toc { position: static; width: 100%; max-width: 100%; max-height: none; display: flex; gap: 14px; overflow-x: auto; padding: 0 0 12px; border-right: 0; border-bottom: 1px solid var(--doc-line); } .doc-toc strong { display: none; } .doc-toc a { flex: 0 0 auto; white-space: nowrap; } }
+@media (max-width: 640px) { .doc-shell { width: min(calc(100% - 28px), var(--doc-max)); } .doc-hero-grid { min-height: 0; padding-block: 52px 44px; } .doc-hero h1 { font-size: 42px; } .doc-stage { min-height: 350px; --doc-scale: .88; margin-block: -22px; } .doc-node { min-width: 104px; padding: 8px; font-size: 13px; } .doc-node strong, .doc-node small { font-size: 13px; } .doc-stage-controls { right: 0; bottom: 0; } .doc-stage-controls span { flex-basis: 100%; text-align: right; } .doc-section h2 { font-size: 31px; } .doc-evidence { grid-template-columns: 1fr; } .doc-main { padding-block: 58px; } }
+@media (prefers-reduced-motion: reduce) { .doc-stage.is-running .doc-pulse { animation: none; } .doc-node, .doc-evidence img, .doc-button, .doc-stage, .doc-evidence [data-doc-tilt] { transition: none; } }

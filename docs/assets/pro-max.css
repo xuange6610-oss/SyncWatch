@@ -1,0 +1,87 @@
+/* UI UX Pro Max layer: shared glass-console language for the static showcase. */
+:root {
+  --pro-bg: #0f172a;
+  --pro-surface: rgba(27, 35, 54, .78);
+  --pro-surface-strong: rgba(30, 41, 59, .92);
+  --pro-line: rgba(148, 163, 184, .28);
+  --pro-text: #f8fafc;
+  --pro-muted: #c2ccda;
+  --pro-accent: #22c55e;
+  --pro-accent-bright: #4ade80;
+  --pro-focus: #f8fafc;
+  --pro-shadow: 0 18px 44px rgba(2, 6, 23, .28);
+  --pro-ease: cubic-bezier(.16, 1, .3, 1);
+}
+
+body {
+  background-color: var(--pro-bg);
+}
+
+.site-header, .guide-header, body > header {
+  background: rgba(15, 23, 42, .78) !important;
+  border-bottom-color: var(--pro-line) !important;
+  box-shadow: 0 12px 30px rgba(2, 6, 23, .18);
+  backdrop-filter: blur(18px) saturate(130%);
+}
+
+.site-header nav a, .guide-nav a, nav a { transition: color 180ms ease, transform 180ms var(--pro-ease); }
+.site-header nav a:hover, .guide-nav a:hover, nav a:hover { color: var(--pro-accent-bright); transform: translateY(-1px); }
+
+.button, .doc-button, .scene-controls button, .architecture-controls button, .doc-stage-controls button, .module-stage__rail button, .module-lightbox__bar button, .module-lightbox__controls button {
+  border-color: var(--pro-line) !important;
+  border-radius: 8px !important;
+  transition: border-color 180ms ease, background-color 180ms ease, color 180ms ease, transform 180ms var(--pro-ease), box-shadow 180ms ease;
+  cursor: pointer;
+}
+.button:hover, .doc-button:hover, .scene-controls button:hover, .architecture-controls button:hover, .doc-stage-controls button:hover, .module-stage__rail button:hover, .module-lightbox__bar button:hover, .module-lightbox__controls button:hover {
+  border-color: var(--pro-accent) !important;
+  box-shadow: 0 8px 22px rgba(2, 6, 23, .22);
+  transform: translateY(-2px);
+}
+.button.primary, .doc-button.primary { background: var(--pro-accent) !important; border-color: var(--pro-accent) !important; color: #052e16 !important; box-shadow: 0 8px 24px rgba(34,197,94,.22); }
+.button.primary:hover, .doc-button.primary:hover { background: var(--pro-accent-bright) !important; }
+
+.hero, .doc-hero, .module-hero { background: rgba(27,35,54,.92) !important; }
+.hero__shade { background: rgba(2,6,23,.68) !important; }
+.hero__image { filter: saturate(.86) contrast(1.08) brightness(.78) !important; }
+
+.architecture-console, .architecture-stage, .scene, .doc-stage, .module-stage, .command-panel, .doc-evidence figure, .gallery-item, .module-shot, .module-aside {
+  border-color: var(--pro-line) !important;
+  background: var(--pro-surface) !important;
+  box-shadow: var(--pro-shadow);
+  backdrop-filter: blur(14px) saturate(125%);
+}
+.architecture-console__bar, .doc-stage-controls, .module-stage__rail { border-color: var(--pro-line) !important; }
+.architecture-node, .doc-node, .face, .scene-controls button, .architecture-controls button, .doc-stage-controls button { background: var(--pro-surface-strong) !important; border-color: var(--pro-line) !important; }
+.architecture-node.is-active, .doc-node.is-active { border-color: var(--pro-accent) !important; box-shadow: 0 12px 30px rgba(34,197,94,.18); }
+
+.section--dark, .section--data, .architecture-section { background: rgba(15,23,42,.82) !important; }
+.section--light, .section--paper, .management-section { background: rgba(248,250,252,.96) !important; }
+.capability-band { background: rgba(248,250,252,.94) !important; }
+.pages-boundary { background: #fbbf24 !important; }
+.site-footer { background: rgba(2,6,23,.92) !important; }
+
+.doc-page .doc-main { background: transparent; }
+.doc-page .doc-layout { gap: 34px; }
+.doc-page .doc-toc { border-color: var(--pro-line); }
+.doc-page .doc-section + .doc-section { border-color: var(--pro-line); }
+.doc-page .doc-section a, .doc-page .doc-footer a { color: var(--pro-accent-bright); }
+.doc-page .doc-section a:hover, .doc-page .doc-footer a:hover { color: #bbf7d0; }
+.doc-page .doc-section pre { border-color: var(--pro-line); background: rgba(2,6,23,.76); box-shadow: inset 0 1px 0 rgba(255,255,255,.04); }
+.doc-page .doc-callout { border-color: rgba(239,68,68,.62); background: rgba(69,10,10,.34); }
+
+.management-module, .docs-list a, .feature-ledger > div { transition: border-color 180ms ease, background-color 180ms ease, transform 180ms var(--pro-ease); }
+.management-module:hover { border-color: rgba(34,197,94,.56); background: rgba(34,197,94,.045); transform: translateY(-2px); }
+.management-module figure img, .gallery-item img, .module-shot img { border-color: var(--pro-line) !important; }
+
+:focus-visible { outline: 3px solid var(--pro-focus) !important; outline-offset: 3px !important; box-shadow: 0 0 0 6px rgba(34,197,94,.42) !important; }
+
+@media (max-width: 640px) {
+  .site-header, .guide-header, body > header { backdrop-filter: blur(12px); }
+  .doc-page .doc-layout { gap: 22px; }
+  .doc-stage, .scene { box-shadow: 0 12px 28px rgba(2,6,23,.24); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .site-header nav a, .guide-nav a, nav a, .button, .doc-button, .management-module, .docs-list a, .feature-ledger > div { transition: none !important; }
+}
