@@ -17,14 +17,13 @@ concurrency:
 
 jobs:
   build:
-    name: macOS ${{ matrix.kind }} ${{ matrix.arch }}
+    name: macOS ${{ matrix.kind }} x64 + arm64
     runs-on: macos-14
     timeout-minutes: 60
     strategy:
       fail-fast: false
       matrix:
         kind: [client, server]
-        arch: [x64, arm64]
     env:
       CSC_IDENTITY_AUTO_DISCOVERY: "false"
       VERSION: "2.1.6"
@@ -62,7 +61,7 @@ jobs:
           npx electron-builder \
             --config electron-builder-mac-${{ matrix.kind }}.json \
             --mac \
-            --${{ matrix.arch }}
+            --publish never
 
       - name: Verify package names, size and privacy
         shell: bash
@@ -75,15 +74,17 @@ jobs:
             label="服务器"
             folder="dist-mac-server"
           fi
-          dmg="$folder/SyncWatch同步观影-${label}-v${VERSION}-${{ matrix.arch }}.dmg"
-          zip="$folder/SyncWatch同步观影-${label}-v${VERSION}-${{ matrix.arch }}.zip"
-          test -s "$dmg"
-          test -s "$zip"
           old_ascii="tang""jingxuan"
           old_name="唐""靖轩"
-          ! grep -aEqi "${old_ascii}|${old_name}" "$dmg"
-          ! grep -aEqi "${old_ascii}|${old_name}" "$zip"
-          shasum -a 256 "$dmg" "$zip"
+          for arch in x64 arm64; do
+            dmg="$folder/SyncWatch同步观影-${label}-v${VERSION}-${arch}.dmg"
+            zip="$folder/SyncWatch同步观影-${label}-v${VERSION}-${arch}.zip"
+            test -s "$dmg"
+            test -s "$zip"
+            ! grep -aEqi "${old_ascii}|${old_name}" "$dmg"
+            ! grep -aEqi "${old_ascii}|${old_name}" "$zip"
+            shasum -a 256 "$dmg" "$zip"
+          done
 
       - name: Upload packages to draft release
         env:
@@ -98,6 +99,8 @@ jobs:
             folder="dist-mac-server"
           fi
           gh release upload "${{ inputs.tag }}" \
-            "$folder/SyncWatch同步观影-${label}-v${VERSION}-${{ matrix.arch }}.dmg" \
-            "$folder/SyncWatch同步观影-${label}-v${VERSION}-${{ matrix.arch }}.zip" \
+            "$folder/SyncWatch同步观影-${label}-v${VERSION}-x64.dmg" \
+            "$folder/SyncWatch同步观影-${label}-v${VERSION}-x64.zip" \
+            "$folder/SyncWatch同步观影-${label}-v${VERSION}-arm64.dmg" \
+            "$folder/SyncWatch同步观影-${label}-v${VERSION}-arm64.zip" \
             --clobber
