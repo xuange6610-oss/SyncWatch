@@ -137,7 +137,7 @@ jobs:
       - name: Upload workflow artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: SyncWatch-Windows-${{ github.ref_name }}
+          name: SyncWatch-Windows-${{ inputs.tag || github.ref_name }}
           path: release/windows-*/**
           if-no-files-found: error
 

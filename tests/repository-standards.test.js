@@ -125,6 +125,8 @@ assert.match(windowsRelease, /npm run build:client -- --publish never/,
   'Windows client build must not require a publish token before the upload step');
 assert.match(windowsRelease, /electron-builder-windows-installer\.json --win nsis --publish never/,
   'Windows installer build must not require a publish token before the upload step');
+assert.match(windowsRelease, /name:\s*SyncWatch-Windows-\$\{\{ inputs\.tag \|\| github\.ref_name \}\}/,
+  'Windows workflow artifact names must use the dispatch tag instead of a slash-containing branch name');
 const cloudflaredPrepareIndex = windowsRelease.indexOf('Prepare verified Cloudflare Tunnel binary');
 const sourcePrivacyIndex = windowsRelease.indexOf('npm run test:privacy');
 const buildIndex = windowsRelease.indexOf('Build portable server and client');
