@@ -112,6 +112,8 @@ assert.match(read('CONTRIBUTING.md'), /Pull Request/);
 assert.match(read('CONTRIBUTING.md'), /分支保护/);
 
 const windowsRelease = read('.github/workflows/release-windows.yml');
+assert.match(windowsRelease, /npm install --global pnpm@11\.9\.0/,
+  'Windows release must install the package manager used by Electron Builder dependency collection');
 const cloudflaredPrepareIndex = windowsRelease.indexOf('Prepare verified Cloudflare Tunnel binary');
 const sourcePrivacyIndex = windowsRelease.indexOf('npm run test:privacy');
 const buildIndex = windowsRelease.indexOf('Build portable server and client');
