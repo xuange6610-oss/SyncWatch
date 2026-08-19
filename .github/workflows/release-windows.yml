@@ -70,11 +70,11 @@ jobs:
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force -Path release/offline-bundle/windows,release/offline-bundle/android,release/offline-bundle/mac | Out-Null
-          Copy-Item 'dist-client/SyncWatch同步观影-Client-v2.1.7.exe' 'release/offline-bundle/windows/SyncWatch同步观影-Client-v2.1.7.exe' -Force
-          gh release download '${{ inputs.tag || github.ref_name }}' --repo '${{ github.repository }}' --pattern 'SyncWatch-Android-v2.1.7-universal.apk' --dir release/offline-bundle/android --clobber
-          Move-Item 'release/offline-bundle/android/SyncWatch-Android-v2.1.7-universal.apk' 'release/offline-bundle/android/SyncWatch同步观影-v2.1.7.apk' -Force
-          gh release download '${{ inputs.tag || github.ref_name }}' --repo '${{ github.repository }}' --pattern 'SyncWatch-Server-macOS-v2.1.7-*.zip' --dir release/offline-bundle/mac --clobber
-          gh release download '${{ inputs.tag || github.ref_name }}' --repo '${{ github.repository }}' --pattern 'SyncWatch-Client-macOS-v2.1.7-*.zip' --dir release/offline-bundle/mac --clobber
+          Copy-Item 'dist-client/SyncWatch同步观影-Client-v2.1.8.exe' 'release/offline-bundle/windows/SyncWatch同步观影-Client-v2.1.8.exe' -Force
+          gh release download '${{ inputs.tag || github.ref_name }}' --repo '${{ github.repository }}' --pattern 'SyncWatch-Android-v2.1.8-universal.apk' --dir release/offline-bundle/android --clobber
+          Move-Item 'release/offline-bundle/android/SyncWatch-Android-v2.1.8-universal.apk' 'release/offline-bundle/android/SyncWatch同步观影-v2.1.8.apk' -Force
+          gh release download '${{ inputs.tag || github.ref_name }}' --repo '${{ github.repository }}' --pattern 'SyncWatch-Server-macOS-v2.1.8-*.zip' --dir release/offline-bundle/mac --clobber
+          gh release download '${{ inputs.tag || github.ref_name }}' --repo '${{ github.repository }}' --pattern 'SyncWatch-Client-macOS-v2.1.8-*.zip' --dir release/offline-bundle/mac --clobber
           Get-ChildItem release/offline-bundle/mac -Filter 'SyncWatch-Server-macOS-*.zip' | ForEach-Object { Rename-Item $_.FullName ($_.Name -replace 'SyncWatch-Server-macOS-', 'SyncWatch同步观影-服务器-') }
           Get-ChildItem release/offline-bundle/mac -Filter 'SyncWatch-Client-macOS-*.zip' | ForEach-Object { Rename-Item $_.FullName ($_.Name -replace 'SyncWatch-Client-macOS-', 'SyncWatch同步观影-客户端-') }
           node scripts/verify-full-offline-bundle.js
@@ -88,7 +88,7 @@ jobs:
       - name: Collect release assets
         shell: pwsh
         run: |
-          $version = '2.1.7'
+          $version = '2.1.8'
           New-Item -ItemType Directory -Force -Path release\windows-installer | Out-Null
           New-Item -ItemType Directory -Force -Path release\windows-full-portable | Out-Null
           New-Item -ItemType Directory -Force -Path release\windows-server | Out-Null
@@ -107,10 +107,10 @@ jobs:
         shell: pwsh
         run: |
           $expected = @(
-            'release\windows-installer\SyncWatch-v2.1.7-Full-Offline-Installer-x64.exe',
-            'release\windows-full-portable\SyncWatch-v2.1.7-Full-Offline-Portable-x64.exe',
-            'release\windows-server\SyncWatch-Standard-Server-Portable-v2.1.7-x64.exe',
-            'release\windows-client\SyncWatch-Experience-Client-Portable-v2.1.7-x64.exe'
+            'release\windows-installer\SyncWatch-v2.1.8-Full-Offline-Installer-x64.exe',
+            'release\windows-full-portable\SyncWatch-v2.1.8-Full-Offline-Portable-x64.exe',
+            'release\windows-server\SyncWatch-Standard-Server-Portable-v2.1.8-x64.exe',
+            'release\windows-client\SyncWatch-Experience-Client-Portable-v2.1.8-x64.exe'
           )
           foreach ($file in $expected) {
             if (-not (Test-Path -LiteralPath $file -PathType Leaf)) { throw "Missing release asset: $file" }
@@ -121,8 +121,8 @@ jobs:
             throw 'The Full and Standard server builds require the bundled cloudflared.exe.'
           }
           $fullPackages = @(
-            'release\windows-installer\SyncWatch-v2.1.7-Full-Offline-Installer-x64.exe',
-            'release\windows-full-portable\SyncWatch-v2.1.7-Full-Offline-Portable-x64.exe'
+            'release\windows-installer\SyncWatch-v2.1.8-Full-Offline-Installer-x64.exe',
+            'release\windows-full-portable\SyncWatch-v2.1.8-Full-Offline-Portable-x64.exe'
           )
           foreach ($file in $fullPackages) {
             if ((Get-Item -LiteralPath $file).Length -lt 1GB) {

@@ -153,7 +153,7 @@ assert.equal(_test.tunnelProbeTransport('', {}), 'electron-system-network',
   'an unbound/system fallback probe must honor the operating-system proxy and TUN route');
 assert.equal(_test.tunnelProbeTransport('', { HTTPS_PROXY: 'http://127.0.0.1:7890' }), 'environment-proxy',
   'an unbound/system fallback probe must honor the proxy inherited by cloudflared');
-assert.deepEqual(_test.parseTunnelProbeResponse(200, JSON.stringify({ name: 'SyncWatch同步观影', version: 'v2.1.7' })), {
+assert.deepEqual(_test.parseTunnelProbeResponse(200, JSON.stringify({ name: 'SyncWatch同步观影', version: 'v2.1.8' })), {
   ok: true, statusCode: 200
 });
 assert.equal(_test.parseTunnelProbeResponse(530, 'Cloudflare error code: 1033').cloudflareErrorCode, 1033);

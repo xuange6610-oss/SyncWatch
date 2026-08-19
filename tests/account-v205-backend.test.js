@@ -207,7 +207,7 @@ async function main() {
     const storedMedia = persisted.admin.mediaManagementRequests.find((entry) => entry.id === mediaRequest.request.id);
     assert.equal(storedMedia.status, 'approved');
     assert.equal(persisted.rooms[roomId].mediaManagementGrants.V205Alice, true);
-    console.log('account v2.1.7 backend protocol regression passed');
+    console.log('account v2.1.8 backend protocol regression passed');
   } finally {
     for (const socket of sockets) socket.close();
     await server?.close().catch(() => {});
@@ -216,6 +216,6 @@ async function main() {
 }
 
 main().catch((error) => {
-  console.error('account v2.1.7 backend regression failed:', error);
+  console.error('account v2.1.8 backend regression failed:', error);
   process.exitCode = 1;
 });

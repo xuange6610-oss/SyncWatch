@@ -145,7 +145,7 @@ function resolveMacDownloadPaths(kind, {
 function resolveClientDownloadPath({ isPackaged = false, resourcesPath = '', portableExecutableDir = '', portableExecutableFile = '', developmentClientPath = '' } = {}) {
   const siblingDirectory = portableExecutableDir || (portableExecutableFile ? path.dirname(portableExecutableFile) : '');
   const candidates = isPackaged
-    ? [resourcesPath ? path.join(resourcesPath, 'offline-downloads', 'windows', 'SyncWatch同步观影-Client-v2.1.7.exe') : '', resourcesPath ? path.join(resourcesPath, 'client', 'SyncWatch同步观影-Client-v2.1.7.exe') : '', siblingDirectory ? path.join(siblingDirectory, 'SyncWatch同步观影-Client-v2.1.7.exe') : '']
+    ? [resourcesPath ? path.join(resourcesPath, 'offline-downloads', 'windows', 'SyncWatch同步观影-Client-v2.1.8.exe') : '', resourcesPath ? path.join(resourcesPath, 'client', 'SyncWatch同步观影-Client-v2.1.8.exe') : '', siblingDirectory ? path.join(siblingDirectory, 'SyncWatch同步观影-Client-v2.1.8.exe') : '']
     : [developmentClientPath];
   return candidates.find((candidate) => candidate && fs.existsSync(candidate)) || '';
 }
@@ -2197,9 +2197,9 @@ async function startApplication() {
   const startPort = resolvedStartPort(activeServerSettings);
   const dataDir = process.env.SYNCWATCH_DATA_DIR || DEFAULT_DATA_DIR;
   const androidApkPath = app.isPackaged
-    ? path.join(process.resourcesPath, 'offline-downloads', 'android', 'SyncWatch同步观影-v2.1.7.apk')
-    : path.join(__dirname, 'mobile', 'SyncWatch同步观影-v2.1.7.apk');
-  const developmentClientPath = path.join(__dirname, 'SyncWatch同步观影-Client-v2.1.7.exe');
+    ? path.join(process.resourcesPath, 'offline-downloads', 'android', 'SyncWatch同步观影-v2.1.8.apk')
+    : path.join(__dirname, 'mobile', 'SyncWatch同步观影-v2.1.8.apk');
+  const developmentClientPath = path.join(__dirname, 'SyncWatch同步观影-Client-v2.1.8.exe');
   const clientDownloadPath = resolveClientDownloadPath({
     isPackaged: app.isPackaged,
     resourcesPath: process.resourcesPath,

@@ -407,7 +407,7 @@ function Assert-ApkPayload([string]$apkPath, [string]$repositoryRoot) {
             }
         }
 
-        if ($entries.Keys | Where-Object { $_ -match '^assets/syncwatch/(?:mobile/)?SyncWatch同步观影-v2\.1\.7\.apk$' }) {
+        if ($entries.Keys | Where-Object { $_ -match '^assets/syncwatch/(?:mobile/)?SyncWatch同步观影-v2\.1\.8\.apk$' }) {
             throw 'APK recursively contains another SyncWatch同步观影 Android APK.'
         }
 
@@ -496,7 +496,8 @@ if ($env:SYNCWATCH_ANDROID_OFFLINE -eq '1') { $gradleArgs = @('--offline') + $gr
 if ($LASTEXITCODE -ne 0) { throw 'Android release build failed.' }
 
 $builtApk = Join-Path $PSScriptRoot 'app\build\outputs\apk\release\app-release.apk'
-$deliveryApk = Join-Path $PSScriptRoot 'SyncWatch同步观影-v2.1.7.apk'
+$deliveryApk = Join-Path $PSScriptRoot 'SyncWatch同步观影-v2.1.8.apk'
+$releaseApk = Join-Path $PSScriptRoot 'SyncWatch-Android-v2.1.8-universal.apk'
 if (-not (Test-Path -LiteralPath $builtApk)) { throw 'Gradle completed without the expected release APK.' }
 
 $buildTools = Join-Path $sdk 'build-tools\35.0.0'
@@ -511,7 +512,7 @@ try {
     $aaptExitCode = $LASTEXITCODE
     $badging = $badgingOutput | Select-Object -First 1
     if ($aaptExitCode -ne 0 -or $badging -notmatch "name='com\.xuan\.syncwatch'" -or
-        $badging -notmatch "versionCode='20106'" -or $badging -notmatch "versionName='2\.1\.7'") {
+        $badging -notmatch "versionCode='20108'" -or $badging -notmatch "versionName='2\.1\.8'") {
         throw "APK package metadata verification failed: $badging"
     }
 
@@ -589,7 +590,10 @@ try {
 
 $apkInfo = Get-Item -LiteralPath $deliveryApk
 $apkHash = Get-Sha256 $deliveryApk
+Copy-Item -LiteralPath $deliveryApk -Destination $releaseApk -Force
+if ((Get-Sha256 $releaseApk) -ne $apkHash) { throw 'ASCII release APK copy verification failed.' }
 Write-Host "Build complete: $deliveryApk" -ForegroundColor Green
+Write-Host "Release asset: $releaseApk" -ForegroundColor Green
 Write-Host "Size: $($apkInfo.Length) bytes" -ForegroundColor Green
 Write-Host "SHA256: $apkHash" -ForegroundColor Green
 

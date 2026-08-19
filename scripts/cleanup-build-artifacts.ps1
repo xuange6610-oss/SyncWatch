@@ -1,4 +1,4 @@
-﻿$ErrorActionPreference = 'Stop'
+$ErrorActionPreference = 'Stop'
 $workspace = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 $workspacePrefix = $workspace.TrimEnd('\') + '\'
 
@@ -38,7 +38,7 @@ function Remove-WorkspacePath([string]$relativePath) {
     'coverage',
     '.nyc_output',
     'server-verify-temp',
-    'SyncWatch同步观影-v2.1.7.exe',
+    'SyncWatch同步观影-v2.1.8.exe',
     'SyncWatch同步观影-v1.1.0.exe',
     'SyncWatch同步观影-Client-v1.1.0.exe',
     'SyncWatch同步观影-Server-v1.1.0.zip',

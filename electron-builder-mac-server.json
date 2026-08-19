@@ -6,7 +6,7 @@
   "compression": "maximum",
   "electronLanguages": ["zh-CN"],
   "removePackageScripts": true,
-  "artifactName": "SyncWatch同步观影-服务器-v2.1.7-${arch}.${ext}",
+  "artifactName": "SyncWatch同步观影-服务器-v2.1.8-${arch}.${ext}",
   "directories": { "output": "dist-mac-server" },
   "files": [
     "electron-pink.js",

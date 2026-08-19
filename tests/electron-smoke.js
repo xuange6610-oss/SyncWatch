@@ -10,7 +10,7 @@ const { app, BrowserWindow, session } = require('electron');
 const { io: createSocketClient } = require('socket.io-client');
 const { startSyncWatchServer } = require('../server');
 
-const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'syncwatch-electron-v2.1.7-'));
+const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'syncwatch-electron-v2.1.8-'));
 app.setPath('userData', path.join(dataDir, 'electron-profile'));
 app.commandLine.appendSwitch('disable-gpu-shader-disk-cache');
 let controller;
@@ -1016,7 +1016,7 @@ async function run() {
   await window.webContents.executeJavaScript(`document.getElementById('forgotPasswordBtn').click()`, true);
   await waitFor(`!document.getElementById('appDialog').classList.contains('is-hidden') && document.getElementById('appDialogTitle').textContent === 'QQ 邮箱找回密码'`, '打开 QQ 邮箱找回密码对话框');
   const recoveryDescription = await window.webContents.executeJavaScript(`document.getElementById('appDialogDescription').textContent`, true);
-  // v2.1.7 may explicitly explain an unknown account instead of promising a
+  // v2.1.8 may explicitly explain an unknown account instead of promising a
   // privacy-masked response; both variants must keep a usable description.
   assert.ok(recoveryDescription.trim().length > 0);
   await window.webContents.executeJavaScript(`document.getElementById('appDialogInput').value = '邮箱界面恢复'; document.getElementById('appDialogConfirmBtn').click()`, true);
@@ -1081,12 +1081,12 @@ app.whenReady().then(async () => {
   let exitCode = 0;
   try {
     await run();
-    console.log('\nElectron v2.1.7 渲染验收全部通过。');
+    console.log('\nElectron v2.1.8 渲染验收全部通过。');
   } catch (error) {
     exitCode = 1;
-    console.error('\nElectron v2.1.7 渲染验收失败:', error);
+    console.error('\nElectron v2.1.8 渲染验收失败:', error);
   }
   try { await finishTest(exitCode); }
-  catch (error) { console.error('\nElectron v2.1.7 清理失败:', error); app.exit(1); }
-}).catch((error) => { console.error('\nElectron v2.1.7 启动失败:', error); app.exit(1); });
+  catch (error) { console.error('\nElectron v2.1.8 清理失败:', error); app.exit(1); }
+}).catch((error) => { console.error('\nElectron v2.1.8 启动失败:', error); app.exit(1); });
 

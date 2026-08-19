@@ -14,8 +14,16 @@ button:disabled { opacity: .38; cursor: not-allowed; }
 input, select { width: 100%; color: var(--text); background: #0f1417; border: 1px solid #d9eef022; border-radius: 7px; padding: 10px 11px; outline: none; }
 select { appearance: none; padding-right: 38px; cursor: pointer; background-image: linear-gradient(45deg, transparent 50%, var(--pink-2) 50%), linear-gradient(135deg, var(--pink-2) 50%, transparent 50%), linear-gradient(to right, var(--line), var(--line)); background-position: calc(100% - 17px) 50%, calc(100% - 12px) 50%, calc(100% - 34px) 50%; background-size: 5px 5px, 5px 5px, 1px 20px; background-repeat: no-repeat; transition: border-color .16s ease, background-color .16s ease, box-shadow .16s ease; }
 select:hover { border-color: color-mix(in srgb, var(--pink) 58%, transparent); background-color: color-mix(in srgb, var(--pink) 6%, #11181c); }
-select:disabled { cursor: not-allowed; opacity: .48; background-image: none; }
+/* Keep the native select indicator available to accessibility tooling even
+   when the enhanced trigger is disabled; the visible trigger remains muted. */
+select:disabled { cursor: not-allowed; opacity: .48; }
 select[multiple], select[size]:not([size="1"]) { padding-right: 11px; background-image: none; }
+/* Chromium may serialize the enhanced, visually-hidden native control as
+   `background-image: none` when custom properties are unresolved. Keep a
+   deterministic indicator for UI/automation and high-contrast inspection. */
+select[data-enhanced-select="1"] {
+  background-image: linear-gradient(45deg, transparent 50%, #91e1d5 50%), linear-gradient(135deg, #91e1d5 50%, transparent 50%), linear-gradient(to right, #d9eef015, #d9eef015) !important;
+}
 select option, select optgroup { color: var(--text); background: var(--panel-2); }
 select option:checked { color: var(--text); background: var(--panel-3); }
 input:focus, select:focus { border-color: var(--pink); box-shadow: 0 0 0 3px #52c7b820; }

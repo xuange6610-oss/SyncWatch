@@ -145,8 +145,8 @@ async function main() {
     assert.match(electronClientSource, /setAppUserModelId\(['"]com\.xuan\.syncwatch\.client['"]\)/);
     assert.match(electronServerSource, /waitForPublicUrl\(establishedUrl, 8000,[\s\S]{0,180}localAddress/);
     assert.match(electronServerSource, /const verified = Boolean\(verifiedResult\?\.ok\)[\s\S]{0,520}state: verified \? 'running' : 'verifying'[\s\S]{0,160}publicUrl: verified \? establishedUrl : ''/);
-    assert.ok(!packageManifest.build.extraResources.some((entry) => entry.from === 'SyncWatch同步观影-Client-v2.1.7.exe'));
-    assert.equal(packageManifest.build.portable.artifactName, 'SyncWatch同步观影-v2.1.7.exe');
+    assert.ok(!packageManifest.build.extraResources.some((entry) => entry.from === 'SyncWatch同步观影-Client-v2.1.8.exe'));
+    assert.equal(packageManifest.build.portable.artifactName, 'SyncWatch同步观影-v2.1.8.exe');
     assert.equal(packageManifest.build.win.executableName, 'SyncWatch同步观影');
     assert.match(releaseScriptSource, /build-apk\.ps1[\s\S]{0,500}& \$powerShellExecutable/);
     assert.doesNotMatch(releaseScriptSource, /Reusing the existing verified APK artifact/);

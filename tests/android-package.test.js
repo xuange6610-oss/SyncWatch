@@ -13,7 +13,7 @@ const mobileRoot = path.join(repositoryRoot, 'mobile');
 const appRoot = path.join(mobileRoot, 'app');
 const sourceOnly = process.argv.includes('--source-only');
 const explicitApk = process.argv.find((argument) => /\.apk$/i.test(argument));
-const apkPath = path.resolve(explicitApk || path.join(mobileRoot, 'SyncWatch同步观影-v2.1.7.apk'));
+const apkPath = path.resolve(explicitApk || path.join(mobileRoot, 'SyncWatch同步观影-v2.1.8.apk'));
 
 const NODE_MOBILE = Object.freeze({
   version: '18.20.4',
@@ -159,6 +159,9 @@ function verifySources() {
     'attempting to start an unavailable Android tunnel must fail explicitly');
   assert.match(service, /hostControlToken:hostToken,tunnelManager,androidApkPath/,
     'the Android bootstrap must pass its explicit tunnel capability to the shared server');
+  assert.match(service, /androidApkPath:path\.join\(dataRoot,'SyncWatch同步观影-v2\.1\.8\.apk'\)/,
+    'the Android bootstrap must point download metadata at the current APK');
+  assert.doesNotMatch(service, /v2\.1\.7/, 'the Android bootstrap must not retain the previous APK version');
   const activity = read('mobile/app/src/main/java/com/xuan/syncwatch/MainActivity.java');
   assert.match(activity, /STATUS_STOPPED[\s\S]{0,300}leaveStoppedLocalServerPage\("手机服务器已停止"\)/,
     'notification stop broadcasts must immediately leave a stopped local-server page');
@@ -361,4 +364,3 @@ function verifyApk(dependencyClosure) {
 const dependencyClosure = verifySources();
 if (!sourceOnly) verifyApk(dependencyClosure);
 console.log(`Android package verification passed (${dependencyClosure.length} production Node.js packages${sourceOnly ? ', source-only' : ', APK unpacked'}).`);
-

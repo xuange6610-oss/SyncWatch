@@ -60,7 +60,7 @@ assert.ok(macServerConfig.files.includes('server/macos-distribution.js'));
 assert.equal(macDistributionExample.manifestVersion, 1);
 assert.ok(macDistributionExample.server.arm64.dmg.startsWith('https://'));
 assert.match(read('docs/macos-build.md'), /mac-distribution\.json/);
-assert.ok(!packageManifest.build.extraResources.some((entry) => ['mac', 'mobile', 'SyncWatch同步观影-Client-v2.1.7.exe'].includes(String(entry.from || ''))),
+assert.ok(!packageManifest.build.extraResources.some((entry) => ['mac', 'mobile', 'SyncWatch同步观影-Client-v2.1.8.exe'].includes(String(entry.from || ''))),
   'Windows server EXE must keep client, Android and macOS downloads as separate release artifacts');
 assert.match(embeddedMacReadme, /scripts\/build-macos\.sh/);
 assert.match(windowsBuild, /collect-macos-distribution\.ps1/,
@@ -69,11 +69,11 @@ assert.match(windowsBuild, /release[\\/]macos/,
   'Windows packaging must publish macOS artifacts beside the Windows executable');
 assert.doesNotMatch(windowsBuild, /win-unpacked\\resources\\mac/,
   'Windows packaging must not copy macOS payloads into the Windows executable');
-assert.match(standalone, /SyncWatch同步观影-服务器-v2\.1\.7/);
-assert.match(standalone, /SyncWatch同步观影-客户端-v2\.1\.7/);
-assert.match(dockerfile, /COPY SyncWatch同步观影-Client-v2\.1\.7\.exe \.\/client\/SyncWatch同步观影-Client-v2\.1\.7\.exe/,
+assert.match(standalone, /SyncWatch同步观影-服务器-v2\.1\.8/);
+assert.match(standalone, /SyncWatch同步观影-客户端-v2\.1\.8/);
+assert.match(dockerfile, /COPY SyncWatch同步观影-Client-v2\.1\.8\.exe \.\/client\/SyncWatch同步观影-Client-v2\.1\.8\.exe/,
   'Docker deployment must include the Windows client download artifact');
-assert.ok(dockerignore.indexOf('!SyncWatch同步观影-Client-v2.1.7.exe') > dockerignore.indexOf('*.exe'),
+assert.ok(dockerignore.indexOf('!SyncWatch同步观影-Client-v2.1.8.exe') > dockerignore.indexOf('*.exe'),
   'Docker ignore rules must re-include the canonical Windows client after the executable wildcard');
 
 for (const [config, main] of [[macServerConfig, 'electron-pink.js'], [macClientConfig, 'electron-client.js']]) {

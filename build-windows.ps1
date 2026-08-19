@@ -160,16 +160,16 @@ function Ensure-MediaTools {
 }
 
 $androidBuildScript = Join-Path $PSScriptRoot 'mobile\build-apk.ps1'
-$androidApk = Join-Path $PSScriptRoot 'mobile\SyncWatch同步观影-v2.1.7.apk'
+$androidApk = Join-Path $PSScriptRoot 'mobile\SyncWatch-Android-v2.1.8-universal.apk'
 $powerShellExecutable = Join-Path $PSHOME 'powershell.exe'
 if (-not (Test-Path -LiteralPath $androidBuildScript) -or -not (Test-Path -LiteralPath $powerShellExecutable)) {
     throw 'The Android build script or system PowerShell executable is missing.'
 }
 
-Write-Host 'Building and verifying the signed Android v2.1.7 APK...' -ForegroundColor Cyan
+Write-Host 'Building and verifying the signed Android v2.1.8 APK...' -ForegroundColor Cyan
 & $powerShellExecutable -NoProfile -NonInteractive -ExecutionPolicy Bypass -File $androidBuildScript
 if ($LASTEXITCODE -ne 0) { throw 'Android APK build failed; EXE packaging stopped.' }
-if (-not (Test-Path -LiteralPath $androidApk)) { throw 'Android build completed without mobile\SyncWatch同步观影-v2.1.7.apk.' }
+if (-not (Test-Path -LiteralPath $androidApk)) { throw 'Android build completed without mobile\SyncWatch-Android-v2.1.8-universal.apk.' }
 $androidApkInfo = Get-Item -LiteralPath $androidApk
 if ($androidApkInfo.Length -lt 10KB) { throw 'The Android APK is unexpectedly small; EXE packaging stopped.' }
 $androidApkHash = (Get-FileHash -Algorithm SHA256 -LiteralPath $androidApk).Hash
@@ -219,7 +219,7 @@ else { & $npm audit --omit=dev }
 if ($LASTEXITCODE -ne 0) { throw 'Production dependency audit failed; packaging stopped.' }
 
 $package = $buildManifest
-if ([string]$package.version -ne '2.1.7') { throw 'package.json version must be exactly 2.1.7.' }
+if ([string]$package.version -ne '2.1.8') { throw 'package.json version must be exactly 2.1.8.' }
 $artifactName = [string]$package.build.portable.artifactName
 if ([string]::IsNullOrWhiteSpace($artifactName) -or [System.IO.Path]::GetFileName($artifactName) -ne $artifactName) {
     throw 'The portable artifact name in package.json is invalid.'
@@ -230,7 +230,7 @@ if ($packagedFiles -notcontains 'electron-settings-preload.js') {
     throw 'package.json must include electron-settings-preload.js for the portable settings window.'
 }
 foreach ($entry in @($packagedFiles) + @($unpackedFiles) + @($package.build.extraResources | ForEach-Object { [string]$_.from })) {
-    if ($entry -match '(^|[\\/])(?:mobile|mac)(?:[\\/]|$)|SyncWatch同步观影-Client-v2\.1\.7\.exe') {
+    if ($entry -match '(^|[\\/])(?:mobile|mac)(?:[\\/]|$)|SyncWatch同步观影-Client-v2\.1\.8\.exe') {
         throw "The main Windows EXE must not embed separately released client, Android or macOS payloads: $entry"
     }
 }
@@ -276,7 +276,7 @@ $clientConfigPath = Join-Path $PSScriptRoot 'electron-builder-client.json'
 if (-not (Test-Path -LiteralPath $clientConfigPath -PathType Leaf)) {
     throw 'The SyncWatch同步观影 client packaging configuration is missing.'
 }
-$clientArtifactName = 'SyncWatch同步观影-Client-v2.1.7.exe'
+$clientArtifactName = 'SyncWatch同步观影-Client-v2.1.8.exe'
 $clientDelivery = Join-Path $releaseWindowsClient $clientArtifactName
 $clientBuildRoot = Join-Path ([System.IO.Path]::GetTempPath()) ('syncwatch-client-build-' + [Guid]::NewGuid().ToString('N'))
 $clientStage = Join-Path $PSScriptRoot ('.syncwatch-client-' + [Guid]::NewGuid().ToString('N') + '.tmp')
@@ -377,7 +377,7 @@ try {
     }
     $asarEntries = @(& $node $asarCli list $asarPath)
     if ($LASTEXITCODE -ne 0) { throw 'Unable to inspect the packaged app.asar.' }
-    if (($asarEntries -join "`n") -match '(?im)(^|[\\/])(?:mobile|mac)(?:[\\/]|$)|SyncWatch同步观影-Client-v2\.1\.7\.exe') {
+    if (($asarEntries -join "`n") -match '(?im)(^|[\\/])(?:mobile|mac)(?:[\\/]|$)|SyncWatch同步观影-Client-v2\.1\.8\.exe') {
         throw 'The main app.asar embeds a separately released client, Android or macOS payload.'
     }
 
