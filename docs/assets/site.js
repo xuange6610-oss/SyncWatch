@@ -31,7 +31,7 @@ lightbox?.addEventListener('keydown', (event) => {
   if (event.key === 'ArrowRight') showGalleryItem(activeGalleryIndex + 1);
 });
 
-const commands = `git clone https://github.com/xuange6610-oss/SyncWatch.git
+const commands = `git clone https://github.com/xuange6610/SyncWatch.git
 cd SyncWatch
 npm ci
 npm start`;

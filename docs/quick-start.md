@@ -16,7 +16,7 @@
 3. 依次输入下面四条命令，每输入一条就按一次回车，等待命令结束后再输入下一条。
 
 ```powershell
-git clone https://github.com/xuange6610-oss/SyncWatch.git
+git clone https://github.com/xuange6610/SyncWatch.git
 cd SyncWatch
 npm ci
 npm start

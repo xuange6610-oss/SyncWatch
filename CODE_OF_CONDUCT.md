@@ -21,6 +21,6 @@
 
 ## 执行
 
-维护者可以删除、编辑或拒绝不符合本准则的评论、提交、Issue 和 Pull Request，并可临时或永久限制参与权限。需要私密报告时，请使用 GitHub 的 [Private vulnerability reporting](https://github.com/xuange6610-oss/SyncWatch/security/advisories/new)。
+维护者可以删除、编辑或拒绝不符合本准则的评论、提交、Issue 和 Pull Request，并可临时或永久限制参与权限。需要私密报告时，请使用 GitHub 的 [Private vulnerability reporting](https://github.com/xuange6610/SyncWatch/security/advisories/new)。
 
 本准则参考 [Contributor Covenant 2.1](https://www.contributor-covenant.org/version/2/1/code_of_conduct.html)，并按本项目的协作场景进行了简化。

@@ -28,7 +28,7 @@
 ```bash
 git clone https://github.com/你的用户名/SyncWatch.git
 cd SyncWatch
-git remote add upstream https://github.com/xuange6610-oss/SyncWatch.git
+git remote add upstream https://github.com/xuange6610/SyncWatch.git
 ```
 
 3. 同步最新 `main`，再新建分支：
@@ -48,7 +48,7 @@ git commit -m "修复：简要说明问题"
 git push -u origin fix/简短问题名称
 ```
 
-5. 回到 GitHub，点击 **Compare & pull request**，目标选择 `xuange6610-oss/SyncWatch:main`，等待自动检查和维护者审核。
+5. 回到 GitHub，点击 **Compare & pull request**，目标选择 `xuange6610/SyncWatch:main`，等待自动检查和维护者审核。
 
 ### 仓库协作者：使用功能分支
 

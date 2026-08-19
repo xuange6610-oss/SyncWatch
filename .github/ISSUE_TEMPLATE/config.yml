@@ -1,8 +1,8 @@
 blank_issues_enabled: false
 contact_links:
   - name: 新手使用说明
-    url: https://xuange6610-oss.github.io/SyncWatch/#quick-start
+    url: https://xuange6610.github.io/SyncWatch/#quick-start
     about: 先查看安装、启动和连接步骤。
   - name: 私密安全报告
-    url: https://github.com/xuange6610-oss/SyncWatch/security/advisories/new
+    url: https://github.com/xuange6610/SyncWatch/security/advisories/new
     about: 安全问题请勿公开提交。

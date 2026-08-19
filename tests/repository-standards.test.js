@@ -142,7 +142,7 @@ const contributionChecks = read('.github/workflows/ci.yml');
 assert.match(contributionChecks, /pull_request:/);
 assert.match(contributionChecks, /npm run test:repo/);
 assert.match(contributionChecks, /npm test/);
-assert.match(read('.github/CODEOWNERS'), /@xuange6610-oss/);
+assert.match(read('.github/CODEOWNERS'), /@xuange6610/);
 assert.match(read('CONTRIBUTING.md'), /Pull Request/);
 assert.match(read('CONTRIBUTING.md'), /分支保护/);
 

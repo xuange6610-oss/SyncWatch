@@ -19,4 +19,4 @@ GitHub Wiki 与仓库文档使用同一套内容。下面的页面会复制到�
 
 Wiki 图片统一引用 `docs/screenshots/` 中的已审核截图。新增截图前必须检查：不包含真实姓名、邮箱、访问令牌、私人 IP、房间链接或未授权媒体名称；截图应能证明一个真实功能，而不是只展示装饰界面。
 
-实际 Wiki 地址：[SyncWatch Wiki](https://github.com/xuange6610-oss/SyncWatch/wiki)。
+实际 Wiki 地址：[SyncWatch Wiki](https://github.com/xuange6610/SyncWatch/wiki)。

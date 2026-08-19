@@ -34,7 +34,7 @@ $graphics.FillRectangle($panel, $metaRectangle)
 $graphics.DrawRectangle($line, $metaRectangle)
 $graphics.DrawString('Video Sync   Chat   Voice', $fontLabel, $text, 78, 410)
 $graphics.DrawString('Screen Share   Self-hosted', $fontLabel, $text, 78, 452)
-$graphics.DrawString('github.com/xuange6610-oss/SyncWatch', $fontMeta, $green, 60, 554)
+$graphics.DrawString('github.com/xuange6610/SyncWatch', $fontMeta, $green, 60, 554)
 
 $image = [System.Drawing.Image]::FromFile($source)
 try {

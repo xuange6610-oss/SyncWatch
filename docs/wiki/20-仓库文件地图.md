@@ -67,7 +67,7 @@
 
 `.github/workflows/pages.yml` 只发布 `docs/` 静态目录。它会先运行 `node tests/repository-standards.test.js`，通过后才上传 Pages artifact 并部署。它不打包服务器，也不会接触用户运行数据。
 
-`.github/workflows/ci.yml` 在 Pull Request 和 `main` 更新时安装锁定依赖，运行仓库规范检查与核心集成测试。`.github/CODEOWNERS` 指定 `@xuange6610-oss` 为源码审核者；配合 `main` 分支保护，外部贡献必须经过 Pull Request、自动检查和维护者批准，不能直接强制覆盖正式源码。
+`.github/workflows/ci.yml` 在 Pull Request 和 `main` 更新时安装锁定依赖，运行仓库规范检查与核心集成测试。`.github/CODEOWNERS` 指定 `@xuange6610` 为源码审核者；配合 `main` 分支保护，外部贡献必须经过 Pull Request、自动检查和维护者批准，不能直接强制覆盖正式源码。
 
 ## 修改和提交建议
 

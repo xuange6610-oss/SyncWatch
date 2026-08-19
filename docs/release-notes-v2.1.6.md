@@ -84,7 +84,7 @@ Node.js 只用于源码开发和独立服务端，Windows 正式 EXE 不需要�
 7. 需要异地连接时再开启 Cloudflare Tunnel 或自己的 HTTPS 域名。
 8. 结束后停止 Tunnel，并备份整个 `SyncWatch同步观影-Data/`。
 
-完整教程：[GitHub Pages](https://xuange6610.github.io/SyncWatch/) · [仓库文档](https://github.com/xuange6610-oss/SyncWatch/tree/main/docs) · [Wiki](https://github.com/xuange6610-oss/SyncWatch/wiki)
+完整教程：[GitHub Pages](https://xuange6610.github.io/SyncWatch/) · [仓库文档](https://github.com/xuange6610/SyncWatch/tree/main/docs) · [Wiki](https://github.com/xuange6610/SyncWatch/wiki)
 
 ## 安全与许可
 

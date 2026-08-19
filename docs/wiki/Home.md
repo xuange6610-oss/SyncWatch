@@ -2,7 +2,7 @@
 
 和朋友、家人、情侣远程一起看电影。SyncWatch 是开源、自托管、跨平台的 Watch Party / 同步观影系统：房主启动自己的服务器，成员通过 Windows、Android、macOS 或浏览器加入同一房间，播放、暂停、拖动进度和倍速会保持同步。
 
-你的服务器、你的影片、你的数据。GitHub Pages 只能展示界面和教程，不能替代真实服务器；要创建房间、上传媒体、聊天和开启公网访问，请下载 [最新 Release](https://github.com/xuange6610-oss/SyncWatch/releases/latest) 或按部署教程运行自己的实例。
+你的服务器、你的影片、你的数据。GitHub Pages 只能展示界面和教程，不能替代真实服务器；要创建房间、上传媒体、聊天和开启公网访问，请下载 [最新 Release](https://github.com/xuange6610/SyncWatch/releases/latest) 或按部署教程运行自己的实例。
 
 ## Wiki 导航
 
@@ -41,9 +41,9 @@
 ## 快速入口
 
 - 在线展示：[xuange6610.github.io/SyncWatch](https://xuange6610.github.io/SyncWatch/)
-- 源码仓库：[github.com/xuange6610-oss/SyncWatch](https://github.com/xuange6610-oss/SyncWatch)
-- 常见错误：[仓库文档](https://github.com/xuange6610-oss/SyncWatch/blob/main/docs/troubleshooting.md)
-- 使用技巧：[仓库文档](https://github.com/xuange6610-oss/SyncWatch/blob/main/docs/tips-and-advantages.md)
+- 源码仓库：[github.com/xuange6610/SyncWatch](https://github.com/xuange6610/SyncWatch)
+- 常见错误：[仓库文档](https://github.com/xuange6610/SyncWatch/blob/main/docs/troubleshooting.md)
+- 使用技巧：[仓库文档](https://github.com/xuange6610/SyncWatch/blob/main/docs/tips-and-advantages.md)
 
 ## 安全边界
 

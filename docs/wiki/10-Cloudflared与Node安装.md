@@ -2,14 +2,14 @@
 
 普通用户安装 `SyncWatch-v2.1.7-Full-Offline-Installer-x64.exe` 或运行 `SyncWatch-Standard-Server-Portable` 时无需另装环境。cloudflared 负责临时/固定公网入口，Node.js 只用于源码和独立服务器。Release 另提供 Cloudflare 官方 Windows MSI：x64 用户下载 `cloudflared-windows-x64-installer.msi`，32 位 Windows 下载 `cloudflared-windows-x86-installer.msi`；双击 MSI 才会启动安装向导，命令行 EXE 直接双击只会打开黑色终端，这是正常行为。
 
-![公网访问设置与网络诊断](https://raw.githubusercontent.com/xuange6610-oss/SyncWatch/main/docs/screenshots/public-access-settings.png)
+![公网访问设置与网络诊断](https://raw.githubusercontent.com/xuange6610/SyncWatch/main/docs/screenshots/public-access-settings.png)
 
 ## 官方地址
 
 - Cloudflare Tunnel 文档：<https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/>
 - cloudflared 官方下载：<https://github.com/cloudflare/cloudflared/releases/latest>
 - Node.js 官网与下载：<https://nodejs.org/> · <https://nodejs.org/en/download>
-- 本仓库 Release：<https://github.com/xuange6610-oss/SyncWatch/releases/latest>
+- 本仓库 Release：<https://github.com/xuange6610/SyncWatch/releases/latest>
 
 ## cloudflared 快速使用
 
@@ -40,7 +40,7 @@ Windows x64 使用 `node-v24.19.0-x64.msi`，Windows ARM 使用 `node-v24.19.0-a
 ```powershell
 node --version
 npm --version
-git clone https://github.com/xuange6610-oss/SyncWatch.git
+git clone https://github.com/xuange6610/SyncWatch.git
 Set-Location SyncWatch
 npm ci
 npm start
@@ -48,4 +48,4 @@ npm start
 
 Intel Mac 可使用 `node-v24.19.0-macos-x64.pkg`；Apple Silicon 新手应从 Node.js 官网下载 arm64 安装包或运行 `brew install node@24`。Release 中的 arm64 TAR.GZ 是便携运行时，不是图形安装器。
 
-更完整的逐步说明、卸载方式和安全注意事项见[仓库教程](https://github.com/xuange6610-oss/SyncWatch/blob/main/docs/runtime-installation.md)。
+更完整的逐步说明、卸载方式和安全注意事项见[仓库教程](https://github.com/xuange6610/SyncWatch/blob/main/docs/runtime-installation.md)。

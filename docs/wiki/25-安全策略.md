@@ -6,7 +6,7 @@
 
 ## 私密报告漏洞
 
-请使用 GitHub 的 [Private vulnerability reporting](https://github.com/xuange6610-oss/SyncWatch/security/advisories/new) 私密提交。不要在公开 Issue 中粘贴可直接利用的漏洞细节、密码、访问令牌、真实 IP、房间链接、聊天记录或媒体文件名。
+请使用 GitHub 的 [Private vulnerability reporting](https://github.com/xuange6610/SyncWatch/security/advisories/new) 私密提交。不要在公开 Issue 中粘贴可直接利用的漏洞细节、密码、访问令牌、真实 IP、房间链接、聊天记录或媒体文件名。
 
 报告请包含：
 
