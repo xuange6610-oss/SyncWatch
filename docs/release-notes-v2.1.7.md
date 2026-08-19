@@ -28,6 +28,13 @@
 - 完整版安装后，房主启动一个 EXE 即可通过登录页或账号菜单向不同设备分发客户端，不需要临时再从 GitHub 拉取这些文件。
 - 新增离线资源清单和最小体积校验；缺少任意平台文件、文件异常偏小或安装包达到 GitHub 2 GiB 上限时，发布流程会直接失败。
 
+### 打包与依赖完整性
+
+- 修复 Windows 标准版在源码环境可运行、但 Electron 打包后缺少 `undici` 生产依赖的问题。根因是 `package.json` 和 npm 锁文件已声明该依赖，但 `pnpm-lock.yaml` 的直接生产依赖清单未同步，Electron Builder 因此没有把它收入 `app.asar`。
+- 同步 pnpm 锁文件并新增仓库契约测试，以后如果 `undici@7.29.0` 再次从直接生产依赖中丢失，CI 会在打包前直接报错。
+- 重新生成 Windows 标准版和体验版，并确认标准版 `app.asar` 实际包含 `node_modules/undici`，不仅检查源码依赖。
+- 成品回归实际启动 EXE，验证 HTTP 公开配置、Socket.IO polling、WebSocket、账号注册、创建房间、上传 H.264/AAC MP4 与选择播放的完整链路。
+
 ### 下载入口管理
 
 - 管理中心的“通知/通告设置”新增“显示 Windows、Android 和 macOS 下载入口”。

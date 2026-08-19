@@ -32,6 +32,9 @@ importers:
       socket.io:
         specifier: 4.8.3
         version: 4.8.3
+      undici:
+        specifier: ^7.29.0
+        version: 7.29.0
     devDependencies:
       electron:
         specifier: 41.10.3
@@ -3092,8 +3095,7 @@ snapshots:
 
   undici@6.28.0: {}
 
-  undici@7.29.0:
-    optional: true
+  undici@7.29.0: {}
 
   universalify@0.1.2: {}
 

@@ -78,6 +78,10 @@ assert.equal(manifest.description, 'SyncWatch同步观影');
 assert.equal(manifest.build.productName, 'SyncWatch同步观影');
 assert.equal(manifest.scripts['test:repo'], 'node tests/repository-standards.test.js');
 
+const pnpmLock = read('pnpm-lock.yaml');
+assert.match(pnpmLock, /\n      undici:\r?\n        specifier: \^7\.29\.0\r?\n        version: 7\.29\.0\r?\n/,
+  'pnpm lockfile must keep undici as a direct production dependency');
+
 const designMetadata = JSON.parse(read('.impeccable/design.json'));
 assert.equal(designMetadata.schemaVersion, 2);
 assert.match(read('DESIGN.md'), /^name: SyncWatch同步观影$/m);
