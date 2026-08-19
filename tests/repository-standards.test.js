@@ -41,6 +41,11 @@ const requiredFiles = [
   'docs/runtime-installation.html',
   'docs/screenshots/main-interface.png',
   'docs/wiki/10-Cloudflared与Node安装.md',
+  'docs/wiki/12-服务器部署完整教程.md',
+  'docs/wiki/13-管理中心完整教程.md',
+  'docs/wiki/15-常见错误完整手册.md',
+  'docs/wiki/23-运行环境完整教程.md',
+  'docs/wiki/_Sidebar.md',
   'docs/tips-and-advantages.md',
   'docs/standalone-server.md',
   'build-windows.ps1',
@@ -100,6 +105,7 @@ assert.match(readme, /SyncWatch-v2\.1\.7-Full-Offline-Installer-x64\.exe/);
 assert.match(readme, /SyncWatch-v2\.1\.7-Full-Offline-Portable-x64\.exe/);
 assert.match(readme, /SyncWatch-Full-Offline-macOS-v2\.1\.7-x64\.dmg/);
 assert.match(readme, /SyncWatch-Full-Offline-macOS-v2\.1\.7-arm64\.dmg/);
+assert.match(readme, /cloudflared-windows-x64-installer\.msi/);
 
 const pages = read('.github/workflows/pages.yml');
 assert.match(pages, /pages:\s*write/);

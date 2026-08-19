@@ -149,4 +149,4 @@ jobs:
           $tag = '${{ inputs.tag || github.ref_name }}'
           gh release view $tag --repo '${{ github.repository }}' *> $null
           if ($LASTEXITCODE -ne 0) { gh release create $tag --repo '${{ github.repository }}' --title "SyncWatch同步观影 $tag" --generate-notes }
-          gh release upload $tag release/windows-installer/*.exe release/windows-server/*.exe release/windows-client/*.exe --repo '${{ github.repository }}' --clobber
+          gh release upload $tag release/windows-installer/*.exe release/windows-full-portable/*.exe release/windows-server/*.exe release/windows-client/*.exe --repo '${{ github.repository }}' --clobber

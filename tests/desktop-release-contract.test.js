@@ -148,6 +148,8 @@ for (const publicName of [
   assert.match(windowsReleaseWorkflow, new RegExp(publicName.replaceAll('.', '\\.')),
     `Windows release workflow must publish the tiered asset ${publicName}`);
 }
+assert.match(windowsReleaseWorkflow, /gh release upload[^\r\n]+release\/windows-full-portable\/\*\.exe/,
+  'Windows release upload must include the standalone Full Offline EXE directory');
 for (const arch of ['x64', 'arm64']) {
   for (const extension of ['dmg', 'zip']) {
     assert.match(macReleaseWorkflow,

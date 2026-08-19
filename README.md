@@ -49,6 +49,7 @@ Windows · Android · macOS · Web  ·  同步播放 · 弹幕 · 聊天 · 语�
 | [`SyncWatch-v2.1.7-Full-Offline-Portable-x64.exe`](https://github.com/xuange6610-oss/SyncWatch/releases/download/2.1.7/SyncWatch-v2.1.7-Full-Offline-Portable-x64.exe) | 完整版；Windows 房主 | 无需安装的独立 EXE；功能和内嵌文件与安装完整版一致 |
 | [macOS Intel 完整版 DMG](https://github.com/xuange6610-oss/SyncWatch/releases/download/2.1.7/SyncWatch-Full-Offline-macOS-v2.1.7-x64.dmg) / [ZIP](https://github.com/xuange6610-oss/SyncWatch/releases/download/2.1.7/SyncWatch-Full-Offline-macOS-v2.1.7-x64.zip) | 完整版；Intel Mac 房主 | 完整 Mac 服务端和全平台离线下载中心，内置 Intel cloudflared |
 | [macOS Apple 芯片完整版 DMG](https://github.com/xuange6610-oss/SyncWatch/releases/download/2.1.7/SyncWatch-Full-Offline-macOS-v2.1.7-arm64.dmg) / [ZIP](https://github.com/xuange6610-oss/SyncWatch/releases/download/2.1.7/SyncWatch-Full-Offline-macOS-v2.1.7-arm64.zip) | 完整版；Apple Silicon 房主 | 完整 Mac 服务端和全平台离线下载中心，内置 arm64 cloudflared |
+| [cloudflared Windows x64 安装包 MSI](https://github.com/xuange6610-oss/SyncWatch/releases/download/2.1.7/cloudflared-windows-x64-installer.msi) / [Windows x86 MSI](https://github.com/xuange6610-oss/SyncWatch/releases/download/2.1.7/cloudflared-windows-x86-installer.msi) | 公网访问工具 | 双击 MSI 安装；安装后在终端执行 `cloudflared --version`，再按教程创建 Tunnel |
 | Android APK | Android 用户 | 加入已有房间；完整包可在受支持设备上运行手机服务器 |
 | macOS 服务器/客户端 | Mac 用户 | Intel Mac 使用 x64，Apple Silicon 使用 arm64 |
 | 独立服务器 ZIP | Windows/Linux 服务器管理员 | 使用 Node.js 启动服务，适合长期部署和 Docker |
@@ -61,7 +62,7 @@ Releases 页面只应列出已经真实构建和验证的文件。某个平台�
 ### 使用服务器 EXE
 
 1. 从 Releases 下载 `Full-Offline-Installer` 安装完整版、`Full-Offline-Portable` 独立 EXE 完整版，或下载 `Standard-Server-Portable` 绿色标准版。
-2. 安装版按向导选择目录并启动；便携版放进普通文件夹后双击。Windows 防火墙询问时，只按你的实际网络环境允许访问。
+2. 安装版按向导选择目录并启动；独立完整版和标准版放进普通文件夹后双击。Windows 防火墙询问时，只按你的实际网络环境允许访问。
 3. 浏览器会打开 `http://127.0.0.1:5000`；如果端口被占用，以软件显示的地址为准。
 4. 使用默认管理员账号 `admin`、密码 `admin888` 登录。
 5. 立即进入安全设置修改管理员密码。

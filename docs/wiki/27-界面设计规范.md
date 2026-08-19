@@ -1,0 +1,249 @@
+---
+name: SyncWatch同步观影
+description: 面向新手的自托管同步观影产品展示与使用导览
+colors:
+  cinema-ink: "#101318"
+  cinema-surface: "#1a2027"
+  paper: "#f2f0ea"
+  paper-strong: "#ffffff"
+  text-on-dark: "#f8f7f2"
+  text-muted-dark: "#b9c2c9"
+  text-on-paper: "#1c252b"
+  text-muted-paper: "#53616a"
+  sync-green: "#28d490"
+  sync-green-deep: "#0c6d4b"
+  action-coral: "#ff755f"
+  focus-amber: "#f2b84a"
+  line-dark: "#323b44"
+  line-light: "#c7cec9"
+  cinema-deepest: "#05070a"
+  cinema-image: "#06080b"
+  cinema-dialog: "#07090c"
+  cinema-footer: "#090b0e"
+  cinema-gallery: "#0b0e12"
+  control-dark: "#151b20"
+  data-green: "#123f35"
+  coral-ink: "#1c100d"
+  amber-ink: "#20190d"
+  control-line: "#2f3a42"
+  download-brown: "#32241b"
+  amber-text: "#493818"
+  dialog-line: "#4d5962"
+  green-hover: "#5ce2ad"
+  dialog-control-line: "#65727b"
+  command-control-line: "#687781"
+  quiet-control-line: "#7f8b92"
+  footer-muted: "#89949b"
+  data-accent: "#8ce5bd"
+  dark-lead: "#c6d1d5"
+  data-note: "#d7e7df"
+  command-text: "#d9f7e9"
+  hero-detail: "#dce3e5"
+  download-muted: "#e2cec1"
+  data-table-text: "#f4fbf7"
+  primary-button-text: "#07120e"
+  overlay-table: "rgba(0, 0, 0, 0.22)"
+  shadow-action: "rgba(0, 0, 0, 0.25)"
+  shadow-gallery: "rgba(0, 0, 0, 0.3)"
+  shadow-hero-text: "rgba(0, 0, 0, 0.55)"
+  shadow-dialog: "rgba(0, 0, 0, 0.56)"
+  backdrop-dialog: "rgba(0, 0, 0, 0.82)"
+  button-quiet-bg: "rgba(16, 19, 24, 0.78)"
+  header-bg: "rgba(16, 19, 24, 0.96)"
+  shadow-command: "rgba(21, 27, 31, 0.16)"
+  data-line: "rgba(231, 247, 239, 0.2)"
+  data-outline: "rgba(231, 247, 239, 0.28)"
+  download-line: "rgba(255, 235, 220, 0.26)"
+  signal-glow: "rgba(40, 212, 144, 0.32)"
+  hero-shade: "rgba(7, 10, 13, 0.7)"
+typography:
+  display:
+    fontFamily: "Microsoft YaHei, PingFang SC, Noto Sans CJK SC, sans-serif"
+    fontSize: "64px"
+    fontWeight: 900
+    lineHeight: 1.08
+    letterSpacing: "0"
+  headline:
+    fontFamily: "Microsoft YaHei, PingFang SC, Noto Sans CJK SC, sans-serif"
+    fontSize: "40px"
+    fontWeight: 900
+    lineHeight: 1.24
+    letterSpacing: "0"
+  body:
+    fontFamily: "Microsoft YaHei, PingFang SC, Noto Sans CJK SC, sans-serif"
+    fontSize: "16px"
+    fontWeight: 400
+    lineHeight: 1.7
+    letterSpacing: "0"
+  code:
+    fontFamily: "Cascadia Code, SFMono-Regular, Consolas, monospace"
+    fontSize: "14px"
+    lineHeight: 1.9
+  inline-code:
+    fontSize: "0.92em"
+  caption:
+    fontSize: "13px"
+  label:
+    fontSize: "14px"
+  compact-body:
+    fontSize: "15px"
+  gallery-title:
+    fontSize: "17px"
+  section-lead:
+    fontSize: "18px"
+  step-title:
+    fontSize: "19px"
+  footer-title:
+    fontSize: "20px"
+  subheading:
+    fontSize: "24px"
+  mobile-heading:
+    fontSize: "31px"
+  boundary-heading:
+    fontSize: "32px"
+  mobile-display:
+    fontSize: "42px"
+rounded:
+  control: "4px"
+  surface: "6px"
+spacing:
+  xs: "8px"
+  sm: "12px"
+  md: "16px"
+  lg: "24px"
+  section: "96px"
+components:
+  button-primary:
+    backgroundColor: "{colors.sync-green}"
+    textColor: "#07120e"
+    rounded: "{rounded.surface}"
+    padding: "10px 18px"
+    height: "44px"
+  button-quiet:
+    backgroundColor: "rgba(16, 19, 24, 0.78)"
+    textColor: "#ffffff"
+    rounded: "{rounded.surface}"
+    padding: "10px 18px"
+    height: "44px"
+---
+
+# Design System: SyncWatch同步观影
+
+## Overview
+
+**Creative North Star: “放映控制台与使用手册”**
+
+展示站把真实产品的影院感与新手文档的清晰度放在同一页面中。深色区域承载产品画面、截图和命令行，浅色区域承担步骤、解释和索引；绿色信号点与主按钮代表“已连接、可继续”，珊瑚色和琥珀色只用于关键提示。
+
+整体克制、实用、可扫描，不采用装饰性卡片堆叠或夸张营销数字。页面必须明确区分静态展示能力与实际服务器能力，并让首次接触 Node.js 和自托管服务的用户找到下一步。
+
+**Key Characteristics:**
+
+- 深色影院画面与浅色说明区交替，形成明确阅读节奏。
+- 真实界面截图优先于抽象插画或无依据的产品宣称。
+- 直角感较强的小圆角、细边框和高对比焦点状态。
+- 桌面端信息密度适中，手机端退化为单列且不横向溢出。
+
+## Colors
+
+主色板以近黑影院背景、暖灰纸面和同步绿色构成；珊瑚色与琥珀色只承担少量状态提示。
+
+### Primary
+
+- **同步信号绿** (`#28d490`)：主要行动、成功状态、当前步骤和可交互边框。
+- **深同步绿** (`#0c6d4b`)：浅色背景上的标题、标签和滚动条。
+
+### Secondary
+
+- **行动珊瑚** (`#ff755f`)：下载说明和需要额外注意的步骤。
+- **焦点琥珀** (`#f2b84a`)：键盘焦点、文本选中和 Pages 能力边界提醒。
+
+### Neutral
+
+- **影院墨黑** (`#101318`) 与 **控制台表面** (`#1a2027`)：深色页面和工具区域。
+- **说明纸面** (`#f2f0ea`) 与 **纯白纸面** (`#ffffff`)：长文阅读和明亮分区。
+- **深色正文** (`#f8f7f2`) / **深色次文** (`#b9c2c9`)：深色背景文字层级。
+- **纸面正文** (`#1c252b`) / **纸面次文** (`#53616a`)：浅色背景文字层级。
+
+**稀缺强调规则。** 同一屏幕内不要同时大量使用绿色、珊瑚色和琥珀色；每种颜色只表达一种明确状态。
+
+## Typography
+
+**Display Font:** Microsoft YaHei（回退到 PingFang SC、Noto Sans CJK SC 和系统无衬线）<br>
+**Body Font:** Microsoft YaHei（同上）<br>
+**Code Font:** Cascadia Code（回退到 SFMono-Regular、Consolas 和等宽字体）
+
+中文系统字体保证 Windows、macOS 和 Android 上无需下载字体即可稳定阅读。标题使用较重字重建立操作层级，正文保持 1.7 行高，命令块使用明显更宽松的 1.9 行高。
+
+### Hierarchy
+
+- **Display**（900，64px，1.08）：仅用于首屏产品名称，手机端降至 42px。
+- **Headline**（900，40px，1.24）：页面主要章节标题，手机端降至 31px。
+- **Title**（700–900，18–24px）：步骤、截图和功能分类标题。
+- **Body**（400，16px，1.7）：说明正文，单段建议不超过 70–75ch。
+- **Label**（700–900，13–14px）：导航、按钮、表头和状态文字。
+
+## Layout
+
+内容容器最大宽度为 1180px，桌面端两侧至少保留 20px，手机端至少保留 14px。常规章节上下间距为 96px，700px 以下缩至 68px。功能流程、截图画廊和下载说明在桌面使用多列，940px 和 700px 两个断点逐步变成双列和单列。
+
+首屏使用真实登录界面作为全宽背景，文字直接叠放其上，不增加浮动卡片。数据表允许自身横向滚动，但不得让整页产生横向滚动。按钮、工具栏和截图容器使用稳定最小高度，避免内容加载时布局跳动。
+
+## Elevation & Depth
+
+页面以色块分层和细边框为主，阴影仅用于主按钮、命令面板、截图悬停和灯箱。静止的文档区不使用悬浮卡片阴影；灯箱使用较深阴影将当前截图与背景分离。
+
+- **轻行动阴影** (`3px 6px 18px rgba(0, 0, 0, 0.25)`)：主要按钮。
+- **工具阴影** (`3px 10px 30px rgba(21, 27, 31, 0.16)`)：命令面板。
+- **模态阴影** (`4px 16px 50px rgba(0, 0, 0, 0.56)`)：截图灯箱。
+
+**默认扁平规则。** 只有交互状态或临时覆盖层可以明显升起，普通内容区依靠背景和分隔线建立层级。
+
+## Shapes
+
+控件使用 4px 圆角，按钮、表格外框、截图和工具面板使用 6px 圆角。圆形只用于连接状态标记和同步信号点。大面积胶囊、超大圆角和纯装饰圆形不属于本设计系统。
+
+## Components
+
+### Buttons
+
+- **Shape:** 6px 圆角，最小高度 44px，水平内边距 18px。
+- **Primary:** 同步绿色背景、深墨绿色文字和轻行动阴影。
+- **Hover / Focus:** 悬停提高绿色亮度；键盘焦点统一使用 3px 琥珀色外轮廓。
+- **Quiet:** 半透明深色背景、浅色边框和白色文字，用于次要跳转。
+
+### Cards / Containers
+
+- **Corner Style:** 6px 小圆角。
+- **Background:** 截图容器和命令面板使用影院墨黑，正文区保持所在分区背景。
+- **Shadow Strategy:** 静止时主要用 1px 边框，截图悬停时才出现阴影。
+- **Internal Padding:** 常规 16–24px；图片区与说明区由边框分隔。
+
+### Inputs / Fields
+
+- **Style:** 继承系统字体与页面色板，采用小圆角和清楚边框。
+- **Focus:** 所有可聚焦控件统一使用琥珀色可见焦点，不依赖颜色细微变化。
+
+### Navigation
+
+顶部导航固定在视口上方，使用近黑不透明背景和细底边。链接为 14px 粗体，默认灰白、悬停纯白；手机端允许导航行横向滚动，但不换成隐藏菜单。
+
+### Screenshot Gallery
+
+截图是产品证据，不是装饰。缩略图保持稳定画幅并附带功能标题和说明；点击后使用原生 `dialog` 灯箱查看完整图片，支持关闭、上一张、下一张和方向键。
+
+## Do's and Don'ts
+
+### Do:
+
+- **Do** 使用真实、去隐私化、能证明实际功能状态的产品截图。
+- **Do** 保持深色展示区和浅色阅读区的交替节奏。
+- **Do** 为键盘操作保留明显焦点，并尊重减少动态效果偏好。
+- **Do** 在手机端把多列内容变为单列，同时保留至少 44px 的可点击高度。
+
+### Don't:
+
+- **Don't** 把 GitHub Pages 描述成能运行 Node.js、WebSocket、上传或临时公网隧道的完整服务器。
+- **Don't** 使用装饰性渐变、光斑、嵌套卡片或无依据的用户数与性能数字。
+- **Don't** 在截图、文案或示例数据中暴露真实姓名、私人 IP、令牌、媒体名称或个人账号数据。
+- **Don't** 把产品名称缩写成面向用户的 `SyncWatch`；仓库地址和兼容标识除外。
