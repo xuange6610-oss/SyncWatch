@@ -61,7 +61,7 @@
 
 ### 体验版
 
-- **在线展示**：直接打开 [GitHub Pages](https://xuange6610-oss.github.io/SyncWatch/)，查看真实界面、功能截图和逐步教程。它是静态展示，不运行真实服务器。
+- **在线展示**：直接打开 [GitHub Pages](https://xuange6610.github.io/SyncWatch/)，查看真实界面、功能截图和逐步教程。它是静态展示，不运行真实服务器。
 - **Windows 客户端**：[`SyncWatch-Experience-Client-Portable-v2.1.7-x64.exe`](https://github.com/xuange6610-oss/SyncWatch/releases/download/2.1.7/SyncWatch-Experience-Client-Portable-v2.1.7-x64.exe)。适合成员连接已经运行的服务器，不在本机启动服务端。
 
 ### 标准版与完整版
@@ -143,7 +143,7 @@ Node.js 只用于源码开发和独立服务端，Windows 正式 EXE 不需要�
 7. 需要异地连接时再开启 Cloudflare Tunnel 或自己的 HTTPS 域名。
 8. 结束后停止 Tunnel，并备份整个 `SyncWatch同步观影-Data/`。
 
-完整教程：[GitHub Pages](https://xuange6610-oss.github.io/SyncWatch/) · [仓库文档](https://github.com/xuange6610-oss/SyncWatch/tree/main/docs) · [Wiki](https://github.com/xuange6610-oss/SyncWatch/wiki)
+完整教程：[GitHub Pages](https://xuange6610.github.io/SyncWatch/) · [仓库文档](https://github.com/xuange6610-oss/SyncWatch/tree/main/docs) · [Wiki](https://github.com/xuange6610-oss/SyncWatch/wiki)
 
 ## 安全与许可
 

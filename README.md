@@ -20,17 +20,17 @@ SyncWatch 是一个开源、自托管、跨平台的 Watch Party / 同步观影�
 
 Windows · Android · macOS · Web  ·  同步播放 · 弹幕 · 聊天 · 语音 · 屏幕共享
 
-[立即下载](https://github.com/xuange6610-oss/SyncWatch/releases/latest) · [在线预览](https://xuange6610-oss.github.io/SyncWatch/) · [新手快速开始](docs/quick-start.html) · [部署教程](docs/server-deployment-guide.md) · [GitHub Wiki](https://github.com/xuange6610-oss/SyncWatch/wiki)
+[立即下载](https://github.com/xuange6610-oss/SyncWatch/releases/latest) · [在线预览](https://xuange6610.github.io/SyncWatch/) · [新手快速开始](docs/quick-start.html) · [部署教程](docs/server-deployment-guide.md) · [GitHub Wiki](https://github.com/xuange6610-oss/SyncWatch/wiki)
 
 > 当前版本：v2.1.7 · 许可证：[Apache-2.0](LICENSE) · 作者：xuan
 
 ## 在线参观
 
-打开 [SyncWatch同步观影在线体验入口](https://xuange6610-oss.github.io/SyncWatch/) 可以查看真实登录界面、同步播放画面、管理中心功能导览、数据目录说明、下载入口和新手快速开始；点击页面顶部的“GitHub主页”可以回到源代码仓库。
+打开 [SyncWatch同步观影在线体验入口](https://xuange6610.github.io/SyncWatch/) 可以查看真实登录界面、同步播放画面、管理中心功能导览、数据目录说明、下载入口和新手快速开始；点击页面顶部的“GitHub主页”可以回到源代码仓库。
 
 在线入口已经放在本 README 的“在线参观”小节、仓库右侧 About 的 Homepage 字段，以及展示站顶部导航和首屏按钮中：
 
-- [打开在线体验 / 功能展示](https://xuange6610-oss.github.io/SyncWatch/)
+- [打开在线体验 / 功能展示](https://xuange6610.github.io/SyncWatch/)
 - [打开 GitHub 主页](https://github.com/xuange6610-oss/SyncWatch)
 
 ![SyncWatch同步观影登录与房间入口](docs/screenshots/login.png)
@@ -166,7 +166,7 @@ flowchart LR
 | 公网访问 | Cloudflare Tunnel / 自有 HTTPS 反向代理 | 把本地服务安全地提供给跨网络成员 |
 | 构建与发布 | npm/pnpm、PowerShell、Bash、Gradle、GitHub Actions | 依赖锁定、跨端构建、测试、Release 和 Pages 部署 |
 
-更完整的启动流程、登录时序、媒体处理图、公网隧道图、模块职责、依赖版本、API 边界和平台限制见[技术架构与依赖说明](docs/architecture.md)。在线展示页的[原理与实现动画](https://xuange6610-oss.github.io/SyncWatch/#architecture)会按“启动、连接、认证、处理、持久化、广播”顺序演示这条调用链。
+更完整的启动流程、登录时序、媒体处理图、公网隧道图、模块职责、依赖版本、API 边界和平台限制见[技术架构与依赖说明](docs/architecture.md)。在线展示页的[原理与实现动画](https://xuange6610.github.io/SyncWatch/#architecture)会按“启动、连接、认证、处理、持久化、广播”顺序演示这条调用链。
 
 ## 数据目录是做什么的
 
@@ -214,7 +214,7 @@ Git 没有要求所有文件都必须使用英文名称。仓库采用的规则�
 
 ## 管理中心功能导览
 
-服务器端登录后，左侧或设置入口中的管理中心按职责拆分为房间、成员、账号、通知、邮件、日志和服务器等模块。每个模块都对应权限检查和操作记录；普通成员看不到服务器管理员专属操作。展示站中的[管理中心图文导览](https://xuange6610-oss.github.io/SyncWatch/#management-center)可以先了解按钮位置和操作顺序。
+服务器端登录后，左侧或设置入口中的管理中心按职责拆分为房间、成员、账号、通知、邮件、日志和服务器等模块。每个模块都对应权限检查和操作记录；普通成员看不到服务器管理员专属操作。展示站中的[管理中心图文导览](https://xuange6610.github.io/SyncWatch/#management-center)可以先了解按钮位置和操作顺序。
 
 | 模块 | 主要用途 | 关键操作 |
 | --- | --- | --- |
@@ -241,7 +241,7 @@ Git 没有要求所有文件都必须使用英文名称。仓库采用的规则�
 - [Android 构建说明](mobile/README.md)
 - [云端媒体与商业部署说明](docs/cloud-media-deployment.md)
 - [管理中心详细教程](docs/management-center.md)
-- [管理中心 3D HTML 教程](https://xuange6610-oss.github.io/SyncWatch/management-center.html)
+- [管理中心 3D HTML 教程](https://xuange6610.github.io/SyncWatch/management-center.html)
 - [常见错误与报错处理](docs/troubleshooting.md)
 - [使用技巧与优势](docs/tips-and-advantages.md)
 - [发布文件与下载说明](docs/release-artifacts.html)

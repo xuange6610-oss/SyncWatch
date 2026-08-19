@@ -40,7 +40,7 @@
 
 ## 快速入口
 
-- 在线展示：[xuange6610-oss.github.io/SyncWatch](https://xuange6610-oss.github.io/SyncWatch/)
+- 在线展示：[xuange6610.github.io/SyncWatch](https://xuange6610.github.io/SyncWatch/)
 - 源码仓库：[github.com/xuange6610-oss/SyncWatch](https://github.com/xuange6610-oss/SyncWatch)
 - 常见错误：[仓库文档](https://github.com/xuange6610-oss/SyncWatch/blob/main/docs/troubleshooting.md)
 - 使用技巧：[仓库文档](https://github.com/xuange6610-oss/SyncWatch/blob/main/docs/tips-and-advantages.md)

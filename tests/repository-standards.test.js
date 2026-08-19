@@ -122,7 +122,7 @@ assert.match(readme, /^# SyncWatch同步观影/m);
 assert.match(readme, /Apache-2\.0/);
 assert.match(readme, /QQ:\s*2590813506/);
 assert.match(readme, /微信:\s*love_020804/);
-assert.match(readme, /xuange6610-oss\.github\.io\/SyncWatch\//);
+assert.match(readme, /xuange6610\.github\.io\/SyncWatch\//);
 assert.match(readme, /docs\/screenshots\/main-interface\.png/);
 assert.match(readme, /SyncWatch-v2\.1\.7-Full-Offline-Installer-x64\.exe/);
 assert.match(readme, /SyncWatch-v2\.1\.7-Full-Offline-Portable-x64\.exe/);
