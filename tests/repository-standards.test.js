@@ -114,6 +114,12 @@ assert.match(read('CONTRIBUTING.md'), /分支保护/);
 const windowsRelease = read('.github/workflows/release-windows.yml');
 assert.match(windowsRelease, /npm install --global pnpm@11\.9\.0/,
   'Windows release must install the package manager used by Electron Builder dependency collection');
+assert.match(windowsRelease, /npx electron-builder --win portable --publish never/,
+  'Windows portable build must not require a publish token before assets are collected');
+assert.match(windowsRelease, /npm run build:client -- --publish never/,
+  'Windows client build must not require a publish token before the upload step');
+assert.match(windowsRelease, /electron-builder-windows-installer\.json --win nsis --publish never/,
+  'Windows installer build must not require a publish token before the upload step');
 const cloudflaredPrepareIndex = windowsRelease.indexOf('Prepare verified Cloudflare Tunnel binary');
 const sourcePrivacyIndex = windowsRelease.indexOf('npm run test:privacy');
 const buildIndex = windowsRelease.indexOf('Build portable server and client');

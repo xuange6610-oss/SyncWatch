@@ -61,8 +61,8 @@ jobs:
       - name: Build portable server and client
         shell: pwsh
         run: |
-          npx electron-builder --win portable
-          npm run build:client
+          npx electron-builder --win portable --publish never
+          npm run build:client -- --publish never
 
       - name: Prepare Full offline bundle
         env:
@@ -81,7 +81,7 @@ jobs:
 
       - name: Build NSIS server installer
         shell: pwsh
-        run: npx electron-builder --config electron-builder-windows-installer.json --win nsis
+        run: npx electron-builder --config electron-builder-windows-installer.json --win nsis --publish never
 
       - name: Collect release assets
         shell: pwsh

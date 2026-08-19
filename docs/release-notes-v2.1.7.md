@@ -35,6 +35,7 @@
 - 重新生成 Windows 标准版和体验版，并确认标准版 `app.asar` 实际包含 `node_modules/undici`，不仅检查源码依赖。
 - 成品回归实际启动 EXE，验证 HTTP 公开配置、Socket.IO polling、WebSocket、账号注册、创建房间、上传 H.264/AAC MP4 与选择播放的完整链路。
 - 修正 Windows GitHub Actions 的发布环境和顺序：新 Runner 先安装项目声明的 `pnpm@11.9.0`，再从当前 Release 下载并验证 `cloudflared.exe`；构建前扫描源码隐私字段，三档成品生成后再扫描发布文件。这同时避免 Electron Builder 因找不到 pnpm 报 `No JSON content found` 和在产物尚未存在时误报 `no release artifacts found`。
+- Windows 三个本地构建步骤均显式使用 `--publish never`，确保只在产物收集后的 `gh release upload` 步骤需要 GitHub 凭证，不会在构建阶段因设置中无 `GH_TOKEN` 而失败。
 
 ### 下载入口管理
 
