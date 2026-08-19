@@ -174,7 +174,17 @@ function Resolve-Gradle {
             Select-Object -First 1
         if ($candidate) { return $candidate.FullName }
     }
-    throw 'Cached Gradle 8.13 was not found. Open an Android project using Gradle 8.13 once, then retry.'
+    $cacheRoot = Join-Path $profile '.gradle\codex-gradle-8.13'
+    $archive = Join-Path $cacheRoot 'gradle-8.13-bin.zip'
+    $extractRoot = Join-Path $cacheRoot 'gradle-8.13'
+    New-Item -ItemType Directory -Force -Path $cacheRoot | Out-Null
+    if (-not (Test-Path -LiteralPath (Join-Path $extractRoot 'bin\gradle.bat'))) {
+        Invoke-WebRequest -Uri 'https://services.gradle.org/distributions/gradle-8.13-bin.zip' -OutFile $archive
+        Expand-Archive -LiteralPath $archive -DestinationPath $cacheRoot -Force
+    }
+    $downloaded = Join-Path $extractRoot 'bin\gradle.bat'
+    if (Test-Path -LiteralPath $downloaded) { return $downloaded }
+    throw 'Gradle 8.13 could not be downloaded or located.'
 }
 
 function Read-KeyProperties([string]$path) {

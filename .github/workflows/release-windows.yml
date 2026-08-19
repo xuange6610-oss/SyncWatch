@@ -62,6 +62,13 @@ jobs:
           npm run build:client -- --publish never
           npm run build:android
 
+      - name: Upload Android 2.1.8 asset before offline packaging
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: pwsh
+        run: |
+          gh release upload '${{ inputs.tag || github.ref_name }}' 'mobile/SyncWatch同步观影-v2.1.8.apk#SyncWatch-Android-v2.1.8-universal.apk' --repo '${{ github.repository }}' --clobber
+
       - name: Prepare Full offline bundle
         env:
           GH_TOKEN: ${{ github.token }}
