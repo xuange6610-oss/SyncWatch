@@ -34,6 +34,7 @@
 - 同步 pnpm 锁文件并新增仓库契约测试，以后如果 `undici@7.29.0` 再次从直接生产依赖中丢失，CI 会在打包前直接报错。
 - 重新生成 Windows 标准版和体验版，并确认标准版 `app.asar` 实际包含 `node_modules/undici`，不仅检查源码依赖。
 - 成品回归实际启动 EXE，验证 HTTP 公开配置、Socket.IO polling、WebSocket、账号注册、创建房间、上传 H.264/AAC MP4 与选择播放的完整链路。
+- 修正 Windows GitHub Actions 的发布顺序：新 Runner 先从当前 Release 下载并验证 `cloudflared.exe`，构建前扫描源码隐私字段，三档成品生成后再扫描发布文件，避免在产物尚未存在时误报“no release artifacts found”。
 
 ### 下载入口管理
 

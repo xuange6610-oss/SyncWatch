@@ -37,10 +37,20 @@ jobs:
       - name: Install locked dependencies
         run: npm ci
 
+      - name: Prepare verified Cloudflare Tunnel binary
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path vendor | Out-Null
+          gh release download '${{ inputs.tag || github.ref_name }}' --repo '${{ github.repository }}' --pattern 'cloudflared-windows-x64.exe' --dir vendor --clobber
+          Move-Item 'vendor/cloudflared-windows-x64.exe' 'vendor/cloudflared.exe' -Force
+          if ((Get-Item 'vendor/cloudflared.exe').Length -lt 1MB) { throw 'Downloaded cloudflared.exe is unexpectedly small.' }
+
       - name: Verify privacy and release contracts
         shell: pwsh
         run: |
-          npm run test:privacy:release
+          npm run test:privacy
           node tests/server-package-contract.test.js
           node tests/desktop-release-contract.test.js
           node tests/cloudflared-bundle.test.js
@@ -107,6 +117,7 @@ jobs:
           if ((Get-Item 'release\windows-installer\SyncWatch-v2.1.7-Full-Offline-Installer-x64.exe').Length -ge 2GB) {
             throw 'The Full offline installer exceeds the GitHub Release 2 GiB per-asset limit.'
           }
+          npm run test:privacy:release
 
       - name: Upload workflow artifacts
         uses: actions/upload-artifact@v4

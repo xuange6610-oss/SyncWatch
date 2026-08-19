@@ -18,6 +18,7 @@ const requiredFiles = [
   '.github/CODEOWNERS',
   '.github/workflows/ci.yml',
   '.github/workflows/release-macos.yml',
+  '.github/workflows/release-windows.yml',
   '.github/workflows/pages.yml',
   'CODE_OF_CONDUCT.md',
   'CONTRIBUTING.md',
@@ -109,6 +110,16 @@ assert.match(contributionChecks, /npm test/);
 assert.match(read('.github/CODEOWNERS'), /@xuange6610-oss/);
 assert.match(read('CONTRIBUTING.md'), /Pull Request/);
 assert.match(read('CONTRIBUTING.md'), /分支保护/);
+
+const windowsRelease = read('.github/workflows/release-windows.yml');
+const cloudflaredPrepareIndex = windowsRelease.indexOf('Prepare verified Cloudflare Tunnel binary');
+const sourcePrivacyIndex = windowsRelease.indexOf('npm run test:privacy');
+const buildIndex = windowsRelease.indexOf('Build portable server and client');
+const releasePrivacyIndex = windowsRelease.lastIndexOf('npm run test:privacy:release');
+assert.ok(cloudflaredPrepareIndex >= 0 && cloudflaredPrepareIndex < sourcePrivacyIndex,
+  'Windows release must prepare cloudflared before pre-build contracts');
+assert.ok(sourcePrivacyIndex < buildIndex && buildIndex < releasePrivacyIndex,
+  'Windows release must scan source before building and artifacts after building');
 
 const site = read('docs/index.html');
 assert.match(site, /<html\s+lang="zh-CN">/);
