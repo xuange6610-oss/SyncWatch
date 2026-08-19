@@ -50,6 +50,8 @@
 | `electron-builder-client.json` | Windows 客户端 Electron 打包配置 |
 | `electron-builder-mac-client.json` | macOS 客户端 x64/arm64 DMG 和 ZIP 配置 |
 | `electron-builder-mac-server.json` | macOS 服务器 x64/arm64 DMG 和 ZIP 配置 |
+| `electron-builder-mac-full.json` | macOS Intel/Apple Silicon 离线完整版 DMG 和 ZIP 配置 |
+| `electron-builder-windows-full-portable.json` | Windows 无需安装的独立 EXE 离线完整版配置 |
 | `electron-client-preload.js` | 客户端渲染进程可用的最小安全 IPC 接口 |
 | `electron-client.js` | Windows/macOS 独立客户端主进程 |
 | `electron-main-preload.js` | 服务器桌面端渲染进程的安全 IPC 接口 |

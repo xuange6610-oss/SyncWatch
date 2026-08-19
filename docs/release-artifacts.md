@@ -8,11 +8,13 @@ GitHub Release 是给普通用户下载成品的地方；仓库首页的 `Source
 | --- | --- | --- | --- | --- |
 | Windows 体验版 | `SyncWatch-Experience-Client-Portable-v版本-x64.exe` | 普通成员 | 输入已有服务器地址加入房间，不在本机运行服务器 | 体积较小但不包含服务端；需要房主先启动服务 |
 | Windows 标准版 | `SyncWatch-Standard-Server-Portable-v版本-x64.exe` | 房主、服务器管理员 | 绿色便携运行，启动服务器、管理房间、上传媒体和配置公网访问 | 内置 Electron/Node、FFmpeg/FFprobe 和 cloudflared |
-| Windows 离线完整版 | `SyncWatch-v版本-Full-Offline-Installer-x64.exe` | 希望正常安装并给各平台成员分发客户端的房主 | 安装目录、快捷方式、卸载入口、完整 Windows 服务端和内嵌的 Windows/Android/macOS 下载文件 | 不需要另装 Node.js/cloudflared；文件超过 1 GB；首次登录立即修改 `admin888` |
+| Windows 安装完整版 | `SyncWatch-v版本-Full-Offline-Installer-x64.exe` | 希望正常安装并给各平台成员分发客户端的房主 | 安装目录、快捷方式、卸载入口、完整 Windows 服务端和内嵌的 Windows/Android/macOS 下载文件 | 不需要另装 Node.js/cloudflared；文件超过 1 GB；首次登录立即修改 `admin888` |
+| Windows 独立 EXE 完整版 | `SyncWatch-v版本-Full-Offline-Portable-x64.exe` | 不想安装但需要完整离线下载中心的房主 | 直接双击运行完整 Windows 服务端，内嵌内容与安装完整版一致 | 文件超过 1 GB；运行目录必须有写入权限 |
 | Android APK | `SyncWatch同步观影-v版本.apk` | Android 用户 | 加入房间；支持的设备可以启动手机服务器 | 包含 `arm64-v8a`、`armeabi-v7a` 和 `x86_64` ABI |
 | 独立服务器 ZIP | `SyncWatch同步观影-Server-v版本.zip` | Windows/Linux/Docker 管理员 | 使用 Node.js、启动脚本或 Docker 长期部署 | 包含生产依赖、FFmpeg/FFprobe、cloudflared、客户端和 APK |
 | macOS 服务器 DMG/ZIP | `SyncWatch-Server-macOS-v版本-x64/arm64.*` | Mac 房主 | Intel 或 Apple Silicon 上运行服务器 | 必须由 macOS 主机或 macOS CI 生成，不能用 Windows 文件冒充 |
 | macOS 客户端 DMG/ZIP | `SyncWatch-Client-macOS-v版本-x64/arm64.*` | Mac 成员 | Intel 或 Apple Silicon 上加入房间 | 需要系统允许网络、麦克风或屏幕共享权限时按提示授权 |
+| macOS 完整版 DMG/ZIP | `SyncWatch-Full-Offline-macOS-v版本-x64/arm64.*` | Mac 房主 | 当前架构的完整服务端、cloudflared 和全平台离线下载中心 | Intel 选 x64，Apple Silicon 选 arm64；每个文件超过 1 GB |
 | cloudflared 安装包 | `cloudflared-平台-架构` | 需要手工配置 Tunnel 的管理员 | 把本地 HTTP 服务安全映射到 Cloudflare 网络 | 只从 Cloudflare 官方 Release 下载并校验 SHA-256 |
 
 ## 选择流程

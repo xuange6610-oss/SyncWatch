@@ -65,9 +65,11 @@
     "build:android": "powershell -NoProfile -ExecutionPolicy Bypass -File mobile/build-apk.ps1",
     "build:client": "electron-builder --config electron-builder-client.json --win portable",
     "build:server:installer": "electron-builder --config electron-builder-windows-installer.json --win nsis",
+    "build:server:full-portable": "electron-builder --config electron-builder-windows-full-portable.json --win portable",
     "build:mac": "bash scripts/build-macos.sh",
     "build:mac:client": "electron-builder --config electron-builder-mac-client.json --mac",
     "build:mac:server": "electron-builder --config electron-builder-mac-server.json --mac",
+    "build:mac:full": "electron-builder --config electron-builder-mac-full.json --mac",
     "build:server": "powershell -NoProfile -ExecutionPolicy Bypass -File build-server-package.ps1",
     "build": "electron-builder --win portable"
   },

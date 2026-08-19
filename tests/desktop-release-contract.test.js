@@ -11,8 +11,10 @@ const json = (relative) => JSON.parse(read(relative));
 const manifest = json('package.json');
 const clientConfig = json('electron-builder-client.json');
 const fullInstallerConfig = json('electron-builder-windows-installer.json');
+const fullPortableConfig = json('electron-builder-windows-full-portable.json');
 const macClientConfig = json('electron-builder-mac-client.json');
 const macServerConfig = json('electron-builder-mac-server.json');
+const macFullConfig = json('electron-builder-mac-full.json');
 const electronServer = read('electron-pink.js');
 const electronClient = read('electron-client.js');
 const clientPreload = read('electron-client-preload.js');
@@ -39,7 +41,10 @@ assert.match(windowsBuild, /\$expectedProductName\s*=\s*\[string\]\$buildManifes
 // Windows/macOS metadata, Electron runtime identity, window titles and tray
 // identity must all present one product name. Artifact filenames remain free to
 // include the SyncWatch同步观影 brand and version for distribution.
-for (const config of [manifest.build, clientConfig, macClientConfig, macServerConfig]) {
+for (const config of [
+  manifest.build, clientConfig, fullInstallerConfig, fullPortableConfig,
+  macClientConfig, macServerConfig, macFullConfig
+]) {
   assert.equal(config.productName, DESKTOP_NAME);
 }
 assert.equal(manifest.description, DESKTOP_NAME);
@@ -100,11 +105,19 @@ assert.match(windowsBuild, /release[\\/]macos/i);
 assert.match(windowsBuild, /release[\\/]server-deployment/i);
 assert.doesNotMatch(windowsBuild, /win-unpacked\\resources\\mac/);
 assert.doesNotMatch(windowsBuild, /app\.asar\.unpacked\\mobile/);
-const fullResources = (fullInstallerConfig.extraResources || []).map((entry) => `${entry.from || ''} -> ${entry.to || ''}`);
-for (const directory of ['release/offline-bundle/windows', 'release/offline-bundle/android', 'release/offline-bundle/mac']) {
-  assert.ok(fullResources.some((entry) => entry.includes(directory)), `Full installer must embed ${directory}`);
+for (const [label, config] of [
+  ['Full installer', fullInstallerConfig],
+  ['Full portable', fullPortableConfig],
+  ['macOS Full', macFullConfig]
+]) {
+  const resources = (config.extraResources || []).map((entry) => `${entry.from || ''} -> ${entry.to || ''}`);
+  for (const directory of ['release/offline-bundle/windows', 'release/offline-bundle/android', 'release/offline-bundle/mac']) {
+    assert.ok(resources.some((entry) => entry.includes(directory)), `${label} must embed ${directory}`);
+  }
 }
 assert.equal(fullInstallerConfig.nsis.artifactName, 'SyncWatch-v2.1.7-Full-Offline-Installer-${arch}.exe');
+assert.equal(fullPortableConfig.portable.artifactName, 'SyncWatch-v2.1.7-Full-Offline-Portable-${arch}.exe');
+assert.equal(macFullConfig.artifactName, 'SyncWatch同步观影-完整版-v2.1.7-${arch}.${ext}');
 assert.match(electronServer, /offline-downloads['"], ['"]windows/);
 assert.match(electronServer, /offline-downloads['"], ['"]android/);
 assert.match(electronServer, /offline-downloads['"], ['"]mac/);
@@ -129,10 +142,18 @@ assert.match(macReleaseWorkflow, /release_role="Server"/);
 for (const publicName of [
   'SyncWatch-Experience-Client-Portable-v2.1.7-x64.exe',
   'SyncWatch-Standard-Server-Portable-v2.1.7-x64.exe',
-  'SyncWatch-v2.1.7-Full-Offline-Installer-x64.exe'
+  'SyncWatch-v2.1.7-Full-Offline-Installer-x64.exe',
+  'SyncWatch-v2.1.7-Full-Offline-Portable-x64.exe'
 ]) {
   assert.match(windowsReleaseWorkflow, new RegExp(publicName.replaceAll('.', '\\.')),
     `Windows release workflow must publish the tiered asset ${publicName}`);
+}
+for (const arch of ['x64', 'arm64']) {
+  for (const extension of ['dmg', 'zip']) {
+    assert.match(macReleaseWorkflow,
+      new RegExp(`SyncWatch-Full-Offline-macOS-v\\$\\{VERSION\\}-${arch}\\.${extension}`),
+      `macOS release workflow must publish the Full Offline ${arch} ${extension} package`);
+  }
 }
 
 console.log('desktop login visual, metadata and split-release contracts passed.');

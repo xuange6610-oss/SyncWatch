@@ -9,6 +9,9 @@
 | [`SyncWatch-Experience-Client-Portable-v2.1.7-x64.exe`](https://github.com/xuange6610-oss/SyncWatch/releases/download/2.1.7/SyncWatch-Experience-Client-Portable-v2.1.7-x64.exe) | 体验版 | Windows 普通成员 | 连接已有服务器，不在本机启动服务端 |
 | [`SyncWatch-Standard-Server-Portable-v2.1.7-x64.exe`](https://github.com/xuange6610-oss/SyncWatch/releases/download/2.1.7/SyncWatch-Standard-Server-Portable-v2.1.7-x64.exe) | 标准版 | 不想安装的 Windows 房主 | 内置运行环境和 cloudflared，绿色便携运行 |
 | [`SyncWatch-v2.1.7-Full-Offline-Installer-x64.exe`](https://github.com/xuange6610-oss/SyncWatch/releases/download/2.1.7/SyncWatch-v2.1.7-Full-Offline-Installer-x64.exe) | 完整版 | 需要离线全平台下载中心的 Windows 房主 | 安装向导、完整服务器运行时，并离线内嵌 Windows、Android 与 macOS 发布文件 |
+| [`SyncWatch-v2.1.7-Full-Offline-Portable-x64.exe`](https://github.com/xuange6610-oss/SyncWatch/releases/download/2.1.7/SyncWatch-v2.1.7-Full-Offline-Portable-x64.exe) | 完整版 | 不想安装的 Windows 房主 | 独立 EXE，直接双击运行；功能和离线资源与安装完整版相同 |
+| [macOS Intel 完整版 DMG](https://github.com/xuange6610-oss/SyncWatch/releases/download/2.1.7/SyncWatch-Full-Offline-macOS-v2.1.7-x64.dmg) / [ZIP](https://github.com/xuange6610-oss/SyncWatch/releases/download/2.1.7/SyncWatch-Full-Offline-macOS-v2.1.7-x64.zip) | 完整版 | Intel Mac 房主 | x64 完整服务器、cloudflared 和全平台离线下载中心 |
+| [macOS Apple 芯片完整版 DMG](https://github.com/xuange6610-oss/SyncWatch/releases/download/2.1.7/SyncWatch-Full-Offline-macOS-v2.1.7-arm64.dmg) / [ZIP](https://github.com/xuange6610-oss/SyncWatch/releases/download/2.1.7/SyncWatch-Full-Offline-macOS-v2.1.7-arm64.zip) | 完整版 | Apple Silicon 房主 | arm64 完整服务器、cloudflared 和全平台离线下载中心 |
 
 ## v2.1.7 更新公告
 
@@ -24,8 +27,9 @@
 
 - **体验版**只保留加入现有服务器所需的 Windows 客户端，适合普通成员。
 - **标准版**是绿色便携服务器，内置 Electron/Node.js 运行时、FFmpeg、FFprobe 和 cloudflared，下载后直接双击。
-- **完整版**改为超过 1 GB 的离线安装程序，除完整 Windows 服务端外，还真实内嵌 Windows 客户端、Android 通用 APK、macOS Intel/Apple Silicon 的服务器和客户端 ZIP。
-- 完整版安装后，房主启动一个 EXE 即可通过登录页或账号菜单向不同设备分发客户端，不需要临时再从 GitHub 拉取这些文件。
+- **完整版**同时提供 Windows 安装 EXE、Windows 独立 EXE，以及 macOS Intel/Apple Silicon 的 DMG 和 ZIP；每一个都是超过 1 GB 的真实完整构建。
+- 每个完整版除当前平台的完整服务端和 cloudflared 外，还真实内嵌 Windows 客户端、Android 通用 APK、macOS Intel/Apple Silicon 的服务器和客户端 ZIP。
+- 房主启动任意完整版即可通过登录页或账号菜单向不同设备分发客户端，不需要临时再从 GitHub 拉取这些文件。
 - 新增离线资源清单和最小体积校验；缺少任意平台文件、文件异常偏小或安装包达到 GitHub 2 GiB 上限时，发布流程会直接失败。
 
 ### 打包与依赖完整性
@@ -58,9 +62,10 @@
 - **在线展示**：直接打开 [GitHub Pages](https://xuange6610-oss.github.io/SyncWatch/)，查看真实界面、功能截图和逐步教程。它是静态展示，不运行真实服务器。
 - **Windows 客户端**：[`SyncWatch-Experience-Client-Portable-v2.1.7-x64.exe`](https://github.com/xuange6610-oss/SyncWatch/releases/download/2.1.7/SyncWatch-Experience-Client-Portable-v2.1.7-x64.exe)。适合成员连接已经运行的服务器，不在本机启动服务端。
 
-### 标准版
+### 标准版与完整版
 
-- **Windows 离线完整版**：[`SyncWatch-v2.1.7-Full-Offline-Installer-x64.exe`](https://github.com/xuange6610-oss/SyncWatch/releases/download/2.1.7/SyncWatch-v2.1.7-Full-Offline-Installer-x64.exe)。安装、卸载、桌面快捷方式、开始菜单和安装后启动；安装后登录页可直接下载内嵌的各平台文件。
+- **Windows 安装完整版**：[`SyncWatch-v2.1.7-Full-Offline-Installer-x64.exe`](https://github.com/xuange6610-oss/SyncWatch/releases/download/2.1.7/SyncWatch-v2.1.7-Full-Offline-Installer-x64.exe)。包含安装、卸载、桌面快捷方式、开始菜单和安装后启动。
+- **Windows 独立 EXE 完整版**：[`SyncWatch-v2.1.7-Full-Offline-Portable-x64.exe`](https://github.com/xuange6610-oss/SyncWatch/releases/download/2.1.7/SyncWatch-v2.1.7-Full-Offline-Portable-x64.exe)。无需安装，放到普通文件夹后直接双击；功能和内嵌资源与安装完整版一致。
 - **Windows 绿色标准版**：[`SyncWatch-Standard-Server-Portable-v2.1.7-x64.exe`](https://github.com/xuange6610-oss/SyncWatch/releases/download/2.1.7/SyncWatch-Standard-Server-Portable-v2.1.7-x64.exe)。双击即用，不需要 Git、Node.js 或 npm。
 - **Android 完整 APK**：[`SyncWatch-Android-v2.1.7-universal.apk`](https://github.com/xuange6610-oss/SyncWatch/releases/download/2.1.7/SyncWatch-Android-v2.1.7-universal.apk)。可加入房间；受支持设备可运行手机服务器。
 - **独立服务器 ZIP**：[`SyncWatch-Standalone-Server-v2.1.7.zip`](https://github.com/xuange6610-oss/SyncWatch/releases/download/2.1.7/SyncWatch-Standalone-Server-v2.1.7.zip)。适合 Node.js、Linux、Windows Server 或 Docker 长期部署。
@@ -86,6 +91,9 @@ Windows 正式服务器包内置 Electron/Node.js 运行时、应用前后端、
 ## macOS
 
 macOS 服务器/客户端各提供：
+
+- Intel 完整版：[DMG](https://github.com/xuange6610-oss/SyncWatch/releases/download/2.1.7/SyncWatch-Full-Offline-macOS-v2.1.7-x64.dmg) / [ZIP](https://github.com/xuange6610-oss/SyncWatch/releases/download/2.1.7/SyncWatch-Full-Offline-macOS-v2.1.7-x64.zip)
+- Apple Silicon 完整版：[DMG](https://github.com/xuange6610-oss/SyncWatch/releases/download/2.1.7/SyncWatch-Full-Offline-macOS-v2.1.7-arm64.dmg) / [ZIP](https://github.com/xuange6610-oss/SyncWatch/releases/download/2.1.7/SyncWatch-Full-Offline-macOS-v2.1.7-arm64.zip)
 
 - Intel 客户端：[DMG](https://github.com/xuange6610-oss/SyncWatch/releases/download/2.1.7/SyncWatch-Client-macOS-v2.1.7-x64.dmg) / [ZIP](https://github.com/xuange6610-oss/SyncWatch/releases/download/2.1.7/SyncWatch-Client-macOS-v2.1.7-x64.zip)
 - Apple Silicon 客户端：[DMG](https://github.com/xuange6610-oss/SyncWatch/releases/download/2.1.7/SyncWatch-Client-macOS-v2.1.7-arm64.dmg) / [ZIP](https://github.com/xuange6610-oss/SyncWatch/releases/download/2.1.7/SyncWatch-Client-macOS-v2.1.7-arm64.zip)

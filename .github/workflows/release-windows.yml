@@ -79,22 +79,27 @@ jobs:
           Get-ChildItem release/offline-bundle/mac -Filter 'SyncWatch-Client-macOS-*.zip' | ForEach-Object { Rename-Item $_.FullName ($_.Name -replace 'SyncWatch-Client-macOS-', 'SyncWatch同步观影-客户端-') }
           node scripts/verify-full-offline-bundle.js
 
-      - name: Build NSIS server installer
+      - name: Build Full installer and standalone EXE
         shell: pwsh
-        run: npx electron-builder --config electron-builder-windows-installer.json --win nsis --publish never
+        run: |
+          npx electron-builder --config electron-builder-windows-installer.json --win nsis --publish never
+          npx electron-builder --config electron-builder-windows-full-portable.json --win portable --publish never
 
       - name: Collect release assets
         shell: pwsh
         run: |
           $version = '2.1.7'
           New-Item -ItemType Directory -Force -Path release\windows-installer | Out-Null
+          New-Item -ItemType Directory -Force -Path release\windows-full-portable | Out-Null
           New-Item -ItemType Directory -Force -Path release\windows-server | Out-Null
           New-Item -ItemType Directory -Force -Path release\windows-client | Out-Null
           $installer = Get-ChildItem dist-installer -Filter *.exe | Select-Object -First 1
+          $fullPortable = Get-ChildItem dist-full-portable -Filter *.exe | Select-Object -First 1
           $server = Get-ChildItem dist -Filter *.exe -ErrorAction SilentlyContinue | Select-Object -First 1
           $client = Get-ChildItem dist-client -Filter *.exe -ErrorAction SilentlyContinue | Select-Object -First 1
-          if (-not $installer -or -not $server -or -not $client) { throw 'A required Windows release package is missing.' }
+          if (-not $installer -or -not $fullPortable -or -not $server -or -not $client) { throw 'A required Windows release package is missing.' }
           Copy-Item $installer.FullName "release\windows-installer\SyncWatch-v$version-Full-Offline-Installer-x64.exe" -Force
+          Copy-Item $fullPortable.FullName "release\windows-full-portable\SyncWatch-v$version-Full-Offline-Portable-x64.exe" -Force
           Copy-Item $server.FullName "release\windows-server\SyncWatch-Standard-Server-Portable-v$version-x64.exe" -Force
           Copy-Item $client.FullName "release\windows-client\SyncWatch-Experience-Client-Portable-v$version-x64.exe" -Force
 
@@ -103,6 +108,7 @@ jobs:
         run: |
           $expected = @(
             'release\windows-installer\SyncWatch-v2.1.7-Full-Offline-Installer-x64.exe',
+            'release\windows-full-portable\SyncWatch-v2.1.7-Full-Offline-Portable-x64.exe',
             'release\windows-server\SyncWatch-Standard-Server-Portable-v2.1.7-x64.exe',
             'release\windows-client\SyncWatch-Experience-Client-Portable-v2.1.7-x64.exe'
           )
@@ -114,11 +120,17 @@ jobs:
           if (-not (Test-Path -LiteralPath 'vendor\cloudflared.exe') -or (Get-Item 'vendor\cloudflared.exe').Length -lt 1MB) {
             throw 'The Full and Standard server builds require the bundled cloudflared.exe.'
           }
-          if ((Get-Item 'release\windows-installer\SyncWatch-v2.1.7-Full-Offline-Installer-x64.exe').Length -lt 1GB) {
-            throw 'The Full offline installer does not contain all platform downloads.'
-          }
-          if ((Get-Item 'release\windows-installer\SyncWatch-v2.1.7-Full-Offline-Installer-x64.exe').Length -ge 2GB) {
-            throw 'The Full offline installer exceeds the GitHub Release 2 GiB per-asset limit.'
+          $fullPackages = @(
+            'release\windows-installer\SyncWatch-v2.1.7-Full-Offline-Installer-x64.exe',
+            'release\windows-full-portable\SyncWatch-v2.1.7-Full-Offline-Portable-x64.exe'
+          )
+          foreach ($file in $fullPackages) {
+            if ((Get-Item -LiteralPath $file).Length -lt 1GB) {
+              throw "The Full offline package does not contain all platform downloads: $file"
+            }
+            if ((Get-Item -LiteralPath $file).Length -ge 2GB) {
+              throw "The Full offline package exceeds the GitHub Release 2 GiB per-asset limit: $file"
+            }
           }
           npm run test:privacy:release
 

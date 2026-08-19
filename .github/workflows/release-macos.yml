@@ -30,6 +30,8 @@ jobs:
     steps:
       - name: Checkout release source
         uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -116,3 +118,112 @@ jobs:
             "$release_dir/SyncWatch-${release_role}-macOS-v${VERSION}-arm64.dmg" \
             "$release_dir/SyncWatch-${release_role}-macOS-v${VERSION}-arm64.zip" \
             --clobber
+
+  full:
+    name: macOS Full Offline ${{ matrix.arch }}
+    needs: build
+    runs-on: macos-14
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [x64, arm64]
+    env:
+      CSC_IDENTITY_AUTO_DISCOVERY: "false"
+      VERSION: "2.1.7"
+    steps:
+      - name: Checkout release source
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install locked package manager
+        run: npm install --global pnpm@11.9.0
+
+      - name: Install locked dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Download platform runtimes and offline downloads
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p vendor release/offline-bundle/{windows,android,mac}
+
+          gh release download "${{ inputs.tag }}" --pattern 'cloudflared-macos-*' --dir vendor --clobber
+          mv vendor/cloudflared-macos-x64 vendor/cloudflared-darwin-x64
+          mv vendor/cloudflared-macos-arm64 vendor/cloudflared-darwin-arm64
+          chmod 755 vendor/cloudflared-darwin-x64 vendor/cloudflared-darwin-arm64
+
+          gh release download "${{ inputs.tag }}" --pattern 'SyncWatch-Experience-Client-Portable-v2.1.7-x64.exe' --dir release/offline-bundle/windows --clobber
+          mv release/offline-bundle/windows/SyncWatch-Experience-Client-Portable-v2.1.7-x64.exe \
+            release/offline-bundle/windows/SyncWatch同步观影-Client-v2.1.7.exe
+
+          gh release download "${{ inputs.tag }}" --pattern 'SyncWatch-Android-v2.1.7-universal.apk' --dir release/offline-bundle/android --clobber
+          mv release/offline-bundle/android/SyncWatch-Android-v2.1.7-universal.apk \
+            release/offline-bundle/android/SyncWatch同步观影-v2.1.7.apk
+
+          gh release download "${{ inputs.tag }}" --pattern 'SyncWatch-Server-macOS-v2.1.7-*.zip' --dir release/offline-bundle/mac --clobber
+          gh release download "${{ inputs.tag }}" --pattern 'SyncWatch-Client-macOS-v2.1.7-*.zip' --dir release/offline-bundle/mac --clobber
+          for arch in x64 arm64; do
+            mv "release/offline-bundle/mac/SyncWatch-Server-macOS-v2.1.7-${arch}.zip" \
+              "release/offline-bundle/mac/SyncWatch同步观影-服务器-v2.1.7-${arch}.zip"
+            mv "release/offline-bundle/mac/SyncWatch-Client-macOS-v2.1.7-${arch}.zip" \
+              "release/offline-bundle/mac/SyncWatch同步观影-客户端-v2.1.7-${arch}.zip"
+          done
+          node scripts/verify-full-offline-bundle.js
+
+      - name: Build Full Offline DMG and ZIP
+        shell: bash
+        run: |
+          npx electron-builder \
+            --config electron-builder-mac-full.json \
+            --mac \
+            --${{ matrix.arch }} \
+            --publish never
+
+      - name: Verify and collect Full Offline packages
+        shell: bash
+        run: |
+          set -euo pipefail
+          release_dir="release-macos-full-${{ matrix.arch }}"
+          mkdir -p "$release_dir"
+          old_ascii="tang""jingxuan"
+          old_name="唐""靖轩"
+          for extension in dmg zip; do
+            source="dist-mac-full/SyncWatch同步观影-完整版-v${VERSION}-${{ matrix.arch }}.${extension}"
+            target="$release_dir/SyncWatch-Full-Offline-macOS-v${VERSION}-${{ matrix.arch }}.${extension}"
+            test -s "$source"
+            size="$(stat -f %z "$source")"
+            test "$size" -ge 1073741824
+            test "$size" -lt 2147483648
+            ! grep -aEqi "${old_ascii}|${old_name}" "$source"
+            cp "$source" "$target"
+            shasum -a 256 "$target"
+          done
+
+      - name: Upload Full Offline packages
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          release_dir="release-macos-full-${{ matrix.arch }}"
+          if [[ "${{ matrix.arch }}" == "x64" ]]; then
+            files=(
+              "$release_dir/SyncWatch-Full-Offline-macOS-v${VERSION}-x64.dmg"
+              "$release_dir/SyncWatch-Full-Offline-macOS-v${VERSION}-x64.zip"
+            )
+          else
+            files=(
+              "$release_dir/SyncWatch-Full-Offline-macOS-v${VERSION}-arm64.dmg"
+              "$release_dir/SyncWatch-Full-Offline-macOS-v${VERSION}-arm64.zip"
+            )
+          fi
+          gh release upload "${{ inputs.tag }}" "${files[@]}" --clobber

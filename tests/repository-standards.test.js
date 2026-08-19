@@ -44,6 +44,8 @@ const requiredFiles = [
   'docs/tips-and-advantages.md',
   'docs/standalone-server.md',
   'build-windows.ps1',
+  'electron-builder-windows-full-portable.json',
+  'electron-builder-mac-full.json',
   'assets/app-icon.png',
   'assets/app-icon.ico'
 ];
@@ -95,6 +97,9 @@ assert.match(readme, /微信:\s*love_020804/);
 assert.match(readme, /xuange6610-oss\.github\.io\/SyncWatch\//);
 assert.match(readme, /docs\/screenshots\/main-interface\.png/);
 assert.match(readme, /SyncWatch-v2\.1\.7-Full-Offline-Installer-x64\.exe/);
+assert.match(readme, /SyncWatch-v2\.1\.7-Full-Offline-Portable-x64\.exe/);
+assert.match(readme, /SyncWatch-Full-Offline-macOS-v2\.1\.7-x64\.dmg/);
+assert.match(readme, /SyncWatch-Full-Offline-macOS-v2\.1\.7-arm64\.dmg/);
 
 const pages = read('.github/workflows/pages.yml');
 assert.match(pages, /pages:\s*write/);
