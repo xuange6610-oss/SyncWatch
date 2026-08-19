@@ -1,0 +1,83 @@
+name: Build Windows release
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing tag to build and upload
+        required: true
+        type: string
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: windows-release-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: windows-2022
+    timeout-minutes: 45
+    steps:
+      - name: Checkout tag
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install locked dependencies
+        run: npm ci
+
+      - name: Verify privacy and release contracts
+        shell: pwsh
+        run: |
+          npm run test:privacy:release
+          node tests/server-package-contract.test.js
+          node tests/desktop-release-contract.test.js
+          node tests/cloudflared-bundle.test.js
+
+      - name: Build portable server and client
+        shell: pwsh
+        run: |
+          npx electron-builder --win portable
+          npm run build:client
+
+      - name: Build NSIS server installer
+        shell: pwsh
+        run: npx electron-builder --config electron-builder-windows-installer.json --win nsis
+
+      - name: Collect release assets
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path release\windows-installer | Out-Null
+          New-Item -ItemType Directory -Force -Path release\windows-server | Out-Null
+          New-Item -ItemType Directory -Force -Path release\windows-client | Out-Null
+          Get-ChildItem dist-installer -Filter *.exe | Copy-Item -Destination release\windows-installer -Force
+          Get-ChildItem dist -Filter *.exe -ErrorAction SilentlyContinue | Copy-Item -Destination release\windows-server -Force
+          Get-ChildItem dist-client -Filter *.exe -ErrorAction SilentlyContinue | Copy-Item -Destination release\windows-client -Force
+
+      - name: Upload workflow artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: SyncWatch-Windows-${{ github.ref_name }}
+          path: release/windows-*/**
+          if-no-files-found: error
+
+      - name: Upload to GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: pwsh
+        run: |
+          $tag = '${{ inputs.tag || github.ref_name }}'
+          gh release view $tag --repo '${{ github.repository }}' *> $null
+          if ($LASTEXITCODE -ne 0) { gh release create $tag --repo '${{ github.repository }}' --title "SyncWatch同步观影 $tag" --generate-notes }
+          gh release upload $tag release/windows-installer/*.exe release/windows-server/*.exe release/windows-client/*.exe --repo '${{ github.repository }}' --clobber

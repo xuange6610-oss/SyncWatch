@@ -1,12 +1,24 @@
 # SyncWatch同步观影
 
-[![GitHub Pages](https://github.com/xuange6610-oss/SyncWatch/actions/workflows/pages.yml/badge.svg)](https://github.com/xuange6610-oss/SyncWatch/actions/workflows/pages.yml)
-[![License](https://img.shields.io/badge/license-Apache--2.0-2b6d4f.svg)](LICENSE)
-[![Node.js](https://img.shields.io/badge/Node.js-22%2B-356e46.svg)](https://nodejs.org/)
+和朋友、家人、情侣远程一起看电影。
 
-SyncWatch同步观影是一套开源、多端、自托管的同步观影与实时协作系统。一个人启动服务器并创建房间，其他人使用 Windows 客户端、Android 客户端、macOS 客户端或现代浏览器打开地址，就能同步播放、暂停、进度和倍速，并使用聊天、弹幕、语音、屏幕共享、网页共享、媒体管理等功能。
+SyncWatch 是一个开源、自托管、跨平台的 Watch Party / 同步观影系统。一个人启动服务器，其他人通过 Windows、Android、macOS 或浏览器加入房间，即可同步播放、暂停、拖动进度和倍速，同时支持聊天、弹幕、语音、屏幕共享和媒体管理。
 
-服务器数据保存在自己的设备上。你可以先在同一个 Wi-Fi 或局域网内使用，需要跨网络时再启用 Cloudflare Tunnel 或自己的 HTTPS 反向代理。
+你的服务器、你的影片、你的数据。无需依赖第三方同步观影平台。
+
+[![GitHub Release](https://img.shields.io/github/v/release/xuange6610-oss/SyncWatch?display_name=tag)](https://github.com/xuange6610-oss/SyncWatch/releases)
+[![GitHub Stars](https://img.shields.io/github/stars/xuange6610-oss/SyncWatch)](https://github.com/xuange6610-oss/SyncWatch/stargazers)
+[![GitHub Forks](https://img.shields.io/github/forks/xuange6610-oss/SyncWatch)](https://github.com/xuange6610-oss/SyncWatch/network/members)
+[![License](https://img.shields.io/github/license/xuange6610-oss/SyncWatch)](LICENSE)
+[![Pages](https://github.com/xuange6610-oss/SyncWatch/actions/workflows/pages.yml/badge.svg)](https://github.com/xuange6610-oss/SyncWatch/actions/workflows/pages.yml)
+[![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Android%20%7C%20macOS%20%7C%20Web-1769aa)](https://github.com/xuange6610-oss/SyncWatch/releases)
+[![Self Hosted](https://img.shields.io/badge/self--hosted-yes-success)](https://github.com/xuange6610-oss/SyncWatch)
+
+![SyncWatch同步观影同步播放界面](docs/screenshots/synchronized-playback.png)
+
+Windows · Android · macOS · Web  ·  同步播放 · 弹幕 · 聊天 · 语音 · 屏幕共享
+
+[立即下载](https://github.com/xuange6610-oss/SyncWatch/releases/latest) · [在线预览](https://xuange6610-oss.github.io/SyncWatch/) · [新手快速开始](docs/quick-start.html) · [部署教程](docs/server-deployment-guide.md) · [GitHub Wiki](https://github.com/xuange6610-oss/SyncWatch/wiki)
 
 > 当前版本：v2.1.6 · 许可证：[Apache-2.0](LICENSE) · 作者：xuan
 
@@ -188,7 +200,7 @@ server-standalone.js      独立服务端入口
 
 Git 没有要求所有文件都必须使用英文名称。仓库采用的规则是：GitHub 约定文件使用标准名称，普通新增文件优先使用小写英文和连字符；面向用户的中文正文和产品名称保持中文。包名、协议字段、Java/JNI 路径和旧数据目录名属于兼容标识，没有迁移方案时不要只改其中一部分。
 
-完整的文件夹、配置文件、启动脚本、构建脚本和测试文件说明见：[仓库文件地图](docs/repository-map.md)。
+完整的文件夹、配置文件、启动脚本、构建脚本和测试文件说明见：[仓库文件地图 HTML](docs/repository-map.html) 或 [Markdown 版](docs/repository-map.md)。
 
 ## 管理中心功能导览
 
@@ -222,9 +234,10 @@ Git 没有要求所有文件都必须使用英文名称。仓库采用的规则�
 - [管理中心 3D HTML 教程](https://xuange6610-oss.github.io/SyncWatch/management-center.html)
 - [常见错误与报错处理](docs/troubleshooting.md)
 - [使用技巧与优势](docs/tips-and-advantages.md)
-- [发布文件与下载说明](docs/release-artifacts.md)
-- [仓库文件地图](docs/repository-map.md)
-- [Wiki 完整教程目录](docs/wiki-guide.md)
+- [发布文件与下载说明](docs/release-artifacts.html)
+- [仓库文件地图](docs/repository-map.html)
+- [新手快速开始 HTML](docs/quick-start.html)
+- [Wiki 完整教程目录](docs/wiki-guide.md) · [仓库内 Wiki 镜像](docs/wiki/)
 - [参与贡献](CONTRIBUTING.md)
 - [安全报告方式](SECURITY.md)
 

@@ -1,0 +1,45 @@
+{
+  "appId": "com.xuan.syncwatch.server",
+  "productName": "SyncWatch同步观影",
+  "copyright": "Copyright © 2026 xuan",
+  "asar": true,
+  "compression": "maximum",
+  "electronLanguages": ["zh-CN"],
+  "removePackageScripts": true,
+  "directories": { "output": "dist-installer" },
+  "files": [
+    "electron-pink.js",
+    "electron-main-preload.js",
+    "electron-settings-preload.js",
+    "server/index.js",
+    "server/ai-relay.js",
+    "server/macos-distribution.js",
+    "public/**/*",
+    "package.json",
+    "assets/app-icon.ico"
+  ],
+  "asarUnpack": [
+    "node_modules/ffmpeg-static/**/*",
+    "node_modules/ffprobe-static/**/*"
+  ],
+  "extraResources": [
+    { "from": "vendor/cloudflared.exe", "to": "vendor/cloudflared.exe" }
+  ],
+  "win": {
+    "target": [{ "target": "nsis", "arch": ["x64"] }],
+    "icon": "assets/app-icon.ico",
+    "executableName": "SyncWatch同步观影",
+    "requestedExecutionLevel": "asInvoker",
+    "signExecutable": false
+  },
+  "nsis": {
+    "oneClick": false,
+    "allowToChangeInstallationDirectory": true,
+    "createDesktopShortcut": true,
+    "createStartMenuShortcut": true,
+    "shortcutName": "SyncWatch同步观影",
+    "runAfterFinish": true,
+    "deleteAppDataOnUninstall": false,
+    "artifactName": "SyncWatch-Setup-v2.1.6-${arch}.exe"
+  }
+}
