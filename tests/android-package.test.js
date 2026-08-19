@@ -13,7 +13,7 @@ const mobileRoot = path.join(repositoryRoot, 'mobile');
 const appRoot = path.join(mobileRoot, 'app');
 const sourceOnly = process.argv.includes('--source-only');
 const explicitApk = process.argv.find((argument) => /\.apk$/i.test(argument));
-const apkPath = path.resolve(explicitApk || path.join(mobileRoot, 'SyncWatch同步观影-v2.1.5.apk'));
+const apkPath = path.resolve(explicitApk || path.join(mobileRoot, 'SyncWatch同步观影-v2.1.6.apk'));
 
 const NODE_MOBILE = Object.freeze({
   version: '18.20.4',
@@ -144,7 +144,7 @@ function verifySources() {
   assert.match(manifest, /android:foregroundServiceType="specialUse"/);
   assert.match(manifest, /android\.app\.PROPERTY_SPECIAL_USE_FGS_SUBTYPE/);
 
-  const service = read('mobile/app/src/main/java/com/tangjingxuan/syncwatch/MobileServerService.java');
+  const service = read('mobile/app/src/main/java/com/xuan/syncwatch/MobileServerService.java');
   assert.match(service, /System\.loadLibrary\("syncwatch-node"\)/);
   assert.match(service, /assets\/syncwatch|"syncwatch"/);
   assert.match(service, /server','mobile-index\.js/,
@@ -159,7 +159,7 @@ function verifySources() {
     'attempting to start an unavailable Android tunnel must fail explicitly');
   assert.match(service, /hostControlToken:hostToken,tunnelManager,androidApkPath/,
     'the Android bootstrap must pass its explicit tunnel capability to the shared server');
-  const activity = read('mobile/app/src/main/java/com/tangjingxuan/syncwatch/MainActivity.java');
+  const activity = read('mobile/app/src/main/java/com/xuan/syncwatch/MainActivity.java');
   assert.match(activity, /STATUS_STOPPED[\s\S]{0,300}leaveStoppedLocalServerPage\("手机服务器已停止"\)/,
     'notification stop broadcasts must immediately leave a stopped local-server page');
   assert.match(activity, /private void leaveStoppedLocalServerPage\(String message\)[\s\S]*?remove\(PREF_SERVER\)[\s\S]*?showConnectionScreen\(message\);/,
@@ -181,7 +181,7 @@ function verifySources() {
   assert.match(activity, /syncwatch-native-location-permission/,
     'the web application must be notified after Android location permission changes');
 
-  const capture = read('mobile/app/src/main/java/com/tangjingxuan/syncwatch/ScreenCaptureService.java');
+  const capture = read('mobile/app/src/main/java/com/xuan/syncwatch/ScreenCaptureService.java');
   assert.match(capture, /static final int TARGET_FPS = 12;/,
     'native Android screen sharing must target 12fps on healthy devices');
   assert.match(capture, /static final int MAX_CAPTURE_DIMENSION = 1920;/,
@@ -355,7 +355,7 @@ function verifyApk(dependencyClosure) {
   assert.match(routeText, /const ID_START = \/\^\[\$_A-Za-z\]\$\//);
   assert.match(routeText, /const ID_CONTINUE = \/\^\[\$_A-Za-z0-9\]\$\//);
   assert.match(routeText, /const ID = \/\^\[\$_A-Za-z\]\[\$_A-Za-z0-9\]\*\$\//);
-  assert.ok(![...apk.entries.keys()].some((name) => /^assets\/syncwatch\/(?:mobile\/)?SyncWatch同步观影-v2\.1\.5\.apk$/.test(name)), 'APK recursively embeds itself');
+  assert.ok(![...apk.entries.keys()].some((name) => /^assets\/syncwatch\/(?:mobile\/)?SyncWatch同步观影-v2\.1\.6\.apk$/.test(name)), 'APK recursively embeds itself');
 }
 
 const dependencyClosure = verifySources();

@@ -236,17 +236,17 @@ def releaseKeyPassword = System.getenv('SYNCWATCH_ANDROID_KEY_PASSWORD')
 def releaseSigningReady = releaseStore && releaseStorePassword && releaseAlias && releaseKeyPassword && file(releaseStore).isFile()
 
 android {
-    namespace 'com.tangjingxuan.syncwatch'
+    namespace 'com.xuan.syncwatch'
     compileSdk 35
     buildToolsVersion '35.0.0'
     ndkVersion '28.2.13676358'
 
     defaultConfig {
-        applicationId 'com.tangjingxuan.syncwatch'
+        applicationId 'com.xuan.syncwatch'
         minSdk 23
         targetSdk 35
-        versionCode 20105
-        versionName '2.1.5'
+        versionCode 20106
+        versionName '2.1.6'
 
         ndk {
             abiFilters 'arm64-v8a', 'armeabi-v7a', 'x86_64'

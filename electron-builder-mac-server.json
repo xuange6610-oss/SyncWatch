@@ -1,12 +1,12 @@
 {
-  "appId": "com.tangjingxuan.syncwatch.server",
+  "appId": "com.xuan.syncwatch.server",
   "productName": "SyncWatch同步观影",
   "copyright": "Copyright © 2026 xuan",
   "asar": true,
   "compression": "maximum",
   "electronLanguages": ["zh-CN"],
   "removePackageScripts": true,
-  "artifactName": "SyncWatch同步观影-服务器-v2.1.5-${arch}.${ext}",
+  "artifactName": "SyncWatch同步观影-服务器-v2.1.6-${arch}.${ext}",
   "directories": { "output": "dist-mac-server" },
   "files": [
     "electron-pink.js",

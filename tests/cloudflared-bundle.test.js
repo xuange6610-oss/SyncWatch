@@ -41,6 +41,8 @@ for (const architecture of ['x64', 'arm64']) {
 assert.match(source, /net\.fetch\(/);
 assert.match(source, /Readable\.fromWeb\(response\.body\)/);
 assert.match(source, /cloudflared\.verified\.json/);
+assert.match(source, /Import-Module Microsoft\.PowerShell\.Security -ErrorAction Stop/,
+  'Windows signature verification must explicitly load the security module under -NoProfile');
 assert.doesNotMatch(source, /requestSingleInstanceLock/, '不同程序目录的 SyncWatch同步观影 服务器不应被全局单实例锁互相阻止');
 assert.match(source, /tunnel-startup\.json/);
 assert.match(source, /autoStartTunnel/);
@@ -55,10 +57,20 @@ if (process.platform === 'win32') {
   assert.ok(fs.existsSync(powershell), 'Windows PowerShell is required for Authenticode verification');
   const verification = spawnSync(powershell, [
     '-NoProfile', '-NonInteractive', '-Command',
-    "$signature = Get-AuthenticodeSignature -LiteralPath $env:SYNCWATCH_SIGNATURE_FILE; "
+    "Import-Module Microsoft.PowerShell.Security -ErrorAction Stop; "
+      + "$signature = Get-AuthenticodeSignature -LiteralPath $env:SYNCWATCH_SIGNATURE_FILE; "
       + "if ($signature.Status -ne 'Valid' -or -not $signature.SignerCertificate "
       + "-or $signature.SignerCertificate.Subject -notmatch 'Cloudflare') { exit 1 }"
-  ], { windowsHide: true, env: { ...process.env, SYNCWATCH_SIGNATURE_FILE: binary }, encoding: 'utf8' });
+  ], {
+    windowsHide: true,
+    env: {
+      ...process.env,
+      PSModulePath: path.join(process.env.SystemRoot || process.env.WINDIR || 'C:\\Windows',
+        'System32', 'WindowsPowerShell', 'v1.0', 'Modules'),
+      SYNCWATCH_SIGNATURE_FILE: binary
+    },
+    encoding: 'utf8'
+  });
   assert.equal(verification.status, 0, verification.stderr || 'cloudflared Authenticode signature is invalid');
 }
 

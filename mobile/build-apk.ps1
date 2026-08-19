@@ -400,7 +400,7 @@ function Assert-ApkPayload([string]$apkPath, [string]$repositoryRoot) {
             }
         }
 
-        if ($entries.Keys | Where-Object { $_ -match '^assets/syncwatch/(?:mobile/)?SyncWatch同步观影-v2\.1\.5\.apk$' }) {
+        if ($entries.Keys | Where-Object { $_ -match '^assets/syncwatch/(?:mobile/)?SyncWatch同步观影-v2\.1\.6\.apk$' }) {
             throw 'APK recursively contains another SyncWatch同步观影 Android APK.'
         }
 
@@ -489,7 +489,7 @@ if ($env:SYNCWATCH_ANDROID_OFFLINE -eq '1') { $gradleArgs = @('--offline') + $gr
 if ($LASTEXITCODE -ne 0) { throw 'Android release build failed.' }
 
 $builtApk = Join-Path $PSScriptRoot 'app\build\outputs\apk\release\app-release.apk'
-$deliveryApk = Join-Path $PSScriptRoot 'SyncWatch同步观影-v2.1.5.apk'
+$deliveryApk = Join-Path $PSScriptRoot 'SyncWatch同步观影-v2.1.6.apk'
 if (-not (Test-Path -LiteralPath $builtApk)) { throw 'Gradle completed without the expected release APK.' }
 
 $buildTools = Join-Path $sdk 'build-tools\35.0.0'
@@ -503,8 +503,8 @@ try {
     $badgingOutput = & $aapt dump badging $verificationApk
     $aaptExitCode = $LASTEXITCODE
     $badging = $badgingOutput | Select-Object -First 1
-    if ($aaptExitCode -ne 0 -or $badging -notmatch "name='com\.tangjingxuan\.syncwatch'" -or
-        $badging -notmatch "versionCode='20105'" -or $badging -notmatch "versionName='2\.1\.5'") {
+    if ($aaptExitCode -ne 0 -or $badging -notmatch "name='com\.xuan\.syncwatch'" -or
+        $badging -notmatch "versionCode='20106'" -or $badging -notmatch "versionName='2\.1\.6'") {
         throw "APK package metadata verification failed: $badging"
     }
 

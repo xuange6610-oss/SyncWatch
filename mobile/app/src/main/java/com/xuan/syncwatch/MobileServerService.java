@@ -1,4 +1,4 @@
-package com.tangjingxuan.syncwatch;
+package com.xuan.syncwatch;
 
 import android.app.Notification;
 import android.app.NotificationChannel;
@@ -58,13 +58,13 @@ import java.util.concurrent.atomic.AtomicBoolean;
  */
 public final class MobileServerService extends Service {
     public static final String ACTION_START =
-            "com.tangjingxuan.syncwatch.action.START_MOBILE_SERVER";
+            "com.xuan.syncwatch.action.START_MOBILE_SERVER";
     public static final String ACTION_STOP =
-            "com.tangjingxuan.syncwatch.action.STOP_MOBILE_SERVER";
+            "com.xuan.syncwatch.action.STOP_MOBILE_SERVER";
     public static final String ACTION_STATUS_CHANGED =
-            "com.tangjingxuan.syncwatch.action.MOBILE_SERVER_STATUS_CHANGED";
+            "com.xuan.syncwatch.action.MOBILE_SERVER_STATUS_CHANGED";
     public static final String ACTION_OPEN_LOCAL_SERVER =
-            "com.tangjingxuan.syncwatch.action.OPEN_LOCAL_SERVER";
+            "com.xuan.syncwatch.action.OPEN_LOCAL_SERVER";
 
     public static final String EXTRA_STATUS = "mobile_server_status";
     public static final String EXTRA_MESSAGE = "mobile_server_message";
@@ -539,7 +539,7 @@ public final class MobileServerService extends Service {
                 + "process.on('SIGTERM',()=>shutdown(0)); process.on('SIGINT',()=>shutdown(0));\n"
                 + "process.on('uncaughtException',error=>{report(error);shutdown(1);});\n"
                 + "process.on('unhandledRejection',error=>{report(error);shutdown(1);});\n"
-                + "(async()=>{try{const requestedPort=" + configuredPort + ";await assertPortAvailable(requestedPort);const {startSyncWatchServer}=require(path.join(runtimeRoot,'server','mobile-index.js'));instance=await startSyncWatchServer({host:'0.0.0.0',port:requestedPort,publicDir:path.join(runtimeRoot,'public'),dataDir:dataRoot,hostControlToken:hostToken,tunnelManager,androidApkPath:path.join(dataRoot,'SyncWatch同步观影-v2.1.5.apk'),ffprobePath:'',ffmpegPath:''});atomic(readyFile,{port:instance.port,addresses:instance.addresses||[]});}catch(error){report(error);shutdown(1);}})();\n";
+                + "(async()=>{try{const requestedPort=" + configuredPort + ";await assertPortAvailable(requestedPort);const {startSyncWatchServer}=require(path.join(runtimeRoot,'server','mobile-index.js'));instance=await startSyncWatchServer({host:'0.0.0.0',port:requestedPort,publicDir:path.join(runtimeRoot,'public'),dataDir:dataRoot,hostControlToken:hostToken,tunnelManager,androidApkPath:path.join(dataRoot,'SyncWatch同步观影-v2.1.6.apk'),ffprobePath:'',ffmpegPath:''});atomic(readyFile,{port:instance.port,addresses:instance.addresses||[]});}catch(error){report(error);shutdown(1);}})();\n";
     }
 
     private boolean publishReportedStartupError(File runtimeRoot) {

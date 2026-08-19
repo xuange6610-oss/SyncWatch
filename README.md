@@ -8,7 +8,7 @@ SyncWatch同步观影是一套开源、多端、自托管的同步观影与实�
 
 服务器数据保存在自己的设备上。你可以先在同一个 Wi-Fi 或局域网内使用，需要跨网络时再启用 Cloudflare Tunnel 或自己的 HTTPS 反向代理。
 
-> 当前版本：v2.1.5 · 许可证：[Apache-2.0](LICENSE) · 作者：xuan
+> 当前版本：v2.1.6 · 许可证：[Apache-2.0](LICENSE) · 作者：xuan
 
 ## 在线参观
 
@@ -219,6 +219,9 @@ Git 没有要求所有文件都必须使用英文名称。仓库采用的规则�
 - [Android 构建说明](mobile/README.md)
 - [云端媒体与商业部署说明](docs/cloud-media-deployment.md)
 - [管理中心详细教程](docs/management-center.md)
+- [管理中心 3D HTML 教程](https://xuange6610-oss.github.io/SyncWatch/management-center.html)
+- [常见错误与报错处理](docs/troubleshooting.md)
+- [使用技巧与优势](docs/tips-and-advantages.md)
 - [发布文件与下载说明](docs/release-artifacts.md)
 - [仓库文件地图](docs/repository-map.md)
 - [Wiki 完整教程目录](docs/wiki-guide.md)

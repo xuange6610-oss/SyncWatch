@@ -76,14 +76,14 @@ assert.match(app, /maxBitrate = 320000/);
 assert.match(app, /maxaveragebitrate=320000/);
 assert.match(app, /jitterBufferTarget = 0\.08/);
 
-// 9) The web surface stays on v2.1.5 and the standalone client uses the
+// 9) The web surface stays on v2.1.6 and the standalone client uses the
 // unified desktop product identity introduced by the split release.
-assert.match(html, /版本 v2\.1\.5 · 版权所有/);
-assert.match(html, /id="versionText">v2\.1\.5</);
+assert.match(html, /版本 v2\.1\.6 · 版权所有/);
+assert.match(html, /id="versionText">v2\.1\.6</);
 assert.match(launcher, /<title>同步观影<\/title>/);
 assert.match(launcher, /SYNCWATCH DESKTOP/);
 assert.doesNotMatch(html, /v2\.0\.5|2\.0\.5/);
 assert.doesNotMatch(app, /v2\.0\.5|2\.0\.5/);
 assert.doesNotMatch(launcher, /v2\.0\.5|2\.0\.5/);
 
-console.log('Frontend v2.1.5 guest, marquee, cube, rate prompt, mail, verification, account views, audio and version contracts passed.');
+console.log('Frontend v2.1.6 guest, marquee, cube, rate prompt, mail, verification, account views, audio and version contracts passed.');

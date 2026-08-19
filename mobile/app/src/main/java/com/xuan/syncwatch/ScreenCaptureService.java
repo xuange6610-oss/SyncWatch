@@ -1,4 +1,4 @@
-package com.tangjingxuan.syncwatch;
+package com.xuan.syncwatch;
 
 import android.app.Notification;
 import android.app.NotificationChannel;
@@ -82,8 +82,8 @@ public final class ScreenCaptureService extends Service {
         }
     }
 
-    private static final String ACTION_START = "com.tangjingxuan.syncwatch.screen.START";
-    private static final String ACTION_STOP = "com.tangjingxuan.syncwatch.screen.STOP";
+    private static final String ACTION_START = "com.xuan.syncwatch.screen.START";
+    private static final String ACTION_STOP = "com.xuan.syncwatch.screen.STOP";
     private static final String EXTRA_RESULT_CODE = "resultCode";
     private static final String EXTRA_RESULT_DATA = "resultData";
     private static final String EXTRA_SESSION_ID = "sessionId";

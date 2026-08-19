@@ -140,13 +140,13 @@ async function main() {
     assert.match(appSource, /data-contact-action="copy-open"/);
     assert.match(clientLauncherSource, /首次连接时会在本机创建 SyncWatch同步观影-Data/);
     assert.match(electronServerSource, /const APP_NAME = ['"]SyncWatch同步观影['"];[\s\S]{0,80}app\.setName\(APP_NAME\)/);
-    assert.match(electronServerSource, /setAppUserModelId\(['"]com\.tangjingxuan\.syncwatch\.server['"]\)/);
+    assert.match(electronServerSource, /setAppUserModelId\(['"]com\.xuan\.syncwatch\.server['"]\)/);
     assert.match(electronClientSource, /const APP_NAME = ['"]SyncWatch同步观影['"];[\s\S]{0,80}app\.setName\(APP_NAME\)/);
-    assert.match(electronClientSource, /setAppUserModelId\(['"]com\.tangjingxuan\.syncwatch\.client['"]\)/);
+    assert.match(electronClientSource, /setAppUserModelId\(['"]com\.xuan\.syncwatch\.client['"]\)/);
     assert.match(electronServerSource, /waitForPublicUrl\(establishedUrl, 8000,[\s\S]{0,180}localAddress/);
     assert.match(electronServerSource, /const verified = Boolean\(verifiedResult\?\.ok\)[\s\S]{0,520}state: verified \? 'running' : 'verifying'[\s\S]{0,160}publicUrl: verified \? establishedUrl : ''/);
-    assert.ok(!packageManifest.build.extraResources.some((entry) => entry.from === 'SyncWatch同步观影-Client-v2.1.5.exe'));
-    assert.equal(packageManifest.build.portable.artifactName, 'SyncWatch同步观影-v2.1.5.exe');
+    assert.ok(!packageManifest.build.extraResources.some((entry) => entry.from === 'SyncWatch同步观影-Client-v2.1.6.exe'));
+    assert.equal(packageManifest.build.portable.artifactName, 'SyncWatch同步观影-v2.1.6.exe');
     assert.equal(packageManifest.build.win.executableName, 'SyncWatch同步观影');
     assert.match(releaseScriptSource, /build-apk\.ps1[\s\S]{0,500}& \$powerShellExecutable/);
     assert.doesNotMatch(releaseScriptSource, /Reusing the existing verified APK artifact/);

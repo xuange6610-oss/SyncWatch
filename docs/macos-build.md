@@ -26,10 +26,10 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\build-macos-portab
 
 发布到项目根目录的文件：
 
-- `SyncWatch同步观影-服务器-v2.1.5-x64.dmg` / `.zip`
-- `SyncWatch同步观影-服务器-v2.1.5-arm64.dmg` / `.zip`
-- `SyncWatch同步观影-客户端-v2.1.5-x64.dmg` / `.zip`
-- `SyncWatch同步观影-客户端-v2.1.5-arm64.dmg` / `.zip`
+- `SyncWatch同步观影-服务器-v2.1.6-x64.dmg` / `.zip`
+- `SyncWatch同步观影-服务器-v2.1.6-arm64.dmg` / `.zip`
+- `SyncWatch同步观影-客户端-v2.1.6-x64.dmg` / `.zip`
+- `SyncWatch同步观影-客户端-v2.1.6-arm64.dmg` / `.zip`
 
 `dist-mac-server` 与 `dist-mac-client` 中保留相同构建副本；ZIP 适合企业内部分发和自动化部署。当前 Windows 发布机只生成 Windows EXE、APK 和服务器部署包，不会伪造 macOS 文件。
 
@@ -42,7 +42,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\build-macos-portab
 - 部署包中的 `mac/` 目录。
 
 文件名必须与以下格式一致：
-`SyncWatch同步观影-服务器-v2.1.5-x64.dmg`、`SyncWatch同步观影-服务器-v2.1.5-arm64.zip`（客户端同理）。只有真实存在且非空的文件才会出现在下载按钮和 `/api/public-config` 中。
+`SyncWatch同步观影-服务器-v2.1.6-x64.dmg`、`SyncWatch同步观影-服务器-v2.1.6-arm64.zip`（客户端同理）。只有真实存在且非空的文件才会出现在下载按钮和 `/api/public-config` 中。
 
 ### 从 HTTPS 发布站点提供产物
 

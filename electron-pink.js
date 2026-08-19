@@ -31,7 +31,7 @@ const { APP_VERSION, startSyncWatchServer, resolveDefaultDataDir } = require('./
 
 const APP_NAME = 'SyncWatch同步观影';
 app.setName(APP_NAME);
-if (process.platform === 'win32') app.setAppUserModelId('com.tangjingxuan.syncwatch.server');
+if (process.platform === 'win32') app.setAppUserModelId('com.xuan.syncwatch.server');
 app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required');
 
 const COPYRIGHT = '版权所有 © xuan';
@@ -143,7 +143,7 @@ function resolveMacDownloadPaths(kind, {
 function resolveClientDownloadPath({ isPackaged = false, resourcesPath = '', portableExecutableDir = '', portableExecutableFile = '', developmentClientPath = '' } = {}) {
   const siblingDirectory = portableExecutableDir || (portableExecutableFile ? path.dirname(portableExecutableFile) : '');
   const candidates = isPackaged
-    ? [resourcesPath ? path.join(resourcesPath, 'client', 'SyncWatch同步观影-Client-v2.1.5.exe') : '', siblingDirectory ? path.join(siblingDirectory, 'SyncWatch同步观影-Client-v2.1.5.exe') : '']
+    ? [resourcesPath ? path.join(resourcesPath, 'client', 'SyncWatch同步观影-Client-v2.1.6.exe') : '', siblingDirectory ? path.join(siblingDirectory, 'SyncWatch同步观影-Client-v2.1.6.exe') : '']
     : [developmentClientPath];
   return candidates.find((candidate) => candidate && fs.existsSync(candidate)) || '';
 }
@@ -1305,6 +1305,7 @@ function createTunnelManager(dataDir, getPort, { onAutoStartChanged = null } = {
     const powershell = path.join(systemRoot, 'System32', 'WindowsPowerShell', 'v1.0', 'powershell.exe');
     if (!fs.existsSync(powershell)) return Promise.reject(new Error('系统缺少用于验证 cloudflared 签名的 Windows PowerShell'));
     const command = [
+      "Import-Module Microsoft.PowerShell.Security -ErrorAction Stop",
       "$signature = Get-AuthenticodeSignature -LiteralPath $env:SYNCWATCH_SIGNATURE_FILE",
       "if ($signature.Status -ne 'Valid' -or -not $signature.SignerCertificate -or $signature.SignerCertificate.Subject -notmatch 'Cloudflare') {",
       "  Write-Error ('cloudflared signature rejected: ' + $signature.Status + ' / ' + $signature.SignerCertificate.Subject)",
@@ -1312,8 +1313,10 @@ function createTunnelManager(dataDir, getPort, { onAutoStartChanged = null } = {
       '}'
     ].join('; ');
     return new Promise((resolve, reject) => {
+      const systemModulePath = path.join(systemRoot, 'System32', 'WindowsPowerShell', 'v1.0', 'Modules');
       const verifier = spawn(powershell, ['-NoProfile', '-NonInteractive', '-Command', command], {
-        windowsHide: true, env: { ...process.env, SYNCWATCH_SIGNATURE_FILE: filename }
+        windowsHide: true,
+        env: { ...process.env, PSModulePath: systemModulePath, SYNCWATCH_SIGNATURE_FILE: filename }
       });
       let output = '';
       const timer = setTimeout(() => verifier.kill('SIGKILL'), 15000);
@@ -2135,9 +2138,9 @@ async function startApplication() {
   const startPort = resolvedStartPort(activeServerSettings);
   const dataDir = process.env.SYNCWATCH_DATA_DIR || DEFAULT_DATA_DIR;
   const androidApkPath = app.isPackaged
-    ? path.join(process.resourcesPath, 'app.asar.unpacked', 'mobile', 'SyncWatch同步观影-v2.1.5.apk')
-    : path.join(__dirname, 'mobile', 'SyncWatch同步观影-v2.1.5.apk');
-  const developmentClientPath = path.join(__dirname, 'SyncWatch同步观影-Client-v2.1.5.exe');
+    ? path.join(process.resourcesPath, 'app.asar.unpacked', 'mobile', 'SyncWatch同步观影-v2.1.6.apk')
+    : path.join(__dirname, 'mobile', 'SyncWatch同步观影-v2.1.6.apk');
+  const developmentClientPath = path.join(__dirname, 'SyncWatch同步观影-Client-v2.1.6.exe');
   const clientDownloadPath = resolveClientDownloadPath({
     isPackaged: app.isPackaged,
     resourcesPath: process.resourcesPath,

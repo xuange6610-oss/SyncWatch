@@ -12,7 +12,7 @@ constexpr const char* kLogTag = "SyncWatchNode";
 }
 
 extern "C" JNIEXPORT jint JNICALL
-Java_com_tangjingxuan_syncwatch_MobileServerService_nativeStartNode(
+Java_com_xuan_syncwatch_MobileServerService_nativeStartNode(
         JNIEnv* env,
         jclass,
         jobjectArray arguments) {

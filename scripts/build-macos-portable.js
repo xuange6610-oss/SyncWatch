@@ -88,7 +88,7 @@ function updateInfoPlist(bytes, kind) {
   const label = labels[kind];
   info.CFBundleDisplayName = `SyncWatch同步观影-${label}`;
   info.CFBundleName = `SyncWatch同步观影-${label}`;
-  info.CFBundleIdentifier = `com.tangjingxuan.syncwatch.${kind}`;
+  info.CFBundleIdentifier = `com.xuan.syncwatch.${kind}`;
   info.CFBundleShortVersionString = VERSION;
   info.CFBundleVersion = VERSION;
   info.LSApplicationCategoryType = 'public.app-category.entertainment';

@@ -4,10 +4,10 @@ const { pathToFileURL } = require('url');
 const { execFile } = require('child_process');
 const { app, BrowserWindow, clipboard, dialog, shell, session, ipcMain, desktopCapturer } = require('electron');
 
-const APP_VERSION = 'v2.1.5';
+const APP_VERSION = 'v2.1.6';
 const APP_NAME = 'SyncWatch同步观影';
 app.setName(APP_NAME);
-if (process.platform === 'win32') app.setAppUserModelId('com.tangjingxuan.syncwatch.client');
+if (process.platform === 'win32') app.setAppUserModelId('com.xuan.syncwatch.client');
 let mainWindow = null;
 let trustedServerOrigin = '';
 const launcherUrl = pathToFileURL(path.join(__dirname, 'client-launcher.html')).toString();

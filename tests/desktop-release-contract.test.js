@@ -86,7 +86,7 @@ for (const required of [
   'server/index.js', 'server/ai-relay.js', 'public/**/*', 'package.json'
 ]) assert.ok(mainFiles.includes(required), `main desktop package missing ${required}`);
 for (const value of [...mainFiles, ...mainUnpacked, ...mainResources]) {
-  assert.doesNotMatch(value, /(^|[\\/])(?:mobile|mac)(?:[\\/]|$)|SyncWatch同步观影-Client-v2\.1\.5\.exe/i,
+  assert.doesNotMatch(value, /(^|[\\/])(?:mobile|mac)(?:[\\/]|$)|SyncWatch同步观影-Client-v2\.1\.6\.exe/i,
     `main desktop package embeds a separately released payload: ${value}`);
 }
 assert.match(windowsBuild, /release[\\/]windows-server/i);
@@ -100,7 +100,7 @@ assert.doesNotMatch(windowsBuild, /app\.asar\.unpacked\\mobile/);
 // The deployable server ZIP remains a separate offline artifact and is still
 // built after the two Windows executables have passed their own checks.
 assert.match(windowsBuild, /build-server-package\.ps1/);
-assert.match(windowsBuild, /SyncWatch同步观影-Client-v2\.1\.5\.exe/);
+assert.match(windowsBuild, /SyncWatch同步观影-Client-v2\.1\.6\.exe/);
 assert.match(windowsBuild, /SyncWatch同步观影-Server-v/i);
 
 console.log('desktop login visual, metadata and split-release contracts passed.');

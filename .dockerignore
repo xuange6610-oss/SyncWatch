@@ -5,6 +5,6 @@ mobile/.gradle
 mobile/.keys
 SyncWatch同步观影-Data
 *.exe
-!SyncWatch同步观影-Client-v2.1.5.exe
+!SyncWatch同步观影-Client-v2.1.6.exe
 *.zip
 .git
