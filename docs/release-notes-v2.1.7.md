@@ -13,6 +13,7 @@
 | [macOS Intel 完整版 DMG](https://github.com/xuange6610-oss/SyncWatch/releases/download/2.1.7/SyncWatch-Full-Offline-macOS-v2.1.7-x64.dmg) / [ZIP](https://github.com/xuange6610-oss/SyncWatch/releases/download/2.1.7/SyncWatch-Full-Offline-macOS-v2.1.7-x64.zip) | 完整版 | Intel Mac 房主 | x64 完整服务器、cloudflared 和全平台离线下载中心 |
 | [macOS Apple 芯片完整版 DMG](https://github.com/xuange6610-oss/SyncWatch/releases/download/2.1.7/SyncWatch-Full-Offline-macOS-v2.1.7-arm64.dmg) / [ZIP](https://github.com/xuange6610-oss/SyncWatch/releases/download/2.1.7/SyncWatch-Full-Offline-macOS-v2.1.7-arm64.zip) | 完整版 | Apple Silicon 房主 | arm64 完整服务器、cloudflared 和全平台离线下载中心 |
 | [cloudflared Windows x64 MSI](https://github.com/xuange6610-oss/SyncWatch/releases/download/2.1.7/cloudflared-windows-x64-installer.msi) / [x86 MSI](https://github.com/xuange6610-oss/SyncWatch/releases/download/2.1.7/cloudflared-windows-x86-installer.msi) | 公网工具 | 需要手工安装 Tunnel 的 Windows 用户 | 双击 MSI 安装，不要双击命令行 EXE；安装后运行 `cloudflared --version` |
+| [Node.js Windows x64 MSI](https://github.com/xuange6610-oss/SyncWatch/releases/download/2.1.7/node-v24.19.0-x64.msi) / [Windows ARM64 MSI](https://github.com/xuange6610-oss/SyncWatch/releases/download/2.1.7/node-v24.19.0-arm64.msi) / [macOS Intel PKG](https://github.com/xuange6610-oss/SyncWatch/releases/download/2.1.7/node-v24.19.0-macos-x64.pkg) / [macOS Apple 芯片包](https://github.com/xuange6610-oss/SyncWatch/releases/download/2.1.7/node-v24.19.0-darwin-arm64.tar.gz) | 开发环境 | 源码开发或独立服务器用户 | 安装后运行 `node --version`；正式 SyncWatch EXE 已内置运行环境，无需另装 Node.js |
 
 ## v2.1.7 更新公告
 

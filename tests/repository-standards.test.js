@@ -106,6 +106,7 @@ assert.match(readme, /SyncWatch-v2\.1\.7-Full-Offline-Portable-x64\.exe/);
 assert.match(readme, /SyncWatch-Full-Offline-macOS-v2\.1\.7-x64\.dmg/);
 assert.match(readme, /SyncWatch-Full-Offline-macOS-v2\.1\.7-arm64\.dmg/);
 assert.match(readme, /cloudflared-windows-x64-installer\.msi/);
+assert.match(readme, /node-v24\.19\.0-x64\.msi/);
 
 const pages = read('.github/workflows/pages.yml');
 assert.match(pages, /pages:\s*write/);
