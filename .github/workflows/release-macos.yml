@@ -47,13 +47,12 @@ jobs:
 
       - name: Prepare verified Cloudflare Tunnel binaries
         if: matrix.kind == 'server'
-        env:
-          GH_TOKEN: ${{ github.token }}
         run: |
           mkdir -p vendor
-          gh release download "${{ inputs.tag }}" --pattern 'cloudflared-macos-*' --dir vendor
-          mv vendor/cloudflared-macos-x64 vendor/cloudflared-darwin-x64
-          mv vendor/cloudflared-macos-arm64 vendor/cloudflared-darwin-arm64
+          curl -fL https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-darwin-amd64.tgz | tar -xz -C vendor
+          mv vendor/cloudflared vendor/cloudflared-darwin-x64
+          curl -fL https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-darwin-arm64.tgz | tar -xz -C vendor
+          mv vendor/cloudflared vendor/cloudflared-darwin-arm64
           chmod 755 vendor/cloudflared-darwin-x64 vendor/cloudflared-darwin-arm64
           test "$(stat -f %z vendor/cloudflared-darwin-x64)" -gt 1000000
           test "$(stat -f %z vendor/cloudflared-darwin-arm64)" -gt 1000000
@@ -157,9 +156,10 @@ jobs:
           set -euo pipefail
           mkdir -p vendor release/offline-bundle/{windows,android,mac}
 
-          gh release download "${{ inputs.tag }}" --pattern 'cloudflared-macos-*' --dir vendor --clobber
-          mv vendor/cloudflared-macos-x64 vendor/cloudflared-darwin-x64
-          mv vendor/cloudflared-macos-arm64 vendor/cloudflared-darwin-arm64
+          curl -fL https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-darwin-amd64.tgz | tar -xz -C vendor
+          mv vendor/cloudflared vendor/cloudflared-darwin-x64
+          curl -fL https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-darwin-arm64.tgz | tar -xz -C vendor
+          mv vendor/cloudflared vendor/cloudflared-darwin-arm64
           chmod 755 vendor/cloudflared-darwin-x64 vendor/cloudflared-darwin-arm64
 
           gh release download "${{ inputs.tag }}" --pattern 'SyncWatch-Experience-Client-Portable-v2.1.8-x64.exe' --dir release/offline-bundle/windows --clobber

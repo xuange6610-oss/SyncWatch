@@ -60,6 +60,7 @@ jobs:
         run: |
           npx electron-builder --win portable --publish never
           npm run build:client -- --publish never
+          npm run build:android
 
       - name: Prepare Full offline bundle
         env:
@@ -68,8 +69,7 @@ jobs:
         run: |
           New-Item -ItemType Directory -Force -Path release/offline-bundle/windows,release/offline-bundle/android,release/offline-bundle/mac | Out-Null
           Copy-Item 'dist-client/SyncWatch同步观影-Client-v2.1.8.exe' 'release/offline-bundle/windows/SyncWatch同步观影-Client-v2.1.8.exe' -Force
-          gh release download '${{ inputs.tag || github.ref_name }}' --repo '${{ github.repository }}' --pattern 'SyncWatch-Android-v2.1.8-universal.apk' --dir release/offline-bundle/android --clobber
-          Move-Item 'release/offline-bundle/android/SyncWatch-Android-v2.1.8-universal.apk' 'release/offline-bundle/android/SyncWatch同步观影-v2.1.8.apk' -Force
+          Copy-Item 'mobile/SyncWatch同步观影-v2.1.8.apk' 'release/offline-bundle/android/SyncWatch同步观影-v2.1.8.apk' -Force
           gh release download '${{ inputs.tag || github.ref_name }}' --repo '${{ github.repository }}' --pattern 'SyncWatch-Server-macOS-v2.1.8-*.zip' --dir release/offline-bundle/mac --clobber
           gh release download '${{ inputs.tag || github.ref_name }}' --repo '${{ github.repository }}' --pattern 'SyncWatch-Client-macOS-v2.1.8-*.zip' --dir release/offline-bundle/mac --clobber
           Get-ChildItem release/offline-bundle/mac -Filter 'SyncWatch-Server-macOS-*.zip' | ForEach-Object { Rename-Item $_.FullName ($_.Name -replace 'SyncWatch-Server-macOS-', 'SyncWatch同步观影-服务器-') }
