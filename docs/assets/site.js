@@ -103,6 +103,74 @@ if (architectureConsole && architectureSteps.length > 0) {
   }
 }
 
+/* The architecture panel is a real navigable instrument, not a decorative tilt. */
+if (architectureConsole) {
+  let architectureRotateX = -3;
+  let architectureRotateY = 0;
+  let architectureScale = 1;
+  let architecturePointer = null;
+  let architectureStartX = 0;
+  let architectureStartY = 0;
+  let architectureStartRotateX = 0;
+  let architectureStartRotateY = 0;
+
+  const renderArchitectureView = () => {
+    architectureConsole.style.setProperty('--arch-rotate-x', `${architectureRotateX}deg`);
+    architectureConsole.style.setProperty('--arch-rotate-y', `${architectureRotateY}deg`);
+    architectureConsole.style.setProperty('--arch-scale', architectureScale.toFixed(2));
+  };
+  const resetArchitectureView = () => {
+    architectureRotateX = -3;
+    architectureRotateY = 0;
+    architectureScale = 1;
+    renderArchitectureView();
+  };
+
+  architectureConsole.addEventListener('pointerdown', (event) => {
+    if (event.target.closest('button, a')) return;
+    architecturePointer = event.pointerId;
+    architectureStartX = event.clientX;
+    architectureStartY = event.clientY;
+    architectureStartRotateX = architectureRotateX;
+    architectureStartRotateY = architectureRotateY;
+    architectureConsole.classList.add('is-dragging');
+    architectureConsole.setPointerCapture(event.pointerId);
+  });
+  architectureConsole.addEventListener('pointermove', (event) => {
+    if (architecturePointer !== event.pointerId) return;
+    architectureRotateY = architectureStartRotateY + (event.clientX - architectureStartX) * 0.28;
+    architectureRotateX = Math.max(-22, Math.min(22, architectureStartRotateX - (event.clientY - architectureStartY) * 0.2));
+    renderArchitectureView();
+  });
+  const releaseArchitecturePointer = (event) => {
+    if (architecturePointer !== event.pointerId) return;
+    architecturePointer = null;
+    architectureConsole.classList.remove('is-dragging');
+    architectureConsole.releasePointerCapture?.(event.pointerId);
+  };
+  architectureConsole.addEventListener('pointerup', releaseArchitecturePointer);
+  architectureConsole.addEventListener('pointercancel', releaseArchitecturePointer);
+  architectureConsole.addEventListener('wheel', (event) => {
+    event.preventDefault();
+    architectureScale = Math.max(.86, Math.min(1.16, architectureScale - event.deltaY * .0008));
+    renderArchitectureView();
+  }, { passive: false });
+  architectureConsole.addEventListener('keydown', (event) => {
+    if (event.key === 'ArrowLeft') architectureRotateY -= 6;
+    else if (event.key === 'ArrowRight') architectureRotateY += 6;
+    else if (event.key === 'ArrowUp') architectureRotateX = Math.max(-22, architectureRotateX - 5);
+    else if (event.key === 'ArrowDown') architectureRotateX = Math.min(22, architectureRotateX + 5);
+    else if (event.key === '+' || event.key === '=') architectureScale = Math.min(1.16, architectureScale + .04);
+    else if (event.key === '-' || event.key === '_') architectureScale = Math.max(.86, architectureScale - .04);
+    else if (event.key === '0' || event.key === 'Home') { resetArchitectureView(); return; }
+    else return;
+    event.preventDefault();
+    renderArchitectureView();
+  });
+  architectureConsole.querySelector('[data-architecture-reset]')?.addEventListener('click', resetArchitectureView);
+  renderArchitectureView();
+}
+
 const contactDialog = document.querySelector('[data-contact-dialog]');
 const contactDialogTitle = document.getElementById('contact-dialog-title');
 const contactDialogImage = contactDialog?.querySelector('img');

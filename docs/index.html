@@ -13,11 +13,11 @@
 </head>
 <body>
   <!--
-  THESIS: 用一次真实的“房主启动到成员加入”路径证明产品，拒绝只堆功能口号的常规软件首页。
-  OWN-WORLD: 深色影院控制台、暖白说明区、绿色连接状态、珊瑚色行动点和琥珀色运行提示。
-  STORY: 访客先认出真实界面，再理解连接流程、数据边界与下载选择，最后进入仓库或新手文档。
-  FIRST VIEWPORT: 全宽真实登录界面作背景，左侧是产品全名、用途和两个行动入口，底部露出运行能力带。
-  FORM: 从软件界面到连接路径再到维护文档的公开产品控制页；grounded candidate 6，seed 5d28d19d。
+  THESIS: 让访客沿一条真实的房主启动到成员加入路径理解产品，拒绝功能口号堆叠和卡片墙。
+  OWN-WORLD: 钢框放映控制台、纸面说明页、同步绿信号、单一珊瑚行动色和琥珀焦点提示。
+  STORY: 访客先看到真实软件，再按了解、使用、维护三个任务区找到架构、教程、下载和仓库入口。
+  FIRST VIEWPORT: 左侧为产品定位与下载行动，右侧为真实主界面放映框，导航把主题和任务区直接标出来。
+  FORM: 影院放映控制台与任务型文档索引的公开产品控制页；grounded candidate 6，seed 579d35d9。
   FINISH: unreviewed and undocumented is unfinished; this build ends with the finish review, the verdict, and DESIGN.md
   -->
   <a class="skip-link" href="#main">跳到主要内容</a>
@@ -25,16 +25,12 @@
   <header class="site-header" aria-label="站点导航">
     <a class="wordmark" href="#top" aria-label="返回页面顶部">
       <span class="wordmark__signal" aria-hidden="true"></span>
-      <span>SyncWatch同步观影</span>
+      <span><b>SyncWatch同步观影</b><small>开源同步观影控制台</small></span>
     </a>
-    <nav aria-label="主要导航">
-      <a href="#how-it-works">工作方式</a>
-      <a href="#architecture">原理架构</a>
-      <a href="#screenshots">界面</a>
-      <a href="#management-center">管理中心</a>
-      <a href="#quick-start">快速开始</a>
-      <a href="#downloads">下载</a>
-      <a href="https://github.com/xuange6610-oss/SyncWatch">GitHub主页</a>
+    <nav class="site-nav" aria-label="主要导航">
+      <span class="site-nav__group"><small>了解</small><a href="#how-it-works">工作方式</a><a href="#architecture">原理架构</a><a href="#screenshots">真实界面</a></span>
+      <span class="site-nav__group"><small>使用</small><a href="#management-center">管理中心</a><a href="#quick-start">快速开始</a><a href="#downloads">下载</a></span>
+      <span class="site-nav__group site-nav__group--external"><small>项目</small><a href="management-center-guide.html">完整教程</a><a href="https://github.com/xuange6610-oss/SyncWatch">GitHub主页</a></span>
     </nav>
   </header>
 
@@ -102,10 +98,11 @@
           <a class="architecture-doc-link" href="architecture.html">阅读完整技术架构</a>
         </div>
 
-        <div class="architecture-console" data-architecture-console>
+        <div class="architecture-console" data-architecture-console tabindex="0" aria-label="SyncWatch同步观影 3D 调用链控制台，可拖动或使用方向键旋转">
           <div class="architecture-console__bar">
             <span class="architecture-console__status"><i aria-hidden="true"></i> 调用链运行演示</span>
-            <span>Node.js · Express · Socket.IO · FFmpeg</span>
+            <span class="architecture-console__stack">Node.js · Express · Socket.IO · FFmpeg</span>
+            <button type="button" class="architecture-console__reset" data-architecture-reset>复位 3D 视角</button>
           </div>
           <ol class="architecture-flow" aria-label="SyncWatch同步观影实现流程">
             <li data-architecture-step>
@@ -149,6 +146,7 @@
             <div class="architecture-result__signal" aria-hidden="true"><span></span><span></span><span></span></div>
             <div><strong>结果：所有成员收到同一份房间状态</strong><p>播放、暂停、进度、倍速、聊天、通知和共享信令保持一致；媒体文件仍由房主自己的服务器提供。</p></div>
           </div>
+          <p class="architecture-console__hint">拖动控制台旋转 360°，滚轮调整深度，方向键微调。动画只展示当前调用关系，不影响阅读。</p>
         </div>
 
         <div class="architecture-details">

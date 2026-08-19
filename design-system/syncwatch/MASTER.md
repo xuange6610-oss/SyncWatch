@@ -7,9 +7,9 @@
 ---
 
 **Project:** SyncWatch同步观影
-**Generated:** 2026-08-19 19:11:14
-**Category:** Smart Home/IoT Dashboard
-**Design Dials:** Variance 6/10 (Balanced / Modern) | Motion 7/10 (Standard) | Density 6/10 (Standard)
+**Generated:** 2026-08-19 23:54:31
+**Category:** General
+**Design Dials:** Variance 8/10 (Bold / Asymmetric) | Motion 7/10 (Standard) | Density 6/10 (Standard)
 
 ---
 
@@ -19,35 +19,35 @@
 
 | Role | Hex | CSS Variable |
 |------|-----|--------------|
-| Primary | `#1E293B` | `--color-primary` |
+| Primary | `#475569` | `--color-primary` |
 | On Primary | `#FFFFFF` | `--color-on-primary` |
-| Secondary | `#334155` | `--color-secondary` |
+| Secondary | `#64748B` | `--color-secondary` |
 | On Secondary | `#FFFFFF` | `--color-on-secondary` |
-| Accent/CTA | `#22C55E` | `--color-accent` |
-| On Accent/CTA | `#0F172A` | `--color-on-accent` |
-| Background | `#0F172A` | `--color-background` |
-| Foreground | `#F8FAFC` | `--color-foreground` |
-| Card | `#1B2336` | `--color-card` |
-| Card Foreground | `#F8FAFC` | `--color-card-foreground` |
-| Muted | `#272F42` | `--color-muted` |
-| Muted Foreground | `#94A3B8` | `--color-muted-foreground` |
-| Border | `#475569` | `--color-border` |
-| Destructive | `#EF4444` | `--color-destructive` |
-| On Destructive | `#000000` | `--color-on-destructive` |
-| Ring | `#FFFFFF` | `--color-ring` |
+| Accent/CTA | `#2563EB` | `--color-accent` |
+| On Accent/CTA | `#FFFFFF` | `--color-on-accent` |
+| Background | `#F8FAFC` | `--color-background` |
+| Foreground | `#1E293B` | `--color-foreground` |
+| Card | `#FFFFFF` | `--color-card` |
+| Card Foreground | `#1E293B` | `--color-card-foreground` |
+| Muted | `#EAEFF3` | `--color-muted` |
+| Muted Foreground | `#475569` | `--color-muted-foreground` |
+| Border | `#E2E8F0` | `--color-border` |
+| Destructive | `#DC2626` | `--color-destructive` |
+| On Destructive | `#FFFFFF` | `--color-on-destructive` |
+| Ring | `#475569` | `--color-ring` |
 
-**Color Notes:** Dark tech + status green
+**Color Notes:** Neutral grey + link blue
 
 ### Typography
 
-- **Heading Font:** Inter
-- **Body Font:** Inter
-- **Mood:** minimal, clean, swiss, functional, neutral, professional
-- **Google Fonts:** [Inter + Inter](https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap)
+- **Heading Font:** Outfit
+- **Body Font:** Work Sans
+- **Mood:** geometric, modern, clean, balanced, contemporary, versatile
+- **Google Fonts:** [Outfit + Work Sans](https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Work+Sans:wght@300;400;500;600;700&display=swap)
 
 **CSS Import:**
 ```css
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Work+Sans:wght@300;400;500;600;700&display=swap');
 ```
 
 ### Spacing Variables
@@ -82,7 +82,7 @@
 ```css
 /* Primary Button */
 .btn-primary {
-  background: #22C55E;
+  background: #2563EB;
   color: white;
   padding: 12px 24px;
   border-radius: 8px;
@@ -99,8 +99,8 @@
 /* Secondary Button */
 .btn-secondary {
   background: transparent;
-  color: #1E293B;
-  border: 2px solid #1E293B;
+  color: #475569;
+  border: 2px solid #475569;
   padding: 12px 24px;
   border-radius: 8px;
   font-weight: 600;
@@ -113,7 +113,7 @@
 
 ```css
 .card {
-  background: #0F172A;
+  background: #F8FAFC;
   border-radius: 12px;
   padding: 24px;
   box-shadow: var(--shadow-md);
@@ -139,9 +139,9 @@
 }
 
 .input:focus {
-  border-color: #1E293B;
+  border-color: #475569;
   outline: none;
-  box-shadow: 0 0 0 3px #1E293B20;
+  box-shadow: 0 0 0 3px #47556920;
 }
 ```
 
@@ -167,21 +167,21 @@
 
 ## Style Guidelines
 
-**Style:** Glassmorphism
+**Style:** Brutalism
 
-**Keywords:** Frosted glass, transparent, blurred background, layered, vibrant background, light source, depth, multi-layer
+**Keywords:** Raw, unpolished, stark, high contrast, plain text, default fonts, visible borders, asymmetric, anti-design
 
-**Best For:** Modern SaaS, financial dashboards, high-end corporate, lifestyle apps, modal overlays, navigation
+**Best For:** Design portfolios, artistic projects, counter-culture brands, editorial/media sites, tech blogs
 
-**Key Effects:** Backdrop blur (10-20px), subtle border (1px solid rgba white 0.2), light reflection, Z-depth
+**Key Effects:** No smooth transitions (instant), sharp corners (0px), bold typography (700+), visible grid, large blocks
 
 ### Page Pattern
 
-**Pattern Name:** Real-Time / Operations Landing
+**Pattern Name:** Hero + Features + CTA
 
-- **Conversion Strategy:** Offer a demo or sandbox and show trust signals. Label telemetry as live only when backed by a current source, with update time and stale state. Provide pause/hide or update-frequency controls for tickers and previews, stop offscreen/hidden work, support keyboard controls, and render a static final snapshot under reduced motion.
-- **CTA Placement:** Primary CTA in nav + After metrics
-- **Section Order:** Hero (product + live preview or status) > Key metrics/indicators > How it works > CTA (Start trial / Contact)
+- **Conversion Strategy:** Deep CTA placement. For CTA label text, verify at least 4.5:1 against the button fill; use 7:1 only when the product explicitly targets AAA normal-text contrast. Keep focus and component boundaries independently visible. Disable hero parallax under reduced motion and render its static final state.
+- **CTA Placement:** Hero (sticky) + Bottom
+- **Section Order:** Hero with headline/image > Value prop > Key features (3-5) > CTA section > Footer
 
 ---
 
@@ -203,8 +203,6 @@ gsap.from('.grid-item', { opacity: 0, scale: 0.92, y: 16, duration: 0.4, stagger
 
 ## Anti-Patterns (Do NOT Use)
 
-- ❌ Slow updates
-- ❌ No automation
 
 ### Additional Forbidden Patterns
 

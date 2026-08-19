@@ -54,3 +54,235 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 @media (prefers-reduced-motion: reduce) {
   .primary-button, .send-button, .secondary-button, .ghost-button, .header-feature-button, .account-button, .management-command, .settings-card, .user-card, .global-room-item { transition: none !important; }
 }
+
+/*
+ * Steel-frame console direction: a structural layer for the actual application UI.
+ * The existing DOM, IDs, 21 themes and event hooks remain unchanged. This layer
+ * changes grouping, rhythm and depth so the product reads as a working console.
+ */
+:root {
+  --pro-app-ink: #070b0e;
+  --pro-app-panel: #11181e;
+  --pro-app-panel-2: #172129;
+  --pro-app-panel-3: #202d37;
+  --pro-app-rule: rgba(188, 211, 222, .18);
+  --pro-app-accent: #39a8ff;
+  --pro-app-focus: #f0b64a;
+  --pro-app-success: #72d6ad;
+  --pro-app-danger: #ef8172;
+  --pro-app-radius: 10px;
+  --pro-app-ease: cubic-bezier(.16, 1, .3, 1);
+}
+
+body {
+  background:
+    radial-gradient(circle at 82% -10%, rgba(57, 168, 255, .12), transparent 32rem),
+    linear-gradient(135deg, #070b0e 0%, #0c1217 52%, #071015 100%);
+}
+
+body::before {
+  position: fixed;
+  z-index: -1;
+  inset: 58px 0 0;
+  background: linear-gradient(90deg, transparent 0 49.92%, rgba(188, 211, 222, .035) 50%, transparent 50.08%), linear-gradient(0deg, transparent 0 49.92%, rgba(188, 211, 222, .03) 50%, transparent 50.08%);
+  background-size: 64px 64px;
+  content: "";
+  pointer-events: none;
+  mask-image: linear-gradient(180deg, rgba(0, 0, 0, .8), transparent 86%);
+}
+
+.topbar {
+  height: 64px;
+  padding-inline: 22px;
+  gap: 18px;
+  background: rgba(7, 12, 16, .94);
+  border-bottom: 1px solid var(--pro-app-rule);
+  box-shadow: 0 16px 38px rgba(0, 0, 0, .24);
+  backdrop-filter: blur(18px) saturate(130%);
+}
+
+.brand { flex-basis: 248px; min-width: 248px; }
+.brand-mark {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  color: #04121c;
+  background: var(--pro-app-accent);
+  box-shadow: 0 8px 22px rgba(57, 168, 255, .28);
+}
+.brand strong { font-size: 16px; letter-spacing: .01em; }
+.brand small { color: #88a0ac; font: 10px/1.2 "Cascadia Code", Consolas, monospace; letter-spacing: .08em; }
+
+.room-header {
+  justify-content: flex-start;
+  gap: 0;
+  border-inline: 1px solid var(--pro-app-rule);
+}
+.room-header span { min-width: 116px; padding-inline: 16px; text-align: left; border-right: 1px solid rgba(188, 211, 222, .09); }
+.room-header span:first-child { min-width: 178px; }
+.room-header small { color: #71848e; font: 9px/1.2 "Cascadia Code", Consolas, monospace; letter-spacing: .1em; text-transform: uppercase; }
+.room-header strong { color: #e9f2f5; font-size: 12px; }
+.room-header .healthy { color: var(--pro-app-success); }
+
+.topbar-actions { gap: 6px; }
+.topbar-scroll-actions { display: flex; align-items: center; gap: 4px; }
+.header-feature-button { min-height: 38px; padding: 7px 9px; border: 1px solid transparent; border-radius: 8px; color: #a9bac2; }
+.header-feature-button:hover { color: #e9f2f5; border-color: rgba(57, 168, 255, .38); background: rgba(57, 168, 255, .1); }
+.header-feature-button > span[aria-hidden="true"] { color: var(--pro-app-accent); }
+.status-badge { min-height: 38px; border: 1px solid var(--pro-app-rule); border-radius: 8px; background: rgba(255, 255, 255, .04); }
+.account-button { min-height: 42px; border-radius: 8px; background: rgba(255, 255, 255, .05); }
+
+.login-page {
+  min-height: calc(100dvh - 64px);
+  height: auto;
+  grid-template-columns: minmax(0, 1.25fr) minmax(440px, .75fr);
+  padding: 28px clamp(28px, 5vw, 88px) 48px;
+  gap: clamp(18px, 4vw, 78px);
+  background: transparent;
+}
+.login-page::before {
+  position: absolute;
+  inset: 28px clamp(18px, 3vw, 44px) 22px;
+  border: 1px solid rgba(188, 211, 222, .13);
+  border-radius: 14px;
+  content: "";
+  pointer-events: none;
+}
+.login-visual { min-height: 600px; padding: 40px; }
+.login-visual::before, .login-visual::after { inset-block: 12%; opacity: .7; background: rgba(57, 168, 255, .2); box-shadow: 92px 0 rgba(57, 168, 255, .1), 184px 0 rgba(57, 168, 255, .05), 276px 0 rgba(57, 168, 255, .02); }
+.login-cube-scene { filter: drop-shadow(0 30px 44px rgba(0, 0, 0, .34)); }
+.login-cube-face { border-color: rgba(57, 168, 255, .32); background: linear-gradient(135deg, rgba(25, 47, 61, .96), rgba(8, 15, 20, .96)); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .04); }
+.login-cube-front { background: linear-gradient(145deg, rgba(20, 68, 94, .98), rgba(7, 16, 22, .98)); }
+.login-cube-face-icon { color: var(--pro-app-accent); filter: none; }
+.login-cube-face-title { color: #eef7fb; letter-spacing: .01em; }
+.login-cube-face-text { color: #a8c0ca; }
+.sync-scan-line { background: var(--pro-app-accent); box-shadow: 0 0 18px rgba(57, 168, 255, .78); }
+.sync-frame-meter b { background: rgba(57, 168, 255, .28); }
+
+.auth-card {
+  align-self: center;
+  width: min(460px, calc(100% - 10px));
+  margin-block: 20px;
+  padding: 34px 36px 30px;
+  border: 1px solid rgba(188, 211, 222, .2);
+  border-radius: 12px;
+  background: linear-gradient(145deg, rgba(23, 33, 41, .96), rgba(11, 17, 22, .98));
+  box-shadow: 0 28px 72px rgba(0, 0, 0, .4), inset 0 1px 0 rgba(255, 255, 255, .05);
+}
+.auth-card::before {
+  position: absolute;
+  inset: 18px auto 18px 0;
+  width: 3px;
+  border-radius: 0 3px 3px 0;
+  background: var(--pro-app-accent);
+  box-shadow: 0 0 18px rgba(57, 168, 255, .35);
+  content: "";
+}
+.auth-card h1 { margin: 8px 0 5px; font-size: 32px; letter-spacing: -.02em; }
+.auth-card .eyebrow { color: var(--pro-app-accent); font: 10px/1.2 "Cascadia Code", Consolas, monospace; letter-spacing: .12em; }
+.auth-card .muted { color: #9ab0ba; line-height: 1.6; }
+.auth-card label { color: #c4d2d8; }
+.auth-card input, .auth-card select { min-height: 46px; border-radius: 8px; background: rgba(4, 10, 14, .7); border-color: rgba(188, 211, 222, .18); }
+.auth-card input:hover, .auth-card select:hover { border-color: rgba(57, 168, 255, .56); }
+.auth-card input:focus, .auth-card select:focus { border-color: var(--pro-app-accent); box-shadow: 0 0 0 3px rgba(57, 168, 255, .2); }
+.auth-card .primary-button { min-height: 48px; border-radius: 8px; color: #061421; background: var(--pro-app-accent); box-shadow: 0 10px 24px rgba(57, 168, 255, .2); }
+.auth-card .secondary-button { min-height: 46px; border-radius: 8px; background: rgba(255, 255, 255, .05); }
+.auth-card .primary-button:hover { filter: brightness(1.08); transform: translateY(-1px); }
+.device-ip-row { background: rgba(57, 168, 255, .07); border-color: rgba(57, 168, 255, .25); }
+
+.workspace {
+  grid-template-columns: clamp(264px, 18vw, 336px) minmax(0, 1fr) clamp(276px, 18vw, 360px);
+  background: rgba(6, 10, 13, .58);
+}
+.side-panel { background: linear-gradient(180deg, rgba(17, 24, 30, .98), rgba(10, 16, 20, .98)); border-color: var(--pro-app-rule); }
+.file-panel { padding: 18px 16px; border-right: 1px solid var(--pro-app-rule); }
+.user-panel { border-left: 1px solid var(--pro-app-rule); }
+.panel-heading { min-height: 42px; padding-bottom: 10px; border-bottom: 1px solid rgba(188, 211, 222, .12); }
+.panel-heading h2, .tab-content > h2 { font-size: 18px; letter-spacing: -.01em; }
+.count-pill { min-width: 28px; height: 28px; border-radius: 7px; color: #061421; background: var(--pro-app-accent); }
+.upload-button { min-height: 96px; border-color: rgba(57, 168, 255, .42); border-radius: 10px; background: linear-gradient(135deg, rgba(57, 168, 255, .14), rgba(57, 168, 255, .04)); }
+.upload-button:hover { border-color: var(--pro-app-accent); background: rgba(57, 168, 255, .18); }
+.file-card, .global-room-item, .user-card { border-color: rgba(188, 211, 222, .11); border-radius: 9px; background: rgba(255, 255, 255, .035); }
+.file-card:hover, .file-card.active, .global-room-item:hover, .user-card:hover { border-color: rgba(57, 168, 255, .52); background: rgba(57, 168, 255, .09); transform: none; }
+
+.theater { background: radial-gradient(circle at 50% 15%, rgba(57, 168, 255, .09), transparent 34rem), #070b0e; }
+.room-marquee, .status-card, .theater-toolbar, .owner-controls, .chat-panel { border-color: var(--pro-app-rule); }
+.status-card { background: var(--pro-app-rule); }
+.status-card > div { min-height: 48px; background: rgba(17, 24, 30, .94); }
+.status-card strong { color: #e7f0f4; }
+.theater-toolbar, .owner-controls { background: rgba(17, 24, 30, .92); }
+.player-container { margin: 12px; border: 1px solid rgba(188, 211, 222, .18); border-radius: 12px; background: #04080a; box-shadow: 0 22px 52px rgba(0, 0, 0, .36), inset 0 0 0 1px rgba(255, 255, 255, .03); }
+.player-container video, .player-container audio { border-radius: 10px; }
+.chat-panel { background: linear-gradient(180deg, rgba(17, 24, 30, .98), rgba(9, 14, 18, .98)); }
+.chat-head { min-height: 50px; border-bottom-color: rgba(188, 211, 222, .12); }
+.chat-mode.active { color: #061421; background: var(--pro-app-accent); }
+.chat-message { border-bottom-color: rgba(188, 211, 222, .08); }
+.chat-form input { min-height: 46px; border-radius: 8px; }
+.send-button { min-height: 46px; border-radius: 8px; color: #061421; background: var(--pro-app-accent); }
+
+.management-hub-card { width: min(1180px, calc(100vw - 44px)); border: 1px solid rgba(188, 211, 222, .2); border-radius: 12px; background: #0d151b; box-shadow: 0 34px 100px rgba(0, 0, 0, .48); }
+.management-hub-layout { grid-template-columns: 244px minmax(0, 1fr); }
+.management-nav { gap: 7px; padding: 26px 16px; background: #0a1116; border-right-color: var(--pro-app-rule); }
+.management-nav h2 { margin: 5px 8px 20px; font-size: 19px; letter-spacing: -.02em; }
+.management-nav button { min-height: 46px; padding: 10px 12px; border: 1px solid transparent; border-radius: 8px; }
+.management-nav button:hover { color: #eaf5f8; border-color: rgba(57, 168, 255, .28); background: rgba(57, 168, 255, .08); }
+.management-nav button.active { color: #061421; background: var(--pro-app-accent); box-shadow: 0 8px 18px rgba(57, 168, 255, .18); }
+.management-content { padding: 24px 28px 34px; background: linear-gradient(180deg, rgba(17, 27, 34, .98), rgba(10, 16, 20, .98)); }
+.management-content .settings-card, .management-content .management-command, .management-content .user-card { border-radius: 9px; border-color: rgba(188, 211, 222, .15); background: rgba(255, 255, 255, .035); box-shadow: none; }
+.management-content .settings-card:hover, .management-content .management-command:hover { border-color: rgba(57, 168, 255, .48); background: rgba(57, 168, 255, .08); transform: none; }
+
+.modal-card { border-radius: 12px; border-color: rgba(188, 211, 222, .2); background: linear-gradient(145deg, rgba(23, 33, 41, .98), rgba(9, 14, 18, .98)); box-shadow: 0 30px 90px rgba(0, 0, 0, .52); }
+.modal-card h2 { letter-spacing: -.02em; }
+.modal-close { width: 40px; height: 40px; border-radius: 8px; }
+.modal-close:hover { color: var(--pro-app-accent); background: rgba(57, 168, 255, .1); }
+
+button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible, [tabindex]:focus-visible { outline: 3px solid var(--pro-app-focus); outline-offset: 3px; box-shadow: 0 0 0 6px rgba(240, 182, 74, .24); }
+
+@media (min-width: 1500px) {
+  .login-page { padding-inline: max(44px, calc((100vw - 1660px) / 2)); }
+  .workspace { grid-template-columns: 330px minmax(0, 1fr) 360px; }
+}
+
+@media (max-width: 1020px) {
+  .topbar { padding-inline: 14px; }
+  .brand { flex-basis: 214px; min-width: 214px; }
+  .room-header span { min-width: 94px; padding-inline: 10px; }
+  .login-page { grid-template-columns: minmax(0, 1fr) minmax(380px, .9fr); padding-inline: 22px; gap: 20px; }
+  .login-visual { padding-inline: 10px; }
+  .workspace { grid-template-columns: 248px minmax(0, 1fr) 250px; }
+}
+
+@media (max-width: 760px) {
+  body::before { display: none; }
+  .topbar { height: 58px; padding-inline: 12px; }
+  .brand { flex-basis: 190px; min-width: 190px; }
+  .brand-mark { width: 34px; height: 34px; }
+  .brand strong { font-size: 14px; }
+  .room-header { display: none; }
+  .login-page { min-height: calc(100dvh - 58px); display: block; padding: 16px 10px 28px; }
+  .login-page::before { inset: 10px 8px 12px; border-radius: 12px; }
+  .login-visual { min-height: 330px; padding: 10px 0 20px; }
+  .auth-card { width: min(100%, 470px); margin: 12px auto; padding: 28px 22px 24px; }
+  .workspace { display: block; min-height: calc(100dvh - 58px); }
+  .file-panel, .user-panel { display: none; }
+  .theater { min-height: calc(100dvh - 58px); }
+  .player-container { margin: 8px; }
+  .management-hub-card { width: calc(100vw - 14px); }
+  .management-hub-layout { grid-template-columns: 1fr; grid-template-rows: auto minmax(0, 1fr); }
+  .management-nav { display: flex; align-items: center; overflow-x: auto; padding: 12px 42px 10px 10px; border-right: 0; border-bottom: 1px solid var(--pro-app-rule); }
+  .management-nav > div { display: none; }
+  .management-nav button { flex: 0 0 auto; white-space: nowrap; }
+  .management-content { padding: 16px 14px 24px; }
+}
+
+@media (max-width: 540px) {
+  body:not(.android-client) .topbar-scroll-actions,
+  body:not(.android-client) .topbar-fixed-actions,
+  body.android-client .topbar-scroll-actions,
+  body.android-client .topbar-fixed-actions { display: contents !important; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .auth-card, .login-cube-scene, .player-container, .management-command, .settings-card { animation: none !important; transition: none !important; }
+  .auth-card .primary-button:hover, .management-content .settings-card:hover, .management-content .management-command:hover { transform: none; }
+}
