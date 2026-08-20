@@ -63,14 +63,14 @@ APK signing: v1/v2/v3 verified
 
 | 文件 | 用途 | 大小 | SHA-256 |
 | --- | --- | ---: | --- |
-| `SyncWatch-Server-v2.1.8.exe` | Windows 服务端主程序 | 由 Release 页面显示 | `81D3B62D55819BD6011AC729B08D0C6FDBADCB8ADBDEE5C3FE15AD79BF3C32BB` |
-| `SyncWatch-Client-v2.1.8.exe` | Windows 客户端 | 由 Release 页面显示 | `5BBED9DFCD3EFA3795C186FB0B83EF5F1BAA84EA3CC6156704420B3A3A36BD4F` |
+| `SyncWatch-Server-v2.1.8.exe` | Windows 服务端主程序 | 由 Release 页面显示 | `13C1E62AB1346C6B99BA02BF504F2B0D427A2E5DC80CB0EE1C07BEC353930369` |
+| `SyncWatch-Client-v2.1.8.exe` | Windows 客户端 | 由 Release 页面显示 | `ADC878118128254E4977035F0CFFFB0FF50CC5A8B55449A68D41397A5D7D728A` |
 | `SyncWatch-Experience-Client-Portable-v2.1.8-x64.exe` | Windows 体验版 | 由 Release 页面显示 | 以 Release 页面为准 |
 | `SyncWatch-Standard-Server-Portable-v2.1.8-x64.exe` | Windows 标准版 | 由 Release 页面显示 | 以 Release 页面为准 |
-| `SyncWatch-v2.1.8-Full-Offline-Installer-x64.exe` | Windows 完整安装版 | 由 Release 页面显示 | 以 Release 页面为准 |
-| `SyncWatch-v2.1.8-Full-Offline-Portable-x64.exe` | Windows 完整便携版 | 由 Release 页面显示 | 以 Release 页面为准 |
-| `SyncWatch-Android-v2.1.8-universal.apk` | Android 通用 APK | 由 Release 页面显示 | `15B2DDEE00268B02BEF117DD8F22CD9DB4D6F1DE9D5A5D864960DB9D9803C142` |
-| `SyncWatch-Standalone-Server-v2.1.8.zip` | 独立服务器部署包 | 由 Release 页面显示 | `C15E6BDE608AB7688F10EEA5B98BB031126EB6898AB0CA37C5930D75B7DC9B30` |
+| `SyncWatch-v2.1.8-Full-Offline-Installer-x64.exe` | Windows 完整安装版 | 由 Release 页面显示 | `46724EDF20CC567184E82F3BECC8B40875226B0EC7F39E2ACDB1F5ADBBD35C98` |
+| `SyncWatch-v2.1.8-Full-Offline-Portable-x64.exe` | Windows 完整便携版 | 由 Release 页面显示 | `A34E4EFA7D978FC6699A233F3E7BCEC7115E9D742A075462B14279225E9FF403` |
+| `SyncWatch-Android-v2.1.8-universal.apk` | Android 通用 APK | 由 Release 页面显示 | `045ACFE86784AA932EFC4F8C64930AC18374950D8560CDB0B6B8F43DAB5F6275` |
+| `SyncWatch-Standalone-Server-v2.1.8.zip` | 独立服务器部署包 | 由 Release 页面显示 | `600A9B3368A76134828B96891651BB1FC6EBAC199877730E1FC13A0D92EF2E26` |
 
 Windows 完整版安装包和便携包均内置可离线使用的服务器运行环境；体验版只连接已有服务器；标准版用于在 Windows 上启动服务器。当前构建机没有真实 macOS DMG/ZIP 产物，因此不会上传伪造的 macOS 文件，macOS 构建由 GitHub Actions 的 macOS runner 单独生成。
 
