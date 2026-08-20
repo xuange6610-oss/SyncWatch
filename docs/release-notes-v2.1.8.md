@@ -43,6 +43,23 @@ APK signing: v1/v2/v3 verified
 
 ## 下载建议
 
+## 本次构建产物
+
+以下文件均由本次 v2.1.8 构建生成，Release 页面会同时显示文件大小；下载后可使用 SHA-256 校验。
+
+| 文件 | 用途 | 大小 | SHA-256 |
+| --- | --- | ---: | --- |
+| `SyncWatch同步观影-v2.1.8.exe` | Windows 服务端主程序 | 由 Release 页面显示 | `A10C131DFDC6C8E35130EE5D9BB2BF3FC1998EA3229B8B64ACBDC4A5789D0FFC` |
+| `SyncWatch同步观影-Client-v2.1.8.exe` | Windows 客户端 | 由 Release 页面显示 | `7CCCD478254F710E602B901350AFA7993F473426041346BD893ECB5074E576A0` |
+| `SyncWatch-Experience-Client-Portable-v2.1.8-x64.exe` | Windows 体验版 | 由 Release 页面显示 | 以 Release 页面为准 |
+| `SyncWatch-Standard-Server-Portable-v2.1.8-x64.exe` | Windows 标准版 | 由 Release 页面显示 | 以 Release 页面为准 |
+| `SyncWatch-v2.1.8-Full-Offline-Installer-x64.exe` | Windows 完整安装版 | 由 Release 页面显示 | 以 Release 页面为准 |
+| `SyncWatch-v2.1.8-Full-Offline-Portable-x64.exe` | Windows 完整便携版 | 由 Release 页面显示 | 以 Release 页面为准 |
+| `SyncWatch-Android-v2.1.8-universal.apk` | Android 通用 APK | 由 Release 页面显示 | `15B2DDEE00268B02BEF117DD8F22CD9DB4D6F1DE9D5A5D864960DB9D9803C142` |
+| `SyncWatch同步观影-Server-v2.1.8.zip` | 独立服务器部署包 | 由 Release 页面显示 | `475E492FF791541C8D7731A4675DA2D81331D71778511E3594138434861E0308` |
+
+Windows 完整版安装包和便携包均内置可离线使用的服务器运行环境；体验版只连接已有服务器；标准版用于在 Windows 上启动服务器。当前构建机没有真实 macOS DMG/ZIP 产物，因此不会上传伪造的 macOS 文件，macOS 构建由 GitHub Actions 的 macOS runner 单独生成。
+
 - **体验版**：仅作为成员连接已有服务器，体积小，不在本机启动服务器。
 - **标准版**：适合 Windows 房主直接启动服务器，包含桌面运行时和公网访问所需组件。
 - **完整版**：离线资源最完整，适合没有网络或需要一次性分发多端客户端的房主。
