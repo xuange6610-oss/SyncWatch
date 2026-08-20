@@ -6,14 +6,14 @@
 
 | 下载文件 | 版本标识 | 最适合谁 | 一句话说明 |
 | --- | --- | --- | --- |
-| [`SyncWatch-Experience-Client-Portable-v2.1.8-x64.exe`](https://github.com/xuange6610/SyncWatch/releases/download/2.1.8/SyncWatch-Experience-Client-Portable-v2.1.8-x64.exe) | 体验版 | Windows 普通成员 | 连接已有服务器，不在本机启动服务端 |
-| [`SyncWatch-Standard-Server-Portable-v2.1.8-x64.exe`](https://github.com/xuange6610/SyncWatch/releases/download/2.1.8/SyncWatch-Standard-Server-Portable-v2.1.8-x64.exe) | 标准版 | 不想安装的 Windows 房主 | 内置运行环境和 cloudflared，绿色便携运行 |
-| [`SyncWatch-v2.1.8-Full-Offline-Installer-x64.exe`](https://github.com/xuange6610/SyncWatch/releases/download/2.1.8/SyncWatch-v2.1.8-Full-Offline-Installer-x64.exe) | 完整版 | 需要离线全平台下载中心的 Windows 房主 | 安装向导、完整服务器运行时，并离线内嵌 Windows、Android 与 macOS 发布文件 |
-| [`SyncWatch-v2.1.8-Full-Offline-Portable-x64.exe`](https://github.com/xuange6610/SyncWatch/releases/download/2.1.8/SyncWatch-v2.1.8-Full-Offline-Portable-x64.exe) | 完整版 | 不想安装的 Windows 房主 | 独立 EXE，直接双击运行；功能和离线资源与安装完整版相同 |
-| [macOS Intel 完整版 DMG](https://github.com/xuange6610/SyncWatch/releases/download/2.1.8/SyncWatch-Full-Offline-macOS-v2.1.8-x64.dmg) / [ZIP](https://github.com/xuange6610/SyncWatch/releases/download/2.1.8/SyncWatch-Full-Offline-macOS-v2.1.8-x64.zip) | 完整版 | Intel Mac 房主 | x64 完整服务器、cloudflared 和全平台离线下载中心 |
-| [macOS Apple 芯片完整版 DMG](https://github.com/xuange6610/SyncWatch/releases/download/2.1.8/SyncWatch-Full-Offline-macOS-v2.1.8-arm64.dmg) / [ZIP](https://github.com/xuange6610/SyncWatch/releases/download/2.1.8/SyncWatch-Full-Offline-macOS-v2.1.8-arm64.zip) | 完整版 | Apple Silicon 房主 | arm64 完整服务器、cloudflared 和全平台离线下载中心 |
-| [cloudflared Windows x64 MSI](https://github.com/xuange6610/SyncWatch/releases/download/2.1.8/cloudflared-windows-x64-installer.msi) / [x86 MSI](https://github.com/xuange6610/SyncWatch/releases/download/2.1.8/cloudflared-windows-x86-installer.msi) | 公网工具 | 需要手工安装 Tunnel 的 Windows 用户 | 双击 MSI 安装，不要双击命令行 EXE；安装后运行 `cloudflared --version` |
-| [Node.js Windows x64 MSI](https://github.com/xuange6610/SyncWatch/releases/download/2.1.8/node-v24.19.0-x64.msi) / [Windows ARM64 MSI](https://github.com/xuange6610/SyncWatch/releases/download/2.1.8/node-v24.19.0-arm64.msi) / [macOS Intel PKG](https://github.com/xuange6610/SyncWatch/releases/download/2.1.8/node-v24.19.0-macos-x64.pkg) / [macOS Apple 芯片包](https://github.com/xuange6610/SyncWatch/releases/download/2.1.8/node-v24.19.0-darwin-arm64.tar.gz) | 开发环境 | 源码开发或独立服务器用户 | 安装后运行 `node --version`；正式 SyncWatch EXE 已内置运行环境，无需另装 Node.js |
+| [`SyncWatch-Experience-Client-Portable-v2.1.8-x64.exe`](https://github.com/xuange6610/SyncWatch/releases/download/v2.1.8/SyncWatch-Experience-Client-Portable-v2.1.8-x64.exe) | 体验版 | Windows 普通成员 | 连接已有服务器，不在本机启动服务端 |
+| [`SyncWatch-Standard-Server-Portable-v2.1.8-x64.exe`](https://github.com/xuange6610/SyncWatch/releases/download/v2.1.8/SyncWatch-Standard-Server-Portable-v2.1.8-x64.exe) | 标准版 | 不想安装的 Windows 房主 | 内置运行环境和 cloudflared，绿色便携运行 |
+| [`SyncWatch-v2.1.8-Full-Offline-Installer-x64.exe`](https://github.com/xuange6610/SyncWatch/releases/download/v2.1.8/SyncWatch-v2.1.8-Full-Offline-Installer-x64.exe) | 完整版 | 需要离线全平台下载中心的 Windows 房主 | 安装向导、完整服务器运行时，并离线内嵌 Windows、Android 与 macOS 发布文件 |
+| [`SyncWatch-v2.1.8-Full-Offline-Portable-x64.exe`](https://github.com/xuange6610/SyncWatch/releases/download/v2.1.8/SyncWatch-v2.1.8-Full-Offline-Portable-x64.exe) | 完整版 | 不想安装的 Windows 房主 | 独立 EXE，直接双击运行；功能和离线资源与安装完整版相同 |
+| [macOS Intel 完整版 DMG](https://github.com/xuange6610/SyncWatch/releases/download/v2.1.8/SyncWatch-Full-Offline-macOS-v2.1.8-x64.dmg) / [ZIP](https://github.com/xuange6610/SyncWatch/releases/download/v2.1.8/SyncWatch-Full-Offline-macOS-v2.1.8-x64.zip) | 完整版 | Intel Mac 房主 | x64 完整服务器、cloudflared 和全平台离线下载中心 |
+| [macOS Apple 芯片完整版 DMG](https://github.com/xuange6610/SyncWatch/releases/download/v2.1.8/SyncWatch-Full-Offline-macOS-v2.1.8-arm64.dmg) / [ZIP](https://github.com/xuange6610/SyncWatch/releases/download/v2.1.8/SyncWatch-Full-Offline-macOS-v2.1.8-arm64.zip) | 完整版 | Apple Silicon 房主 | arm64 完整服务器、cloudflared 和全平台离线下载中心 |
+| [cloudflared Windows x64 MSI](https://github.com/xuange6610/SyncWatch/releases/download/v2.1.8/cloudflared-windows-x64-installer.msi) / [x86 MSI](https://github.com/xuange6610/SyncWatch/releases/download/v2.1.8/cloudflared-windows-x86-installer.msi) | 公网工具 | 需要手工安装 Tunnel 的 Windows 用户 | 双击 MSI 安装，不要双击命令行 EXE；安装后运行 `cloudflared --version` |
+| [Node.js Windows x64 MSI](https://github.com/xuange6610/SyncWatch/releases/download/v2.1.8/node-v24.19.0-x64.msi) / [Windows ARM64 MSI](https://github.com/xuange6610/SyncWatch/releases/download/v2.1.8/node-v24.19.0-arm64.msi) / [macOS Intel PKG](https://github.com/xuange6610/SyncWatch/releases/download/v2.1.8/node-v24.19.0-macos-x64.pkg) / [macOS Apple 芯片包](https://github.com/xuange6610/SyncWatch/releases/download/v2.1.8/node-v24.19.0-darwin-arm64.tar.gz) | 开发环境 | 源码开发或独立服务器用户 | 安装后运行 `node --version`；正式 SyncWatch EXE 已内置运行环境，无需另装 Node.js |
 
 ## v2.1.8 更新公告
 
@@ -130,14 +130,14 @@ Android Logcat: 0 Intl/SOCKET_EVENT_FAILED/Node-exit/FATAL matches
 ### 体验版
 
 - **在线展示**：[打开 GitHub Pages](https://xuange6610.github.io/SyncWatch/)，查看真实界面、功能截图和逐步教程。它是静态展示，不运行真实服务器。
-- **Windows 客户端**：[下载体验版独立 EXE](https://github.com/xuange6610/SyncWatch/releases/download/2.1.8/SyncWatch-Experience-Client-Portable-v2.1.8-x64.exe)，适合成员连接已经运行的服务器，不在本机启动服务端。
+- **Windows 客户端**：[下载体验版独立 EXE](https://github.com/xuange6610/SyncWatch/releases/download/v2.1.8/SyncWatch-Experience-Client-Portable-v2.1.8-x64.exe)，适合成员连接已经运行的服务器，不在本机启动服务端。
 
 ### 标准版与完整版
 
-- **Windows 标准服务器**：[下载标准版独立 EXE](https://github.com/xuange6610/SyncWatch/releases/download/2.1.8/SyncWatch-Standard-Server-Portable-v2.1.8-x64.exe)，双击启动，无需安装 Git、Node.js 或 npm。
-- **Windows 安装完整版**：[下载安装程序](https://github.com/xuange6610/SyncWatch/releases/download/2.1.8/SyncWatch-v2.1.8-Full-Offline-Installer-x64.exe)，提供安装、卸载、桌面快捷方式、开始菜单和完整离线下载资源。
-- **Windows 独立 EXE 完整版**：[下载便携完整版](https://github.com/xuange6610/SyncWatch/releases/download/2.1.8/SyncWatch-v2.1.8-Full-Offline-Portable-x64.exe)，无需安装，放在普通文件夹后直接双击，功能和内嵌跨平台资源与安装完整版一致。
-- **Android 完整 APK**：[下载通用 APK](https://github.com/xuange6610/SyncWatch/releases/download/2.1.8/SyncWatch-Android-v2.1.8-universal.apk)，可加入房间，也可在受支持设备上运行手机服务器。
+- **Windows 标准服务器**：[下载标准版独立 EXE](https://github.com/xuange6610/SyncWatch/releases/download/v2.1.8/SyncWatch-Standard-Server-Portable-v2.1.8-x64.exe)，双击启动，无需安装 Git、Node.js 或 npm。
+- **Windows 安装完整版**：[下载安装程序](https://github.com/xuange6610/SyncWatch/releases/download/v2.1.8/SyncWatch-v2.1.8-Full-Offline-Installer-x64.exe)，提供安装、卸载、桌面快捷方式、开始菜单和完整离线下载资源。
+- **Windows 独立 EXE 完整版**：[下载便携完整版](https://github.com/xuange6610/SyncWatch/releases/download/v2.1.8/SyncWatch-v2.1.8-Full-Offline-Portable-x64.exe)，无需安装，放在普通文件夹后直接双击，功能和内嵌跨平台资源与安装完整版一致。
+- **Android 完整 APK**：[下载通用 APK](https://github.com/xuange6610/SyncWatch/releases/download/v2.1.8/SyncWatch-Android-v2.1.8-universal.apk)，可加入房间，也可在受支持设备上运行手机服务器。
 
 ## 跨平台完整套装
 
@@ -162,12 +162,12 @@ Windows 正式服务器包内置 Electron/Node.js 运行时、应用前后端、
 
 macOS 客户端、服务器和完整离线版均提供 Intel x64 与 Apple Silicon arm64：
 
-- **Intel 客户端**：[DMG](https://github.com/xuange6610/SyncWatch/releases/download/2.1.8/SyncWatch-Client-macOS-v2.1.8-x64.dmg) / [ZIP](https://github.com/xuange6610/SyncWatch/releases/download/2.1.8/SyncWatch-Client-macOS-v2.1.8-x64.zip)
-- **Apple Silicon 客户端**：[DMG](https://github.com/xuange6610/SyncWatch/releases/download/2.1.8/SyncWatch-Client-macOS-v2.1.8-arm64.dmg) / [ZIP](https://github.com/xuange6610/SyncWatch/releases/download/2.1.8/SyncWatch-Client-macOS-v2.1.8-arm64.zip)
-- **Intel 服务器**：[DMG](https://github.com/xuange6610/SyncWatch/releases/download/2.1.8/SyncWatch-Server-macOS-v2.1.8-x64.dmg) / [ZIP](https://github.com/xuange6610/SyncWatch/releases/download/2.1.8/SyncWatch-Server-macOS-v2.1.8-x64.zip)
-- **Apple Silicon 服务器**：[DMG](https://github.com/xuange6610/SyncWatch/releases/download/2.1.8/SyncWatch-Server-macOS-v2.1.8-arm64.dmg) / [ZIP](https://github.com/xuange6610/SyncWatch/releases/download/2.1.8/SyncWatch-Server-macOS-v2.1.8-arm64.zip)
-- **Intel 完整版**：[DMG](https://github.com/xuange6610/SyncWatch/releases/download/2.1.8/SyncWatch-Full-Offline-macOS-v2.1.8-x64.dmg) / [ZIP](https://github.com/xuange6610/SyncWatch/releases/download/2.1.8/SyncWatch-Full-Offline-macOS-v2.1.8-x64.zip)
-- **Apple Silicon 完整版**：[DMG](https://github.com/xuange6610/SyncWatch/releases/download/2.1.8/SyncWatch-Full-Offline-macOS-v2.1.8-arm64.dmg) / [ZIP](https://github.com/xuange6610/SyncWatch/releases/download/2.1.8/SyncWatch-Full-Offline-macOS-v2.1.8-arm64.zip)
+- **Intel 客户端**：[DMG](https://github.com/xuange6610/SyncWatch/releases/download/v2.1.8/SyncWatch-Client-macOS-v2.1.8-x64.dmg) / [ZIP](https://github.com/xuange6610/SyncWatch/releases/download/v2.1.8/SyncWatch-Client-macOS-v2.1.8-x64.zip)
+- **Apple Silicon 客户端**：[DMG](https://github.com/xuange6610/SyncWatch/releases/download/v2.1.8/SyncWatch-Client-macOS-v2.1.8-arm64.dmg) / [ZIP](https://github.com/xuange6610/SyncWatch/releases/download/v2.1.8/SyncWatch-Client-macOS-v2.1.8-arm64.zip)
+- **Intel 服务器**：[DMG](https://github.com/xuange6610/SyncWatch/releases/download/v2.1.8/SyncWatch-Server-macOS-v2.1.8-x64.dmg) / [ZIP](https://github.com/xuange6610/SyncWatch/releases/download/v2.1.8/SyncWatch-Server-macOS-v2.1.8-x64.zip)
+- **Apple Silicon 服务器**：[DMG](https://github.com/xuange6610/SyncWatch/releases/download/v2.1.8/SyncWatch-Server-macOS-v2.1.8-arm64.dmg) / [ZIP](https://github.com/xuange6610/SyncWatch/releases/download/v2.1.8/SyncWatch-Server-macOS-v2.1.8-arm64.zip)
+- **Intel 完整版**：[DMG](https://github.com/xuange6610/SyncWatch/releases/download/v2.1.8/SyncWatch-Full-Offline-macOS-v2.1.8-x64.dmg) / [ZIP](https://github.com/xuange6610/SyncWatch/releases/download/v2.1.8/SyncWatch-Full-Offline-macOS-v2.1.8-x64.zip)
+- **Apple Silicon 完整版**：[DMG](https://github.com/xuange6610/SyncWatch/releases/download/v2.1.8/SyncWatch-Full-Offline-macOS-v2.1.8-arm64.dmg) / [ZIP](https://github.com/xuange6610/SyncWatch/releases/download/v2.1.8/SyncWatch-Full-Offline-macOS-v2.1.8-arm64.zip)
 
 这些产物由 GitHub Actions 的真实 `macos-14` runner 分架构构建，并执行文件大小、SHA-256 和隐私字符串检查。现代 macOS 与 Electron 不支持 32 位应用，因此不提供虚假的 macOS 32 位包。
 
@@ -180,11 +180,11 @@ macOS 客户端、服务器和完整离线版均提供 Intel x64 与 Apple Silic
 
 ## cloudflared 独立工具
 
-- [Windows x64 EXE](https://github.com/xuange6610/SyncWatch/releases/download/2.1.8/cloudflared-windows-x64.exe)
-- [Windows x64 安装包 MSI](https://github.com/xuange6610/SyncWatch/releases/download/2.1.8/cloudflared-windows-x64-installer.msi)
-- [Windows x86 安装包 MSI](https://github.com/xuange6610/SyncWatch/releases/download/2.1.8/cloudflared-windows-x86-installer.msi)
-- [macOS Intel x64](https://github.com/xuange6610/SyncWatch/releases/download/2.1.8/cloudflared-macos-x64)
-- [macOS Apple Silicon arm64](https://github.com/xuange6610/SyncWatch/releases/download/2.1.8/cloudflared-macos-arm64)
+- [Windows x64 EXE](https://github.com/xuange6610/SyncWatch/releases/download/v2.1.8/cloudflared-windows-x64.exe)
+- [Windows x64 安装包 MSI](https://github.com/xuange6610/SyncWatch/releases/download/v2.1.8/cloudflared-windows-x64-installer.msi)
+- [Windows x86 安装包 MSI](https://github.com/xuange6610/SyncWatch/releases/download/v2.1.8/cloudflared-windows-x86-installer.msi)
+- [macOS Intel x64](https://github.com/xuange6610/SyncWatch/releases/download/v2.1.8/cloudflared-macos-x64)
+- [macOS Apple Silicon arm64](https://github.com/xuange6610/SyncWatch/releases/download/v2.1.8/cloudflared-macos-arm64)
 
 cloudflared 是 Cloudflare Tunnel 连接器，用于把本机 HTTP、Socket.IO 和媒体 Range 请求转发为 HTTPS 公网入口。它不保存 SyncWatch 账号或影片。完整服务器包优先使用内置文件；独立工具用于手工部署和网络诊断。官方文档：[Cloudflare Tunnel](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/)。
 
@@ -192,10 +192,10 @@ cloudflared 是 Cloudflare Tunnel 连接器，用于把本机 HTTP、Socket.IO �
 
 Windows 正式 EXE 已内置运行时，不需要另装 Node.js。源码开发和独立服务器用户可下载：
 
-- [Windows x64 MSI](https://github.com/xuange6610/SyncWatch/releases/download/2.1.8/node-v24.19.0-x64.msi)
-- [Windows arm64 MSI](https://github.com/xuange6610/SyncWatch/releases/download/2.1.8/node-v24.19.0-arm64.msi)
-- [macOS Intel x64 PKG](https://github.com/xuange6610/SyncWatch/releases/download/2.1.8/node-v24.19.0-macos-x64.pkg)
-- [macOS Apple Silicon arm64 tar.gz](https://github.com/xuange6610/SyncWatch/releases/download/2.1.8/node-v24.19.0-darwin-arm64.tar.gz)
+- [Windows x64 MSI](https://github.com/xuange6610/SyncWatch/releases/download/v2.1.8/node-v24.19.0-x64.msi)
+- [Windows arm64 MSI](https://github.com/xuange6610/SyncWatch/releases/download/v2.1.8/node-v24.19.0-arm64.msi)
+- [macOS Intel x64 PKG](https://github.com/xuange6610/SyncWatch/releases/download/v2.1.8/node-v24.19.0-macos-x64.pkg)
+- [macOS Apple Silicon arm64 tar.gz](https://github.com/xuange6610/SyncWatch/releases/download/v2.1.8/node-v24.19.0-darwin-arm64.tar.gz)
 
 安装后在终端执行 `node --version` 和 `npm --version` 验证。Node.js 官网：[nodejs.org](https://nodejs.org/)。完整图文教程见 [cloudflared 与 Node.js 安装使用教程](https://xuange6610.github.io/SyncWatch/runtime-installation.html)。
 

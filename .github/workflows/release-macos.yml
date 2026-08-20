@@ -4,9 +4,9 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: Existing release tag
+        description: Existing v-prefixed release tag (for example v2.1.9)
         required: true
-        default: 2.1.9
+        default: v2.1.9
 
 permissions:
   contents: write
