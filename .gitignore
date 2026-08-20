@@ -1,6 +1,6 @@
 node_modules/
 dist*/
-release/
+/release/
 output/
 SyncWatch同步观影-Data/
 

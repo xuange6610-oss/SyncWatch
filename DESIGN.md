@@ -247,3 +247,35 @@ components:
 - **Don't** 使用装饰性渐变、光斑、嵌套卡片或无依据的用户数与性能数字。
 - **Don't** 在截图、文案或示例数据中暴露真实姓名、私人 IP、令牌、媒体名称或个人账号数据。
 - **Don't** 把产品名称缩写成面向用户的 `SyncWatch`；仓库地址和兼容标识除外。
+
+## Implementation Notes From Source
+
+以下内容是根据当前源码、构建配置和测试确认的实现事实，不是视觉稿假设。
+
+### 页面与导航
+
+- 产品 Web UI 的入口是 `public/index.html`，主要交互逻辑在 `public/js/app.js`，主题和首屏初始化分别由 `public/js/first-paint-theme.js` 与 `public/css/style.css` 负责。
+- GitHub Pages 的入口是 `docs/index.html`；文档 HTML 共用 `docs/assets/site.css`、`guide.css`、`document-guide.css` 和 `pro-max.css`，每个设计页保留对应 Markdown 原文链接。
+- 管理中心的 11 个模块使用 `docs/modules/*.html` 独立展示；截图必须与模块一一对应，页面同时提供键盘可用的 3D 监视器/灯箱交互。
+
+### 状态与交互
+
+- 连接、成功、进行中和错误状态分别使用同步绿、低对比中性色、琥珀提示和珊瑚/红色错误；颜色不是唯一信息，必须同时提供文字或图标语义。
+- 加载状态保持固定的容器尺寸，避免首屏、截图和数据表因异步内容跳动；错误状态显示可执行的下一步，不泄露服务端堆栈。
+- 空状态说明为什么为空以及用户下一步能做什么；权限不足状态来自服务端结果，前端不通过隐藏按钮代替授权校验。
+- 3D、灯箱和悬停动效必须尊重 `prefers-reduced-motion`，并保留 Escape、方向键、Tab 焦点和可见焦点样式。
+
+### 前后端与数据流
+
+1. `electron-pink.js`、`server-standalone.js` 或 Android `MobileServerService` 启动同一份 `server/index.js`。
+2. Express 提供 REST/文件流，Socket.IO 提供房间状态、播放控制、聊天、通知和共享信令；客户端先建立会话再加入房间。
+3. 房主操作发送意图，服务端写入权威房间状态并广播带时间/版本的信息；客户端按服务器时间和缓冲偏差校正播放器。
+4. 上传写入 `SyncWatch同步观影-Data/uploads/`，FFprobe/FFmpeg 更新媒体索引和兼容产物；HTTP Range 负责媒体读取，Socket.IO 不承载媒体本体。
+5. 配置、账号、房间、日志和密钥落在数据目录及其 secrets 子目录，写盘使用临时文件/原子替换，并用实例锁阻止同目录并发写入。
+6. `cloudflared` 是可选边缘入口，只转发本地 HTTP、WebSocket 和 Range 请求，不保存 SyncWatch 账号或媒体。
+
+### 待确认边界
+
+- macOS runner 的最终窗口行为、签名和权限必须在 macOS 设备/Actions 成品上验证；Windows 工作站不能替代该验证。
+- Android 厂商后台限制、通知/媒体投影授权和真实公网网络质量不能从静态源码完全推断。
+- 具体接口字段以 `server/index.js` 当前实现和对应测试为准；新增接口必须同时更新架构文档和错误处理说明。

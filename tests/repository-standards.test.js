@@ -9,6 +9,7 @@ const read = (relative) => fs.readFileSync(path.join(root, relative), 'utf8');
 const exists = (relative) => fs.existsSync(path.join(root, relative));
 
 const requiredFiles = [
+  'AGENTS.md',
   '.editorconfig',
   '.gitattributes',
   '.github/ISSUE_TEMPLATE/bug-report.yml',
@@ -28,6 +29,8 @@ const requiredFiles = [
   '.impeccable/design.json',
   'SECURITY.md',
   'docs/index.html',
+  'docs/index.md',
+  'docs/release/release-manifest.md',
   'docs/management-center.html',
   'docs/management-center-guide.html',
   'docs/troubleshooting.html',
@@ -130,6 +133,15 @@ assert.match(readme, /SyncWatch-Full-Offline-macOS-v2\.1\.8-x64\.dmg/);
 assert.match(readme, /SyncWatch-Full-Offline-macOS-v2\.1\.8-arm64\.dmg/);
 assert.match(readme, /cloudflared-windows-x64-installer\.msi/);
 assert.match(readme, /node-v24\.19\.0-x64\.msi/);
+
+const agents = read('AGENTS.md');
+assert.match(agents, /28 个可见文件/);
+assert.match(agents, /26 个维护者资产/);
+assert.match(agents, /每次开始新任务/);
+assert.match(agents, /每次任务完成/);
+const releaseManifest = read('docs/release/release-manifest.md');
+assert.match(releaseManifest, /Source code \(zip\)/);
+assert.match(releaseManifest, /26 个维护者资产/);
 
 const pages = read('.github/workflows/pages.yml');
 assert.match(pages, /pages:\s*write/);

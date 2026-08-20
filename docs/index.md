@@ -1,0 +1,33 @@
+# SyncWatch 文档知识库
+
+这是仓库内长期维护的文档入口。页面内容以当前源码、测试、构建配置和 Git 历史为准；GitHub Pages 展示页是这些文档的静态导览，不是运行中的 SyncWatch 服务器。
+
+## 按任务查找
+
+| 目标 | 首选文档 |
+| --- | --- |
+| 第一次启动、登录和加入房间 | [新手快速开始](quick-start.md)、[普通用户使用说明](user-guide.md) |
+| 部署 Windows、Linux、Docker 或公网访问 | [服务器部署](server-deployment-guide.md)、[独立服务器](standalone-server.md)、[运行环境安装](runtime-installation.md) |
+| 理解服务端、WebSocket、媒体和数据目录 | [技术架构](architecture.md)、[数据结构与备份迁移](wiki/06-数据结构与备份迁移.md) |
+| 管理中心和权限 | [管理中心详细教程](management-center.md)、[管理中心 Wiki](wiki/13-管理中心完整教程.md) |
+| Android 构建与手机服务器 | [Android README](../mobile/README.md)、[Android/Wiki 教程](wiki/23-运行环境完整教程.md) |
+| macOS 构建与发布 | [macOS 构建](macos-build.md)、[macOS Wiki](wiki/18-macOS构建与发布.md) |
+| 错误、诊断、备份和安全 | [故障排查](troubleshooting.md)、[安全策略](../SECURITY.md) |
+| Release、文件地图和贡献 | [发布文件说明](release-artifacts.md)、[仓库文件地图](repository-map.md)、[参与贡献](contributing.html)、[CONTRIBUTING.md](../CONTRIBUTING.md) |
+
+## 文档分层
+
+- `docs/*.md`：可直接链接的当前部署、开发和运维说明。
+- `docs/wiki/`：同步到 GitHub Wiki 的完整教程镜像，按编号组织。
+- `docs/*.html`：带交互、截图和 3D 导览的 GitHub Pages 页面；对应 Markdown 源文档仍保留。
+- `docs/modules/`：管理中心 11 个模块的独立功能导览页。
+- `docs/screenshots/` 与 `docs/assets/`：去隐私化的产品截图、联系图片和展示站资源。
+
+## 当前事实边界
+
+- GitHub Pages 只能提供静态 HTML/CSS/JavaScript，不能执行 Node.js、Socket.IO、文件上传、AI 中转或 Cloudflare Tunnel。
+- 可下载的桌面、Android、macOS 和独立服务器成品以 GitHub Releases 中实际存在的资产为准，不以文件名猜测平台支持。
+- 运行账号、房间、媒体、聊天和密钥位于服务器旁的 `SyncWatch同步观影-Data/`，迁移和备份必须按完整目录处理。
+
+维护文档前请先读根目录 [AGENTS.md](../AGENTS.md)、[PRODUCT.md](../PRODUCT.md)、[DESIGN.md](../DESIGN.md) 和 [README.md](../README.md)。
+

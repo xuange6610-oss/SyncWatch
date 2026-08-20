@@ -234,6 +234,7 @@ Git 没有要求所有文件都必须使用英文名称。仓库采用的规则�
 
 ## 文档
 
+- [项目知识库入口](docs/index.md) · [Codex 工作规则](AGENTS.md) · [产品事实](PRODUCT.md) · [设计与架构规范](DESIGN.md)
 - [普通用户使用说明](docs/user-guide.md)
 - [服务器部署与使用教程](docs/server-deployment-guide.md)
 - [技术架构与依赖说明](docs/architecture.md)

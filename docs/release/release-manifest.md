@@ -1,0 +1,34 @@
+# Release 资产清单
+
+## 数量规则
+
+每个正式版本在 GitHub Release 页面应显示 28 个文件：
+
+- 2 个 GitHub 自动生成的源码归档：`Source code (zip)`、`Source code (tar.gz)`。
+- 26 个维护者上传的真实构建资产，按下表分组。
+
+如果 Release API 的 `assets` 数量为 26，表示维护者资产齐全；页面把两个源码归档也算进去后就是用户看到的 28 个文件。源码归档不需要手工上传，也不计入 26 个构建资产的 SHA-256 清单。
+
+## 26 个维护者资产
+
+| 数量 | 分组 | 文件模式 |
+| ---: | --- | --- |
+| 4 | Windows 桌面 | `SyncWatch-Experience-Client-Portable-vX.Y.Z-x64.exe`、`SyncWatch-Standard-Server-Portable-vX.Y.Z-x64.exe`、`SyncWatch-vX.Y.Z-Full-Offline-Installer-x64.exe`、`SyncWatch-vX.Y.Z-Full-Offline-Portable-x64.exe` |
+| 1 | Android | `SyncWatch-Android-vX.Y.Z-universal.apk` |
+| 4 | macOS 客户端 | `SyncWatch-Client-macOS-vX.Y.Z-{x64,arm64}.{dmg,zip}` |
+| 4 | macOS 服务器 | `SyncWatch-Server-macOS-vX.Y.Z-{x64,arm64}.{dmg,zip}` |
+| 4 | macOS 完整离线版 | `SyncWatch-Full-Offline-macOS-vX.Y.Z-{x64,arm64}.{dmg,zip}` |
+| 4 | Node.js 运行时 | `node-v24.19.0-x64.msi`、`node-v24.19.0-arm64.msi`、`node-v24.19.0-macos-x64.pkg`、`node-v24.19.0-darwin-arm64.tar.gz` |
+| 5 | cloudflared | `cloudflared-windows-x64.exe`、Windows x64/x86 installer MSI、`cloudflared-macos-x64`、`cloudflared-macos-arm64` |
+
+## 发布前检查
+
+1. 将 `X.Y.Z` 替换为当前 `package.json`、Android `versionName` 和 Git tag 的同一版本。
+2. 确认每个模式各有对应的真实文件，macOS x64 与 arm64 不互相冒充，Windows 体验/标准/完整版用途不混淆。
+3. 对每个资产记录字节大小和 SHA-256；禁止空文件、改名旧版本、重复内容或个人数据进入 Release。
+4. 执行 `npm run test:repo`、`node tests/desktop-release-contract.test.js`、`node tests/android-package.test.js --source-only`、`node tests/cloudflared-bundle.test.js` 和对应平台的实际构建/验收。
+5. 用 `gh release view <tag> --json assets` 确认 API 资产数为 26；再在网页上确认包含两个 GitHub 源码归档后总数为 28。
+
+## 当前记录
+
+v2.1.7 的 Release API 实际有 26 个维护者资产，加上 GitHub 自动源码归档后为 28 个可见文件。当前 v2.1.8 Release 仍需按本清单补齐未提供的平台资产后，才能称为同等规模的完整发布；不能因为 README 或旧公告列出名称就视为文件已上传。
