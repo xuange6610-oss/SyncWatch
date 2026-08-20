@@ -55,12 +55,26 @@ jobs:
           node tests/desktop-release-contract.test.js
           node tests/cloudflared-bundle.test.js
 
+      - name: Download and verify signed Android asset
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path mobile | Out-Null
+          $tag = '${{ inputs.tag || github.ref_name }}'
+          gh release download $tag --repo '${{ github.repository }}' --pattern 'SyncWatch-Android-v2.1.8-universal.apk' --dir mobile --clobber
+          Copy-Item 'mobile/SyncWatch-Android-v2.1.8-universal.apk' 'mobile/SyncWatch同步观影-v2.1.8.apk' -Force
+          $apk = Get-Item 'mobile/SyncWatch-Android-v2.1.8-universal.apk'
+          if ($apk.Length -lt 150MB) { throw 'The verified Android asset is unexpectedly small.' }
+          $hash = (Get-FileHash -Algorithm SHA256 -LiteralPath $apk.FullName).Hash
+          Write-Host "Using signed Android APK $($apk.Length) bytes SHA256 $hash"
+          node tests/android-package.test.js 'mobile/SyncWatch-Android-v2.1.8-universal.apk'
+
       - name: Build portable server and client
         shell: pwsh
         run: |
           npx electron-builder --win portable --publish never
           npm run build:client -- --publish never
-          npm run build:android
 
       - name: Upload Android 2.1.8 asset before offline packaging
         env:
