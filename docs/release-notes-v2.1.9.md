@@ -90,6 +90,7 @@ Android APK 不内置也不执行 Windows/Linux 的 `cloudflared` 二进制。Cl
 - 超级管理员在登录页完成验证后进入管理中心的“服务器设置”，登录页保持可见且不会先进入观影房间；管理员完成设置后再主动进入房间，普通用户流程不变。
 - 登录页顶部间距在桌面和窄屏规则中收紧，减少短屏打开时的空白；字段、按钮和主要业务布局保持原有结构。
 - 发布工作流现在只接受 `vX.Y.Z` 标签，并将同一标签作为 Windows/macOS 构建和下载输入，避免无 `v` 的重复标签和半成品下载路径。
+- Windows 工作流直接用 ASCII 标准文件名上传 Android APK，避免中文本地别名在 runner 上编码损坏后生成重复资产；Release 只保留 `SyncWatch-Android-v2.1.9-universal.apk`。
 - Windows/macOS 构建流程保留平台架构边界：Windows 桌面发布包提供 x64；macOS 通过 GitHub Actions 的 macOS runner 构建 Intel x64 与 Apple Silicon arm64。现代 Electron/macOS 不提供可验证的 32 位桌面包，因此不上传虚假的 32 位文件。
 - 完整包、标准包、体验包、独立服务器包和运行时资产必须使用真实构建产物；禁止仅修改旧文件名冒充新版本。
 
