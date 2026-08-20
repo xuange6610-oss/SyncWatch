@@ -87,8 +87,8 @@ SyncWatch同步观影是一套开源、自托管的多人同步观影与实时�
 - **临时公网地址**：Cloudflare Quick Tunnel 依赖出站网络、DNS、代理/VPN/TUN 和 Cloudflare 服务，地址不固定；网络受限时应使用固定 HTTPS 反向代理。
 - **AI 工作台**：`server/ai-relay.js` 和前端配置支持兼容 Responses API/Chat Completions 的中转，但模型、密钥、额度和可用能力由用户提供的服务决定。
 - **屏幕/系统音频共享**：浏览器、Electron、Android 有不同的权限和 API；系统级音频与浏览器支持范围取决于平台版本和用户授权。
-- **发布架构**：`2.1.8` 正在按固定清单重建 Windows、Android、macOS、Node.js 与 cloudflared 资产；所有跨平台下载声明必须以 Release API 中真实存在的文件为准。
-- **发布数量标准**：v2.1.7 的 Release API 有 26 个维护者资产，加上 GitHub 自动生成的 2 个源码归档后页面显示 28 个文件。后续每个正式版本必须严格按 [Release 资产清单](docs/release/release-manifest.md)发布；当前 v2.1.8 的旧资产已清理，完整 26 项重新上传并核验前不能宣称发布完成。
+- **发布架构**：`2.1.8` Release 已按固定清单提供 Windows、Android、macOS、Node.js 与 cloudflared 真实资产；所有跨平台下载声明仍必须以 Release API 中实际存在的文件为准。
+- **发布数量标准**：v2.1.7 和 v2.1.8 的 Release API 均有 26 个维护者资产，加上 GitHub 自动生成的 2 个源码归档后页面显示 28 个文件。后续每个正式版本必须严格按 [Release 资产清单](docs/release/release-manifest.md)发布；不能只凭 README 或公告列出名称就视为文件已上传。
 
 ### 计划开发
 
