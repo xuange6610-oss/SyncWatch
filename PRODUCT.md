@@ -66,3 +66,43 @@ SyncWatch同步观影是一套开源、自托管的多人同步观影与实时�
 ## Accessibility & Inclusion
 
 面向网页的文档和展示站应支持键盘操作、可见焦点、语义化标题、图片替代文字、减少动态效果偏好，以及桌面和手机宽度下的无重叠阅读。
+
+## 功能状态（以当前源码为准）
+
+### 已经实现
+
+- **服务器与账号**：`server/index.js` 提供 Express HTTP 服务、登录/注册、会话、密码更新、设备会话和管理员策略；首次运行会创建本地数据目录，默认端口为 5000。
+- **房间与同步播放**：服务端维护房间、成员、房间密码/人数限制和房主权限；Socket.IO 事件广播播放、暂停、进度、倍速、队列和成员状态。
+- **媒体与上传**：HTTP 上传、文件夹扫描、媒体索引、字幕/图片/文档支持、HTTP Range 播放；FFprobe 分析，FFmpeg 负责缩略图和兼容版本处理。
+- **实时协作**：公聊、私聊、弹幕、公告、语音消息、全屏通知、好友/申请、在线状态和操作日志。
+- **管理与数据**：权限组、注册审批、邮件配置、备份/导入导出、回收站、网络诊断、服务器设置和数据目录锁。
+- **多端入口**：浏览器 UI、Electron 服务器窗口、独立 Electron 客户端、Node 独立服务端和 Android WebView/手机服务器源码均存在并有对应构建配置。
+- **公网访问**：桌面端和独立服务端包含 Cloudflare Tunnel 调用、网络诊断和自有 HTTPS/反向代理配置路径。
+
+### 部分实现或受环境限制
+
+- **Android**：APK 嵌入 Node.js Mobile、WebView、手机服务器和 MediaProjection 屏幕共享；真实设备上的后台策略、通知权限、网络和签名环境会影响结果，不能只凭源码断言所有厂商都一致。
+- **Android Node 兼容**：服务端为可能缺少 `crypto.randomUUID` 的 Node.js Mobile 18 运行时提供 RFC 4122 v4 `randomBytes` 回退，覆盖登录、审计、上传和消息 ID；`tests/android-node-compat.test.js` 会在移除原生 API 后验证管理员与游客登录。
+- **macOS**：仓库包含 x64/arm64 构建配置、脚本和 CI 工作流；当前工作站是 Windows，macOS 成品应以对应 runner 的实际 Release 资产为准。
+- **临时公网地址**：Cloudflare Quick Tunnel 依赖出站网络、DNS、代理/VPN/TUN 和 Cloudflare 服务，地址不固定；网络受限时应使用固定 HTTPS 反向代理。
+- **AI 工作台**：`server/ai-relay.js` 和前端配置支持兼容 Responses API/Chat Completions 的中转，但模型、密钥、额度和可用能力由用户提供的服务决定。
+- **屏幕/系统音频共享**：浏览器、Electron、Android 有不同的权限和 API；系统级音频与浏览器支持范围取决于平台版本和用户授权。
+- **发布架构**：截至当前 `2.1.8` Release，GitHub 上可核对到 Windows EXE、独立服务器 ZIP 和 Android APK 资产；macOS、Node.js、cloudflared 的构建输入在本地 `release/`/CI 配置中，但未把它们写成已上传资产。
+- **发布数量标准**：v2.1.7 的 Release API 有 26 个维护者资产，加上 GitHub 自动生成的 2 个源码归档后页面显示 28 个文件。后续正式版本必须按 [Release 资产清单](docs/release/release-manifest.md)补齐 26 个真实资产；当前 v2.1.8 只有 8 个维护者资产，不能按 28 文件标准宣称已完成。
+
+### 计划开发
+
+仓库当前没有一份独立、经维护者确认的产品路线图，因此以下不宣称为已承诺功能。未来需求应先通过 Issue/PR 确认，再更新本节：
+
+- 更完整的平台兼容矩阵和真实设备自动化测试。
+- 固定域名 Tunnel/HTTPS 的向导化配置与可观测性。
+- 多节点或共享存储部署；当前数据目录和房间状态按单实例设计。
+- 更细粒度的媒体转码队列、断点续传和运维指标。
+- 与当前 Release 资产同步的跨平台下载索引和签名校验展示。
+
+## 当前限制
+
+1. 单个 `SyncWatch同步观影-Data/` 只能由一个实例写入；不要让桌面端、独立 Node 服务和 Docker 同时使用同一目录。
+2. GitHub Pages 是静态站，不能替代自托管服务器，也不能在页面中真实创建房间、上传文件或开启 Tunnel。
+3. 公网访问、邮件、媒体转码和 AI 中转分别依赖外部网络、SMTP、FFmpeg/FFprobe 和用户配置，失败时应按故障排查文档处理。
+4. 版本兼容由协议、数据迁移和 Android 签名共同决定；覆盖安装前必须备份完整数据目录，Android 不应使用不同签名的 APK 覆盖安装。

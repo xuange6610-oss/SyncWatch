@@ -11,6 +11,19 @@ const os = require('os');
 const path = require('path');
 const readline = require('readline');
 const zlib = require('zlib');
+
+// Node.js Mobile 18 builds can omit crypto.randomUUID even when randomBytes is
+// available. Keep one RFC 4122 v4 fallback so Android login, audit and upload
+// paths do not fail while desktop Node/Electron continue using the native API.
+if (typeof crypto.randomUUID !== 'function') {
+  crypto.randomUUID = () => {
+    const bytes = crypto.randomBytes(16);
+    bytes[6] = (bytes[6] & 0x0f) | 0x40;
+    bytes[8] = (bytes[8] & 0x3f) | 0x80;
+    const hex = bytes.toString('hex');
+    return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+  };
+}
 const { spawn } = require('child_process');
 const { AsyncLocalStorage } = require('async_hooks');
 const { pipeline, Transform } = require('stream');

@@ -4,6 +4,56 @@
 
 v2.1.8 是本项目当前最新版本，面向 Windows、Android、macOS 与独立服务器用户。此次发布重点解决版本标识不一致、Android 服务端构建与登录协议兼容性、发布包校验和文档入口不同步问题。
 
+## 版本范围声明
+
+本次是从 v2.1.7 到 v2.1.8 的兼容更新，不是重新定义产品。房间、同步播放、媒体上传、聊天、弹幕、语音、屏幕/网页共享、权限模型、数据目录、启动方式和主要页面结构继续沿用 v2.1.7；已有账号、房间、媒体和配置不需要因为升级而重建。以下清单只记录实际发生的修复、版本迁移、可访问性微调、构建流程和发布文件变化。
+
+## 完整变更清单
+
+### 1. 版本与兼容标识
+
+- 根目录 `package.json` 从 `2.1.7` 更新为 `2.1.8`；Electron 服务器、独立客户端、独立服务器和公开配置均返回/显示 `v2.1.8`。
+- Android `versionName` 更新为 `2.1.8`，`versionCode` 更新为 `20108`；WebView User-Agent、手机服务器下载元数据和 APK 下载文件名同步更新。
+- 首次登录使用协议默认版本、发现服务广播版本、媒体管理导出 JSON、服务器 JSON/二进制备份文件名统一使用 `2.1.8`。
+- Windows 安装版、Windows 便携完整版、体验版、标准版、客户端、服务端和独立服务器 ZIP 的文件名与构建契约统一为 `v2.1.8`；旧的 `v2.1.7` 文件不会被新构建覆盖后继续冒充新包。
+- 仓库、Pages、Wiki、Release 和下载入口统一使用当前 GitHub 地址 `xuange6610/SyncWatch`；仓库 slug 仍保持 `SyncWatch`，产品显示名称仍为 `SyncWatch同步观影`。
+
+### 2. Android 登录与错误诊断
+
+- 修复部分 Node.js Mobile 18 构建缺少 `crypto.randomUUID` 时，游客账号创建、登录审计或设备会话在服务端直接异常的问题；服务端现在使用符合 UUID v4 的 `crypto.randomBytes` 回退，桌面 Node/Electron 仍优先使用原生实现。
+- 普通账号、游客、服务器管理员登录失败统一经过 `loginErrorMessage(result)`，不再只显示“服务器处理请求失败”。
+- Socket 处理异常现在包含安全的 `SOCKET_EVENT_FAILED`、事件名和 `SW-...` 错误编号；客户端根据编号给出数据目录可写、设备时间、重新连接和联系管理员等处理建议。
+- 服务端日志保留完整堆栈并关联同一个错误编号，但不会把堆栈或敏感内容发送到 Android/Web 客户端。
+- 登录初始化网络异常会显示明确的连接失败信息和错误提示，不再显示没有行动指引的“正在自动重试”。
+
+### 3. 页面与交互的兼容性微调
+
+- 短屏横向窗口中展开聊天时，播放器和聊天栏保持双列布局，避免移动端规则把聊天栏压到视频边缘。
+- 增强下拉框保留确定性的原生指示器，禁用状态仍可被辅助技术识别；不改变已有字段、选项或业务流程。
+- 账户、管理中心、播放器、截图/3D 文档页和下载入口的内容与主要导航保持 v2.1.7 结构；本版本没有新增“重新设计首页”或删除旧功能。
+
+### 4. 发布与构建流程
+
+- Windows/macOS Actions 改为直接从 Cloudflare 官方 latest Release 获取匹配架构的 `cloudflared`，再执行体积检查；不再依赖当前 SyncWatch Release 中预先存在的同名工具资产。
+- Windows Release runner 先构建并上传已签名 Android APK，再把真实 APK、Windows 客户端和 macOS ZIP 放入离线完整版；离线包验证会检查六个平台资源、最小体积和文件闭包。
+- Windows、macOS 和 Android 构建脚本、Electron Builder 配置、独立服务器打包脚本以及发布契约测试全部切换到 `2.1.8`，并禁止构建阶段隐式发布或把旧资产当作新资产。
+- 由于当前工作站为 Windows，macOS DMG/ZIP 只能以 macOS runner 实际产物为准；没有真实资产时，下载接口返回“尚未提供”，不会生成伪造链接。
+
+### 5. 测试与验收
+
+- 更新前端、服务端、Android、独立服务器、macOS 下载、Tunnel、平台契约和 Release 文件名测试中的版本期望。
+- 新增普通账号登录错误编号和 `SOCKET_EVENT_FAILED` 的前端契约断言。
+- 新增 `tests/android-node-compat.test.js`，主动移除原生 `crypto.randomUUID` 后启动完整服务，并验证 Android 设备信息下的服务器管理员和游客登录。
+- 当前已通过仓库规范检查、54 项集成检查、Android 源码包检查、桌面 Release 契约、cloudflared/服务器包检查及相关 UI 布局检查；没有 Android 真机/模拟器时，不把真实触屏回归写成已完成。
+
+## 与 v2.1.7 保持不变
+
+- 同步播放权威时钟、房间密码/人数限制、成员与权限组、媒体审核/队列、聊天/私聊/弹幕、语音、屏幕共享、邮件验证、备份恢复和管理中心 11 个模块的业务规则不变。
+- 默认数据目录仍为 `SyncWatch同步观影-Data/`，升级仍需停止服务并备份整个目录；同一目录仍只允许一个实例写入。
+- Windows 服务器 EXE 仍内置 Node/Electron、FFmpeg、FFprobe 和 cloudflared；体验版仍只连接已有服务器，标准版仍用于 Windows 房主，完整版仍用于离线资源分发。
+- Android 仍不能在 APK 内直接运行 Windows/Linux 的 cloudflared；手机公网使用场景仍需连接已开启 Tunnel 的桌面、macOS、Linux 或云服务器。
+- Apache-2.0 许可证、`xuan` 署名、数据保护要求和外部贡献流程不变。
+
 ## Android 登录错误修复
 
 - 普通账号登录此前直接显示服务端笼统的“服务器处理请求失败”，没有调用已有错误解析器；现在统一调用 `loginErrorMessage(result)`。
@@ -69,7 +119,7 @@ APK signing: v1/v2/v3 verified
 | `SyncWatch-Standard-Server-Portable-v2.1.8-x64.exe` | Windows 标准版 | 由 Release 页面显示 | 以 Release 页面为准 |
 | `SyncWatch-v2.1.8-Full-Offline-Installer-x64.exe` | Windows 完整安装版 | 由 Release 页面显示 | `46724EDF20CC567184E82F3BECC8B40875226B0EC7F39E2ACDB1F5ADBBD35C98` |
 | `SyncWatch-v2.1.8-Full-Offline-Portable-x64.exe` | Windows 完整便携版 | 由 Release 页面显示 | `A34E4EFA7D978FC6699A233F3E7BCEC7115E9D742A075462B14279225E9FF403` |
-| `SyncWatch-Android-v2.1.8-universal.apk` | Android 通用 APK | 由 Release 页面显示 | `045ACFE86784AA932EFC4F8C64930AC18374950D8560CDB0B6B8F43DAB5F6275` |
+| `SyncWatch-Android-v2.1.8-universal.apk` | Android 通用 APK（Node.js Mobile UUID 登录兼容修复） | 161,259,139 字节 | `5FD5AC875765FB3AB8967F8F4E7BCC5BC419765CC6636704800112C2CF9C1C5C` |
 | `SyncWatch-Standalone-Server-v2.1.8.zip` | 独立服务器部署包 | 由 Release 页面显示 | `600A9B3368A76134828B96891651BB1FC6EBAC199877730E1FC13A0D92EF2E26` |
 
 Windows 完整版安装包和便携包均内置可离线使用的服务器运行环境；体验版只连接已有服务器；标准版用于在 Windows 上启动服务器。当前构建机没有真实 macOS DMG/ZIP 产物，因此不会上传伪造的 macOS 文件，macOS 构建由 GitHub Actions 的 macOS runner 单独生成。
