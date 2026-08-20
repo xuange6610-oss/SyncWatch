@@ -82,13 +82,13 @@ SyncWatch同步观影是一套开源、自托管的多人同步观影与实时�
 ### 部分实现或受环境限制
 
 - **Android**：APK 嵌入 Node.js Mobile、WebView、手机服务器和 MediaProjection 屏幕共享；真实设备上的后台策略、通知权限、网络和签名环境会影响结果，不能只凭源码断言所有厂商都一致。
-- **Android Node 兼容**：服务端为可能缺少 `crypto.randomUUID` 的 Node.js Mobile 18 运行时提供 RFC 4122 v4 `randomBytes` 回退，覆盖登录、审计、上传和消息 ID；`tests/android-node-compat.test.js` 会在移除原生 API 后验证管理员与游客登录。
+- **Android Node 兼容**：服务端为可能缺少 `crypto.randomUUID` 和 `Intl` 的 Node.js Mobile 18 运行时提供 UUID v4 与本地时间格式回退；回归测试覆盖管理员、同房游客、成员退出和游客重新登录，签名 APK 已在 Android 15 x86_64 模拟器中真实启动内嵌服务并验证登录。
 - **macOS**：仓库包含 x64/arm64 构建配置、脚本和 CI 工作流；当前工作站是 Windows，macOS 成品应以对应 runner 的实际 Release 资产为准。
 - **临时公网地址**：Cloudflare Quick Tunnel 依赖出站网络、DNS、代理/VPN/TUN 和 Cloudflare 服务，地址不固定；网络受限时应使用固定 HTTPS 反向代理。
 - **AI 工作台**：`server/ai-relay.js` 和前端配置支持兼容 Responses API/Chat Completions 的中转，但模型、密钥、额度和可用能力由用户提供的服务决定。
 - **屏幕/系统音频共享**：浏览器、Electron、Android 有不同的权限和 API；系统级音频与浏览器支持范围取决于平台版本和用户授权。
-- **发布架构**：截至当前 `2.1.8` Release，GitHub 上可核对到 Windows EXE、独立服务器 ZIP 和 Android APK 资产；macOS、Node.js、cloudflared 的构建输入在本地 `release/`/CI 配置中，但未把它们写成已上传资产。
-- **发布数量标准**：v2.1.7 的 Release API 有 26 个维护者资产，加上 GitHub 自动生成的 2 个源码归档后页面显示 28 个文件。后续正式版本必须按 [Release 资产清单](docs/release/release-manifest.md)补齐 26 个真实资产；当前 v2.1.8 只有 8 个维护者资产，不能按 28 文件标准宣称已完成。
+- **发布架构**：`2.1.8` 正在按固定清单重建 Windows、Android、macOS、Node.js 与 cloudflared 资产；所有跨平台下载声明必须以 Release API 中真实存在的文件为准。
+- **发布数量标准**：v2.1.7 的 Release API 有 26 个维护者资产，加上 GitHub 自动生成的 2 个源码归档后页面显示 28 个文件。后续每个正式版本必须严格按 [Release 资产清单](docs/release/release-manifest.md)发布；当前 v2.1.8 的旧资产已清理，完整 26 项重新上传并核验前不能宣称发布完成。
 
 ### 计划开发
 

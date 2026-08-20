@@ -21,6 +21,7 @@ v2.1.8 是本项目当前最新版本，面向 Windows、Android、macOS 与独�
 ### 2. Android 登录与错误诊断
 
 - 修复部分 Node.js Mobile 18 构建缺少 `crypto.randomUUID` 时，游客账号创建、登录审计或设备会话在服务端直接异常的问题；服务端现在使用符合 UUID v4 的 `crypto.randomBytes` 回退，桌面 Node/Electron 仍优先使用原生实现。
+- 修复 Node.js Mobile 18.20.4 未编译 `Intl` 时，成员进入/退出房间通知调用 `Intl.DateTimeFormat` 导致 `guest-login` 返回 `SOCKET_EVENT_FAILED` 的问题；服务端现在在 `Intl` 不可用时输出稳定的 `YYYY/MM/DD HH:mm:ss` 本地时间，并复用于媒体操作和播放申请提示。
 - 普通账号、游客、服务器管理员登录失败统一经过 `loginErrorMessage(result)`，不再只显示“服务器处理请求失败”。
 - Socket 处理异常现在包含安全的 `SOCKET_EVENT_FAILED`、事件名和 `SW-...` 错误编号；客户端根据编号给出数据目录可写、设备时间、重新连接和联系管理员等处理建议。
 - 服务端日志保留完整堆栈并关联同一个错误编号，但不会把堆栈或敏感内容发送到 Android/Web 客户端。
@@ -43,8 +44,8 @@ v2.1.8 是本项目当前最新版本，面向 Windows、Android、macOS 与独�
 
 - 更新前端、服务端、Android、独立服务器、macOS 下载、Tunnel、平台契约和 Release 文件名测试中的版本期望。
 - 新增普通账号登录错误编号和 `SOCKET_EVENT_FAILED` 的前端契约断言。
-- 新增 `tests/android-node-compat.test.js`，主动移除原生 `crypto.randomUUID` 后启动完整服务，并验证 Android 设备信息下的服务器管理员和游客登录。
-- 当前已通过仓库规范检查、54 项集成检查、Android 源码包检查、桌面 Release 契约、cloudflared/服务器包检查及相关 UI 布局检查；没有 Android 真机/模拟器时，不把真实触屏回归写成已完成。
+- 新增 `tests/android-node-compat.test.js`，主动移除原生 `crypto.randomUUID` 和全局 `Intl` 后启动完整服务，并验证管理员、同房游客、成员退出通知和游客重新登录。
+- 在 Android 15 `sdk_gphone64_x86_64` 模拟器中安装签名 APK，真实启动 APK 内嵌 Node.js Mobile 服务，并通过 ADB 端口转发连接该服务验证管理员、同房游客和游客重连；测试后应用主进程与 `syncwatch_server` 进程均保持运行。
 
 ## 与 v2.1.7 保持不变
 
@@ -78,6 +79,7 @@ v2.1.8 是本项目当前最新版本，面向 Windows、Android、macOS 与独�
 - 修正了 Android 运行时生成 `mobile-index.js` 时的 Unicode 用户名正则和 `path-to-regexp` 兼容补丁，避免部分账号或路由在手机端启动失败。
 - 修复 Socket 处理异常只返回笼统提示的问题：服务端日志现在带事件名和错误编号，客户端收到安全错误码，安卓登录失败时可将编号交给管理员定位；堆栈不会发送给客户端。
 - 修复 Windows PowerShell 构建脚本的 UTF-8 编码标记，避免中文 APK/客户端文件名在 Windows PowerShell 下变成乱码并导致旧版本文件未被覆盖。
+- 修复 Node.js Mobile 无 `Intl` 时登录后广播成员在线状态直接抛出 `ReferenceError: Intl is not defined` 的真实根因；此前仅补充 UUID 回退不足以解决该故障。
 
 ### 公网访问边界
 
@@ -101,39 +103,94 @@ node tests/android-package.test.js --source-only
 Android APK Gradle build: BUILD SUCCESSFUL
 APK payload: 124 production Node.js packages, 36 public files, 3 native ABIs
 APK signing: v1/v2/v3 verified
+Android 15 embedded server: admin login, guest login and guest reconnect passed
+Android Logcat: 0 Intl/SOCKET_EVENT_FAILED/Node-exit/FATAL matches
 ```
 
-当前环境没有连接 Android 真机或模拟器（无 `adb` 设备），因此本次不能声称完成真实触屏登录回归。发布前应使用一台 Android 设备按《Android 安装与连接》逐步验证登录、创建房间、播放同步、聊天、局域网访问，并把连接已开启公网 Tunnel 的桌面服务器作为公网回归环境。
+本次已在 Android 15 模拟器中完成 APK 安装、手机服务器启动和登录协议实测。该证据覆盖 Node.js Mobile x86_64、WebView 宿主、管理员/游客登录、断开重连和进程存活；它不能替代小米 14/HyperOS 的通知权限、电池优化、后台保活和 ARM64 厂商 ROM 实机验证，因此发布说明不把厂商特有行为写成已经验证。
 
-## 下载建议
+## 普通用户怎么选
 
-## 本次构建产物
+### 体验版
 
-以下文件均由本次 v2.1.8 构建生成，Release 页面会同时显示文件大小；下载后可使用 SHA-256 校验。
+- **在线展示**：[打开 GitHub Pages](https://xuange6610.github.io/SyncWatch/)，查看真实界面、功能截图和逐步教程。它是静态展示，不运行真实服务器。
+- **Windows 客户端**：[下载体验版独立 EXE](https://github.com/xuange6610/SyncWatch/releases/download/2.1.8/SyncWatch-Experience-Client-Portable-v2.1.8-x64.exe)，适合成员连接已经运行的服务器，不在本机启动服务端。
 
-| 文件 | 用途 | 大小 | SHA-256 |
-| --- | --- | ---: | --- |
-| `SyncWatch-Server-v2.1.8.exe` | Windows 服务端主程序 | 由 Release 页面显示 | `13C1E62AB1346C6B99BA02BF504F2B0D427A2E5DC80CB0EE1C07BEC353930369` |
-| `SyncWatch-Client-v2.1.8.exe` | Windows 客户端 | 由 Release 页面显示 | `ADC878118128254E4977035F0CFFFB0FF50CC5A8B55449A68D41397A5D7D728A` |
-| `SyncWatch-Experience-Client-Portable-v2.1.8-x64.exe` | Windows 体验版 | 由 Release 页面显示 | 以 Release 页面为准 |
-| `SyncWatch-Standard-Server-Portable-v2.1.8-x64.exe` | Windows 标准版 | 由 Release 页面显示 | 以 Release 页面为准 |
-| `SyncWatch-v2.1.8-Full-Offline-Installer-x64.exe` | Windows 完整安装版 | 由 Release 页面显示 | `46724EDF20CC567184E82F3BECC8B40875226B0EC7F39E2ACDB1F5ADBBD35C98` |
-| `SyncWatch-v2.1.8-Full-Offline-Portable-x64.exe` | Windows 完整便携版 | 由 Release 页面显示 | `A34E4EFA7D978FC6699A233F3E7BCEC7115E9D742A075462B14279225E9FF403` |
-| `SyncWatch-Android-v2.1.8-universal.apk` | Android 通用 APK（Node.js Mobile UUID 登录兼容修复） | 161,259,139 字节 | `5FD5AC875765FB3AB8967F8F4E7BCC5BC419765CC6636704800112C2CF9C1C5C` |
-| `SyncWatch-Standalone-Server-v2.1.8.zip` | 独立服务器部署包 | 由 Release 页面显示 | `600A9B3368A76134828B96891651BB1FC6EBAC199877730E1FC13A0D92EF2E26` |
+### 标准版与完整版
 
-Windows 完整版安装包和便携包均内置可离线使用的服务器运行环境；体验版只连接已有服务器；标准版用于在 Windows 上启动服务器。当前构建机没有真实 macOS DMG/ZIP 产物，因此不会上传伪造的 macOS 文件，macOS 构建由 GitHub Actions 的 macOS runner 单独生成。
+- **Windows 标准服务器**：[下载标准版独立 EXE](https://github.com/xuange6610/SyncWatch/releases/download/2.1.8/SyncWatch-Standard-Server-Portable-v2.1.8-x64.exe)，双击启动，无需安装 Git、Node.js 或 npm。
+- **Windows 安装完整版**：[下载安装程序](https://github.com/xuange6610/SyncWatch/releases/download/2.1.8/SyncWatch-v2.1.8-Full-Offline-Installer-x64.exe)，提供安装、卸载、桌面快捷方式、开始菜单和完整离线下载资源。
+- **Windows 独立 EXE 完整版**：[下载便携完整版](https://github.com/xuange6610/SyncWatch/releases/download/2.1.8/SyncWatch-v2.1.8-Full-Offline-Portable-x64.exe)，无需安装，放在普通文件夹后直接双击，功能和内嵌跨平台资源与安装完整版一致。
+- **Android 完整 APK**：[下载通用 APK](https://github.com/xuange6610/SyncWatch/releases/download/2.1.8/SyncWatch-Android-v2.1.8-universal.apk)，可加入房间，也可在受支持设备上运行手机服务器。
 
-- **体验版**：仅作为成员连接已有服务器，体积小，不在本机启动服务器。
-- **标准版**：适合 Windows 房主直接启动服务器，包含桌面运行时和公网访问所需组件。
-- **完整版**：离线资源最完整，适合没有网络或需要一次性分发多端客户端的房主。
-- **Android 通用 APK**：`SyncWatch-Android-v2.1.8-universal.apk`，安装前请在手机中允许当前浏览器/文件管理器安装未知来源应用。
-- **独立服务器包**：适合 Windows Server、Linux、Docker 或手动 Node.js 部署。
+## 跨平台完整套装
 
-所有下载文件应以 GitHub Release `2.1.8` 页面展示的 SHA-256 为准。Windows 正式 EXE 已内置运行时，不要求用户另装 Node.js；Node.js 与 cloudflared 独立安装包仅供源码部署、手动运维和诊断使用。
+完整版把已真实构建的离线下载资源放进 Windows/macOS 房主端。房主启动 SyncWatch 后，成员可以从登录页或账号菜单下载适合自己设备的文件：
+
+1. Windows 成员下载客户端 EXE。
+2. Android 成员下载通用 APK。
+3. Intel Mac 成员下载 x64 客户端。
+4. Apple Silicon Mac 成员下载 arm64 客户端。
+5. Mac 房主下载对应架构的服务器包。
+6. 临时公网访问优先使用服务器内置的 cloudflared；独立工具资产用于手工部署、诊断和修复。
+
+管理中心的“通知/通告设置”可以隐藏 Windows、macOS、Android 和服务器下载按钮，但隐藏入口不会从完整版中删除文件。升级或迁移前请停止服务并备份完整的 `SyncWatch同步观影-Data/`。
+
+## 一键运行包含什么
+
+Windows 正式服务器包内置 Electron/Node.js 运行时、应用前后端、生产依赖、Socket.IO、FFmpeg、FFprobe 和 Windows cloudflared。启动时会初始化数据目录、读取配置、检查端口、启动 HTTP/WebSocket 服务、显示局域网地址并打开应用窗口。
+
+同一数据目录只允许一个实例写入。连续双击时，后启动的实例会提示已有进程，而不会创建两个服务器同时写数据。不同目录运行互不影响。
+
+## macOS
+
+macOS 客户端、服务器和完整离线版均提供 Intel x64 与 Apple Silicon arm64：
+
+- **Intel 客户端**：[DMG](https://github.com/xuange6610/SyncWatch/releases/download/2.1.8/SyncWatch-Client-macOS-v2.1.8-x64.dmg) / [ZIP](https://github.com/xuange6610/SyncWatch/releases/download/2.1.8/SyncWatch-Client-macOS-v2.1.8-x64.zip)
+- **Apple Silicon 客户端**：[DMG](https://github.com/xuange6610/SyncWatch/releases/download/2.1.8/SyncWatch-Client-macOS-v2.1.8-arm64.dmg) / [ZIP](https://github.com/xuange6610/SyncWatch/releases/download/2.1.8/SyncWatch-Client-macOS-v2.1.8-arm64.zip)
+- **Intel 服务器**：[DMG](https://github.com/xuange6610/SyncWatch/releases/download/2.1.8/SyncWatch-Server-macOS-v2.1.8-x64.dmg) / [ZIP](https://github.com/xuange6610/SyncWatch/releases/download/2.1.8/SyncWatch-Server-macOS-v2.1.8-x64.zip)
+- **Apple Silicon 服务器**：[DMG](https://github.com/xuange6610/SyncWatch/releases/download/2.1.8/SyncWatch-Server-macOS-v2.1.8-arm64.dmg) / [ZIP](https://github.com/xuange6610/SyncWatch/releases/download/2.1.8/SyncWatch-Server-macOS-v2.1.8-arm64.zip)
+- **Intel 完整版**：[DMG](https://github.com/xuange6610/SyncWatch/releases/download/2.1.8/SyncWatch-Full-Offline-macOS-v2.1.8-x64.dmg) / [ZIP](https://github.com/xuange6610/SyncWatch/releases/download/2.1.8/SyncWatch-Full-Offline-macOS-v2.1.8-x64.zip)
+- **Apple Silicon 完整版**：[DMG](https://github.com/xuange6610/SyncWatch/releases/download/2.1.8/SyncWatch-Full-Offline-macOS-v2.1.8-arm64.dmg) / [ZIP](https://github.com/xuange6610/SyncWatch/releases/download/2.1.8/SyncWatch-Full-Offline-macOS-v2.1.8-arm64.zip)
+
+这些产物由 GitHub Actions 的真实 `macos-14` runner 分架构构建，并执行文件大小、SHA-256 和隐私字符串检查。现代 macOS 与 Electron 不支持 32 位应用，因此不提供虚假的 macOS 32 位包。
+
+## 架构支持边界
+
+- **Windows 正式桌面包**：x64。当前 Electron 41 和媒体工具发布链没有提供完整验证的 Windows 32 位组合。
+- **Android 通用 APK**：包含 `armeabi-v7a`（32 位）、`arm64-v8a` 和 `x86_64`。
+- **macOS**：Intel x64 与 Apple Silicon arm64，无现代 macOS 32 位。
+- **独立服务器**：以 Node.js 22+ 对目标系统和架构的官方支持为准。
+
+## cloudflared 独立工具
+
+- [Windows x64 EXE](https://github.com/xuange6610/SyncWatch/releases/download/2.1.8/cloudflared-windows-x64.exe)
+- [Windows x64 安装包 MSI](https://github.com/xuange6610/SyncWatch/releases/download/2.1.8/cloudflared-windows-x64-installer.msi)
+- [Windows x86 安装包 MSI](https://github.com/xuange6610/SyncWatch/releases/download/2.1.8/cloudflared-windows-x86-installer.msi)
+- [macOS Intel x64](https://github.com/xuange6610/SyncWatch/releases/download/2.1.8/cloudflared-macos-x64)
+- [macOS Apple Silicon arm64](https://github.com/xuange6610/SyncWatch/releases/download/2.1.8/cloudflared-macos-arm64)
+
+cloudflared 是 Cloudflare Tunnel 连接器，用于把本机 HTTP、Socket.IO 和媒体 Range 请求转发为 HTTPS 公网入口。它不保存 SyncWatch 账号或影片。完整服务器包优先使用内置文件；独立工具用于手工部署和网络诊断。官方文档：[Cloudflare Tunnel](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/)。
+
+## Node.js 官方环境包
+
+Windows 正式 EXE 已内置运行时，不需要另装 Node.js。源码开发和独立服务器用户可下载：
+
+- [Windows x64 MSI](https://github.com/xuange6610/SyncWatch/releases/download/2.1.8/node-v24.19.0-x64.msi)
+- [Windows arm64 MSI](https://github.com/xuange6610/SyncWatch/releases/download/2.1.8/node-v24.19.0-arm64.msi)
+- [macOS Intel x64 PKG](https://github.com/xuange6610/SyncWatch/releases/download/2.1.8/node-v24.19.0-macos-x64.pkg)
+- [macOS Apple Silicon arm64 tar.gz](https://github.com/xuange6610/SyncWatch/releases/download/2.1.8/node-v24.19.0-darwin-arm64.tar.gz)
+
+安装后在终端执行 `node --version` 和 `npm --version` 验证。Node.js 官网：[nodejs.org](https://nodejs.org/)。完整图文教程见 [cloudflared 与 Node.js 安装使用教程](https://xuange6610.github.io/SyncWatch/runtime-installation.html)。
+
+## 本次构建产物与数量
+
+v2.1.8 完整发布严格沿用 v2.1.7 的资产标准：Release API 有 26 个手动资产；加上 GitHub 自动生成的两个源码归档，页面共显示 28 个文件。所有资产必须是真实构建或经哈希核对的官方运行时，不用改名旧版本或空文件凑数，也不增加重复用途的额外文件。
+
+所有下载文件以 GitHub Release 页面展示的大小和 SHA-256 为准。Android v2.1.8 通用 APK 大小为 `161,259,430` 字节，SHA-256 为 `368470D69AB413C24997AE5B86646796B9669FF84CC5EB9F7A61DBBE86AC4F7C`。
 
 ## 已知限制
 
 1. Android 本机不能直接运行 cloudflared；请使用桌面或云服务器 Tunnel。
 2. macOS 32 位桌面包不存在于现代系统和 Electron 支持矩阵中，因此仅提供 x64 与 arm64。
-3. 未连接真机时无法验证厂商 ROM 的权限弹窗、后台保活和屏幕共享授权，遇到问题请按照 Wiki 的 Android 排错页检查电池优化、局域网权限和服务器地址。
+3. Android 15 模拟器验证不等同于小米/HyperOS 真机验证；厂商 ROM 的权限弹窗、后台保活和屏幕共享授权仍需按 Wiki 的 Android 排错页检查电池优化、局域网权限和服务器地址。

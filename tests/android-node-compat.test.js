@@ -10,7 +10,9 @@ const path = require('node:path');
 const { io } = require('socket.io-client');
 
 const nativeRandomUUID = crypto.randomUUID;
+const nativeIntl = globalThis.Intl;
 crypto.randomUUID = undefined;
+globalThis.Intl = undefined;
 const { startSyncWatchServer } = require('../server');
 
 function ack(socket, event, payload = {}) {
@@ -57,23 +59,45 @@ async function main() {
 
     const guest = await connect(baseUrl); sockets.push(guest);
     const guestLogin = await ack(guest, 'guest-login', {
+      roomId: adminLogin.user.roomId,
       deviceId: 'android-guest', deviceName: 'Android phone', platform: 'Android', browser: 'WebView'
     });
     assert.equal(guestLogin.success, true, guestLogin.error);
     assert.equal(guestLogin.user.guest, true);
     assert.ok(guestLogin.token);
 
-    console.log('Android Node.js Mobile crypto compatibility login regression passed.');
+    const presence = await new Promise((resolve, reject) => {
+      const timer = setTimeout(() => reject(new Error('member presence notice timed out')), 12000);
+      admin.on('system-notification', function onNotice(notice) {
+        if (notice?.kind !== 'member-leave' || notice?.actor !== guestLogin.user.username) return;
+        clearTimeout(timer);
+        admin.off('system-notification', onNotice);
+        resolve(notice);
+      });
+      guest.close();
+    });
+    assert.match(presence.timeText, /^\d{4}\/\d{2}\/\d{2} \d{2}:\d{2}:\d{2}$/);
+    assert.match(presence.message, /退出房间$/);
+
+    const reconnect = await connect(baseUrl); sockets.push(reconnect);
+    const reconnectLogin = await ack(reconnect, 'guest-login', {
+      deviceId: 'android-guest-reconnect', deviceName: 'Android phone', platform: 'Android', browser: 'WebView'
+    });
+    assert.equal(reconnectLogin.success, true, reconnectLogin.error);
+
+    console.log('Android Node.js Mobile crypto and Intl compatibility login regression passed.');
   } finally {
     for (const socket of sockets) socket.close();
     await server?.close().catch(() => {});
     crypto.randomUUID = nativeRandomUUID;
+    globalThis.Intl = nativeIntl;
     fs.rmSync(root, { recursive: true, force: true });
   }
 }
 
 main().catch((error) => {
   crypto.randomUUID = nativeRandomUUID;
+  globalThis.Intl = nativeIntl;
   console.error('Android Node.js Mobile crypto compatibility regression failed:', error);
   process.exitCode = 1;
 });

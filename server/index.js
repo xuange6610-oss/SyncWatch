@@ -1254,6 +1254,19 @@ function atomicWriteJson(filename, value) {
   }
 }
 
+function formatLocalDateTime(value) {
+  const date = value instanceof Date ? value : new Date(value);
+  if (!Number.isFinite(date.getTime())) return '';
+  if (typeof globalThis.Intl?.DateTimeFormat === 'function') {
+    return new globalThis.Intl.DateTimeFormat('zh-CN', {
+      year: 'numeric', month: '2-digit', day: '2-digit',
+      hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false
+    }).format(date);
+  }
+  const pad = (part) => String(part).padStart(2, '0');
+  return `${date.getFullYear()}/${pad(date.getMonth() + 1)}/${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
+}
+
 function backupCorruptState(stateFile) {
   const backup = `${stateFile}.corrupt-${Date.now()}`;
   fs.copyFileSync(stateFile, backup, fs.constants.COPYFILE_EXCL);
@@ -2554,7 +2567,7 @@ async function startSyncWatchServer(options = {}) {
     const notice = {
       id: crypto.randomUUID(), roomId: id, action, operationId: operation?.id || '',
       actor: operation?.actor || '', actorName, fileId: file?.id || '', fileName: file?.originalName || '未命名文件',
-      operatedAt, message: `${actorName} 于 ${new Date(operatedAt).toLocaleString('zh-CN', { hour12: false })} ${verb}《${file?.originalName || '未命名文件'}》`
+      operatedAt, message: `${actorName} 于 ${formatLocalDateTime(operatedAt)} ${verb}《${file?.originalName || '未命名文件'}》`
     };
     for (const member of roomUsers(id)) {
       io.to(member.socketId).emit('media-mutation-notice', { ...notice, canUndo: canUndoRoomOperation(member, operation) });
@@ -2569,10 +2582,7 @@ async function startSyncWatchServer(options = {}) {
     const timestampValue = Number(details.timestamp);
     const timestamp = Number.isFinite(timestampValue) ? timestampValue : Date.now();
     const occurredAt = new Date(timestamp).toISOString();
-    const timeText = new Intl.DateTimeFormat('zh-CN', {
-      year: 'numeric', month: '2-digit', day: '2-digit',
-      hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false
-    }).format(timestamp);
+    const timeText = formatLocalDateTime(timestamp);
     const room = roomConfig(id);
     const actorName = state.accounts[username]?.displayName || username;
     const serverHost = Boolean(sessions.get(user?.sessionToken)?.isServerHost);
@@ -9278,7 +9288,7 @@ async function startSyncWatchServer(options = {}) {
       const runtime = roomRuntime(user.roomId);
       const now = Date.now();
       const suppressedUntil = Number(runtime.playbackRequestSuppressions?.get(user.username) || 0);
-      if (suppressedUntil > now) return acknowledgement?.({ success: false, code: 'PLAYBACK_REQUEST_SUPPRESSED', retryAt: suppressedUntil, error: `房主暂时关闭了您的播放申请提醒，请在 ${new Date(suppressedUntil).toLocaleString('zh-CN')} 后重试` });
+      if (suppressedUntil > now) return acknowledgement?.({ success: false, code: 'PLAYBACK_REQUEST_SUPPRESSED', retryAt: suppressedUntil, error: `房主暂时关闭了您的播放申请提醒，请在 ${formatLocalDateTime(suppressedUntil)} 后重试` });
       const duplicate = runtime.playbackRequests.find((entry) => entry.status === 'pending' && entry.username === user.username);
       if (duplicate) return acknowledgement?.({ success: false, code: 'PLAYBACK_REQUEST_DUPLICATE', error: '您的播放申请已发送，请等待房主处理后再申请其他影片' });
       const request = {

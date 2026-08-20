@@ -7,7 +7,7 @@
 - 2 个 GitHub 自动生成的源码归档：`Source code (zip)`、`Source code (tar.gz)`。
 - 26 个维护者上传的真实构建资产，按下表分组。
 
-如果 Release API 的 `assets` 数量为 26，表示维护者资产齐全；页面把两个源码归档也算进去后就是用户看到的 28 个文件。源码归档不需要手工上传，也不计入 26 个构建资产的 SHA-256 清单。
+Release API 的 `assets` 数量必须为 26；页面把两个源码归档也算进去后就是用户看到的 28 个文件。源码归档不需要手工上传，也不计入 26 个构建资产的 SHA-256 清单。
 
 ## 26 个维护者资产
 
@@ -29,6 +29,10 @@
 4. 执行 `npm run test:repo`、`node tests/desktop-release-contract.test.js`、`node tests/android-package.test.js --source-only`、`node tests/cloudflared-bundle.test.js` 和对应平台的实际构建/验收。
 5. 用 `gh release view <tag> --json assets` 确认 API 资产数为 26；再在网页上确认包含两个 GitHub 源码归档后总数为 28。
 
+## 同版本替换规则
+
+发现已发布资产有缺陷时，只清理当前版本 Release API 中的维护者资产，不删除历史 Release、历史 tag 或其他版本文件。修复必须先通过对应平台运行验证；随后一次性恢复本清单的 26 个真实资产，最后再更新 Release 正文并核对页面 28 个可见文件。重传中间状态不是完整发布，不能对外宣称完成。
+
 ## 当前记录
 
-v2.1.7 的 Release API 实际有 26 个维护者资产，加上 GitHub 自动源码归档后为 28 个可见文件。当前 v2.1.8 Release 仍需按本清单补齐未提供的平台资产后，才能称为同等规模的完整发布；不能因为 README 或旧公告列出名称就视为文件已上传。
+v2.1.7 的 Release API 实际有 26 个维护者资产，加上 GitHub 自动源码归档后为 28 个可见文件。后续每个正式版本都必须保持相同的 26 + 2 清单；不能因为 README 或公告列出名称就视为文件已经上传。

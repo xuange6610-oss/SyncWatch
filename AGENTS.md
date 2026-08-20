@@ -53,8 +53,10 @@
 
 - `main` 是稳定分支；功能在分支和 Pull Request 中验证后合并。版本由 `package.json`、Android `versionName`、Release tag 和发布说明共同更新，当前版本以源码和最新 Release 为准。
 - GitHub Pages 由 `.github/workflows/pages.yml` 发布 `docs/`；Windows/macOS Release 由对应 Actions 构建并上传，发布前必须先通过仓库规范和成品契约测试。
-- 每个正式版本必须按 v2.1.7 的发布规模准备 **28 个可见文件**：GitHub 自动生成的 `Source code (zip)` 与 `Source code (tar.gz)` 计 2 个，维护者实际上传的 Release 资产必须计 26 个。不得只上传 Windows/Android 的子集就宣称完整发布。
+- 每个正式版本必须严格按 v2.1.7 的 **28 个可见文件**发布：GitHub 自动生成的 `Source code (zip)` 与 `Source code (tar.gz)` 计 2 个，维护者实际上传的 Release 资产计 26 个。不得少传、增加重复资产或只上传 Windows/Android 子集后宣称完整发布。
 - 26 个维护者资产的固定清单为：Windows 体验版、标准版、完整版安装 EXE、完整版便携 EXE（4）；Android 通用 APK（1）；macOS 客户端 x64/arm64 的 DMG/ZIP（4）；macOS 服务器 x64/arm64 的 DMG/ZIP（4）；macOS 完整离线版 x64/arm64 的 DMG/ZIP（4）；Node.js x64 MSI、ARM64 MSI、macOS x64 PKG、macOS arm64 tar.gz（4）；cloudflared Windows x64 EXE、Windows x64/x86 MSI、macOS x64/arm64 二进制（5）。合计 26 个。
+- 每个版本的 Release 正文必须保留并更新“普通用户怎么选”“跨平台完整套装”“一键运行包含什么”“macOS”“架构支持边界”“cloudflared 独立工具”“Node.js 官方环境包”等说明，不得只替换版本号后删减原有使用信息。
+- 同一版本因缺陷需要重传时，只删除该版本的维护者资产并重新上传完整 26 项；不得删除历史 Release、历史 tag 或历史版本资产。重传过程中不得把资产数为 0 或不足 26 的 Release 宣称为发布完成。
 - 发布前必须逐项核对文件名、版本号、平台/架构、非空大小、SHA-256 和 Release 资产数量；缺少任一真实构建产物时，标记版本未完成并停止上传，不用改名文件或占位文件凑数。资产清单以 [docs/release/release-manifest.md](docs/release/release-manifest.md) 为准。
 
 ## 自动版本规则
