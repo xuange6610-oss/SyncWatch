@@ -73,8 +73,8 @@ jobs:
           if ($apk.Length -lt 150MB) { throw 'The verified Android asset is unexpectedly small.' }
           $hash = (Get-FileHash -Algorithm SHA256 -LiteralPath $apk.FullName).Hash
           Write-Host "Using signed Android APK $($apk.Length) bytes SHA256 $hash"
-          if ($hash -ne '368470D69AB413C24997AE5B86646796B9669FF84CC5EB9F7A61DBBE86AC4F7C') {
-            throw "The Android asset hash does not match the Android 15-verified APK: $hash"
+          if ($hash -ne '67E6B06080A52F52EE456353ADBF8CBB3EA625E0B1A7D176A737D8B80E4F6886') {
+            throw "The Android asset hash does not match the v2.1.9 verified APK: $hash"
           }
 
       - name: Build portable server and client
