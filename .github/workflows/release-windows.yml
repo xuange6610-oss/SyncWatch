@@ -68,7 +68,9 @@ jobs:
           if ($apk.Length -lt 150MB) { throw 'The verified Android asset is unexpectedly small.' }
           $hash = (Get-FileHash -Algorithm SHA256 -LiteralPath $apk.FullName).Hash
           Write-Host "Using signed Android APK $($apk.Length) bytes SHA256 $hash"
-          node tests/android-package.test.js 'mobile/SyncWatch-Android-v2.1.8-universal.apk'
+          if ($hash -ne '368470D69AB413C24997AE5B86646796B9669FF84CC5EB9F7A61DBBE86AC4F7C') {
+            throw "The Android asset hash does not match the Android 15-verified APK: $hash"
+          }
 
       - name: Build portable server and client
         shell: pwsh
