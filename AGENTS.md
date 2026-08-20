@@ -66,6 +66,7 @@
 ## 自动版本规则
 
 - 版本号必须在 `package.json`、Android `versionName`/`versionCode`、Release tag 和 `docs/release-notes-vX.Y.Z.md` 中保持一致；补丁版本递增用于兼容修复，功能版本递增前必须更新发布说明。
+- Git 标签、GitHub Release 标题/链接、发布分支和用户可见版本统一使用 `vX.Y.Z`；禁止创建无 `v` 的重复标签。`package.json` 和 Android `versionName` 仍按工具链要求使用纯 SemVer `X.Y.Z`。
 - GitHub Actions 只根据受保护分支、Release tag 或手动 workflow 输入发布；不得把未验证的本地 `release/` 文件直接当作 Release 资产。
 
 ## 每次任务完成
