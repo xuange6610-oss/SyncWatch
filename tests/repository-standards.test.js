@@ -125,9 +125,9 @@ assert.match(readme, /微信:\s*love_020804/);
 assert.match(readme, /xuange6610\.github\.io\/SyncWatch\//);
 assert.match(readme, /docs\/screenshots\/main-interface\.png/);
 assert.match(readme, /SyncWatch-v2\.1\.8-Full-Offline-Installer-x64\.exe/);
-assert.match(readme, /SyncWatch-v2\.1\.7-Full-Offline-Portable-x64\.exe/);
-assert.match(readme, /SyncWatch-Full-Offline-macOS-v2\.1\.7-x64\.dmg/);
-assert.match(readme, /SyncWatch-Full-Offline-macOS-v2\.1\.7-arm64\.dmg/);
+assert.match(readme, /SyncWatch-v2\.1\.8-Full-Offline-Portable-x64\.exe/);
+assert.match(readme, /SyncWatch-Full-Offline-macOS-v2\.1\.8-x64\.dmg/);
+assert.match(readme, /SyncWatch-Full-Offline-macOS-v2\.1\.8-arm64\.dmg/);
 assert.match(readme, /cloudflared-windows-x64-installer\.msi/);
 assert.match(readme, /node-v24\.19\.0-x64\.msi/);
 
