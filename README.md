@@ -56,7 +56,7 @@ Windows · Android · macOS · Web  ·  同步播放 · 弹幕 · 聊天 · 语�
 | 独立服务器 ZIP | Windows/Linux 服务器管理员 | 使用 Node.js 启动服务，适合长期部署和 Docker |
 | Source code | 开发者 | 阅读、修改和自行构建，需要安装 Node.js 和依赖 |
 
-当前 `v2.1.9` 分支已经上传源码，但跨平台成品仍在按 26 项清单构建和验收；表格中的 v2.1.9 文件名用于说明发布规范，暂不代表文件已经存在。请进入 [Releases 页面](https://github.com/xuange6610/SyncWatch/releases)选择实际存在的资产，不要打开不存在的直链或下载名称相似的第三方文件。
+当前最新正式版本是 [`v2.1.9`](https://github.com/xuange6610/SyncWatch/releases/tag/v2.1.9)。该版本已经完成 Windows、Android、macOS 与运行工具的真实构建和 26 项维护者资产验收；加上 GitHub 自动生成的两个源码归档，Release 页面共显示 28 个文件。请只从本仓库 Release 下载，并按上表选择体验版、标准版、完整离线版或对应平台文件。
 
 ## 第一次启动服务器
 
