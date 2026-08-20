@@ -36,6 +36,7 @@ v2.1.8 是本项目当前最新版本，面向 Windows、Android、macOS 与独�
 ### 4. 发布与构建流程
 
 - Windows/macOS Actions 改为直接从 Cloudflare 官方 latest Release 获取匹配架构的 `cloudflared`，再执行体积检查；不再依赖当前 SyncWatch Release 中预先存在的同名工具资产。
+- Windows Release workflow 改为手动输入目标 tag 后执行，避免 Windows/macOS 完整包之间的跨平台资源依赖在 tag push 时并行触发，造成半成品 Release；Pages 和常规 CI 不受影响。
 - Windows Release runner 先构建并上传已签名 Android APK，再把真实 APK、Windows 客户端和 macOS ZIP 放入离线完整版；离线包验证会检查六个平台资源、最小体积和文件闭包。
 - Windows、macOS 和 Android 构建脚本、Electron Builder 配置、独立服务器打包脚本以及发布契约测试全部切换到 `2.1.8`，并禁止构建阶段隐式发布或把旧资产当作新资产。
 - 由于当前工作站为 Windows，macOS DMG/ZIP 只能以 macOS runner 实际产物为准；没有真实资产时，下载接口返回“尚未提供”，不会生成伪造链接。
