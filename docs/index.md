@@ -14,6 +14,7 @@
 | macOS 构建与发布 | [macOS 构建](macos-build.md)、[macOS Wiki](wiki/18-macOS构建与发布.md) |
 | 错误、诊断、备份和安全 | [故障排查](troubleshooting.md)、[安全策略](../SECURITY.md) |
 | Release、文件地图和贡献 | [发布文件说明](release-artifacts.md)、[仓库文件地图](repository-map.md)、[参与贡献](contributing.html)、[CONTRIBUTING.md](../CONTRIBUTING.md) |
+| Codex 长期维护、版本与交付要求 | [维护者长期要求](maintenance/maintainer-requirements.md)、[Release 固定资产清单](release/release-manifest.md) |
 
 ## 文档分层
 
@@ -29,5 +30,4 @@
 - 可下载的桌面、Android、macOS 和独立服务器成品以 GitHub Releases 中实际存在的资产为准，不以文件名猜测平台支持。
 - 运行账号、房间、媒体、聊天和密钥位于服务器旁的 `SyncWatch同步观影-Data/`，迁移和备份必须按完整目录处理。
 
-维护文档前请先读根目录 [AGENTS.md](../AGENTS.md)、[PRODUCT.md](../PRODUCT.md)、[DESIGN.md](../DESIGN.md) 和 [README.md](../README.md)。
-
+维护文档前请先读根目录 [AGENTS.md](../AGENTS.md)、[维护者长期要求](maintenance/maintainer-requirements.md)、[PRODUCT.md](../PRODUCT.md)、[DESIGN.md](../DESIGN.md) 和 [README.md](../README.md)。

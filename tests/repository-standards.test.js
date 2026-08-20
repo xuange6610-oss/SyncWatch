@@ -30,6 +30,7 @@ const requiredFiles = [
   'SECURITY.md',
   'docs/index.html',
   'docs/index.md',
+  'docs/maintenance/maintainer-requirements.md',
   'docs/release/release-manifest.md',
   'docs/management-center.html',
   'docs/management-center-guide.html',
@@ -139,6 +140,14 @@ assert.match(agents, /28 个可见文件/);
 assert.match(agents, /26 个维护者资产/);
 assert.match(agents, /每次开始新任务/);
 assert.match(agents, /每次任务完成/);
+assert.match(agents, /docs\/maintenance\/maintainer-requirements\.md/);
+const maintainerRequirements = read('docs/maintenance/maintainer-requirements.md');
+assert.match(maintainerRequirements, /每次开始任务必须执行/);
+assert.match(maintainerRequirements, /26 个维护者真实资产/);
+assert.match(maintainerRequirements, /28 个可见文件/);
+assert.match(maintainerRequirements, /任何历史 Release、历史 tag 和旧版本资产都必须保留/);
+assert.match(maintainerRequirements, /Release 正文与更新公告/);
+assert.match(maintainerRequirements, /Android 验收要求/);
 const releaseManifest = read('docs/release/release-manifest.md');
 assert.match(releaseManifest, /Source code \(zip\)/);
 assert.match(releaseManifest, /26 个维护者资产/);
