@@ -59,9 +59,9 @@ jobs:
         run: |
           New-Item -ItemType Directory -Force -Path mobile | Out-Null
           $tag = '${{ inputs.tag || github.ref_name }}'
-          gh release download $tag --repo '${{ github.repository }}' --pattern 'SyncWatch-Android-v2.1.8-universal.apk' --dir mobile --clobber
-          Copy-Item 'mobile/SyncWatch-Android-v2.1.8-universal.apk' 'mobile/SyncWatch同步观影-v2.1.8.apk' -Force
-          $apk = Get-Item 'mobile/SyncWatch-Android-v2.1.8-universal.apk'
+          gh release download $tag --repo '${{ github.repository }}' --pattern 'SyncWatch-Android-v2.1.9-universal.apk' --dir mobile --clobber
+          Copy-Item 'mobile/SyncWatch-Android-v2.1.9-universal.apk' 'mobile/SyncWatch同步观影-v2.1.9.apk' -Force
+          $apk = Get-Item 'mobile/SyncWatch-Android-v2.1.9-universal.apk'
           if ($apk.Length -lt 150MB) { throw 'The verified Android asset is unexpectedly small.' }
           $hash = (Get-FileHash -Algorithm SHA256 -LiteralPath $apk.FullName).Hash
           Write-Host "Using signed Android APK $($apk.Length) bytes SHA256 $hash"
@@ -75,12 +75,12 @@ jobs:
           npx electron-builder --win portable --publish never
           npm run build:client -- --publish never
 
-      - name: Upload Android 2.1.8 asset before offline packaging
+      - name: Upload Android 2.1.9 asset before offline packaging
         env:
           GH_TOKEN: ${{ github.token }}
         shell: pwsh
         run: |
-          gh release upload '${{ inputs.tag || github.ref_name }}' 'mobile/SyncWatch同步观影-v2.1.8.apk#SyncWatch-Android-v2.1.8-universal.apk' --repo '${{ github.repository }}' --clobber
+          gh release upload '${{ inputs.tag || github.ref_name }}' 'mobile/SyncWatch同步观影-v2.1.9.apk#SyncWatch-Android-v2.1.9-universal.apk' --repo '${{ github.repository }}' --clobber
 
       - name: Prepare Full offline bundle
         env:
@@ -88,10 +88,10 @@ jobs:
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force -Path release/offline-bundle/windows,release/offline-bundle/android,release/offline-bundle/mac | Out-Null
-          Copy-Item 'dist-client/SyncWatch同步观影-Client-v2.1.8.exe' 'release/offline-bundle/windows/SyncWatch同步观影-Client-v2.1.8.exe' -Force
-          Copy-Item 'mobile/SyncWatch同步观影-v2.1.8.apk' 'release/offline-bundle/android/SyncWatch同步观影-v2.1.8.apk' -Force
-          gh release download '${{ inputs.tag || github.ref_name }}' --repo '${{ github.repository }}' --pattern 'SyncWatch-Server-macOS-v2.1.8-*.zip' --dir release/offline-bundle/mac --clobber
-          gh release download '${{ inputs.tag || github.ref_name }}' --repo '${{ github.repository }}' --pattern 'SyncWatch-Client-macOS-v2.1.8-*.zip' --dir release/offline-bundle/mac --clobber
+          Copy-Item 'dist-client/SyncWatch同步观影-Client-v2.1.9.exe' 'release/offline-bundle/windows/SyncWatch同步观影-Client-v2.1.9.exe' -Force
+          Copy-Item 'mobile/SyncWatch同步观影-v2.1.9.apk' 'release/offline-bundle/android/SyncWatch同步观影-v2.1.9.apk' -Force
+          gh release download '${{ inputs.tag || github.ref_name }}' --repo '${{ github.repository }}' --pattern 'SyncWatch-Server-macOS-v2.1.9-*.zip' --dir release/offline-bundle/mac --clobber
+          gh release download '${{ inputs.tag || github.ref_name }}' --repo '${{ github.repository }}' --pattern 'SyncWatch-Client-macOS-v2.1.9-*.zip' --dir release/offline-bundle/mac --clobber
           Get-ChildItem release/offline-bundle/mac -Filter 'SyncWatch-Server-macOS-*.zip' | ForEach-Object { Rename-Item $_.FullName ($_.Name -replace 'SyncWatch-Server-macOS-', 'SyncWatch同步观影-服务器-') }
           Get-ChildItem release/offline-bundle/mac -Filter 'SyncWatch-Client-macOS-*.zip' | ForEach-Object { Rename-Item $_.FullName ($_.Name -replace 'SyncWatch-Client-macOS-', 'SyncWatch同步观影-客户端-') }
           node scripts/verify-full-offline-bundle.js
@@ -105,7 +105,7 @@ jobs:
       - name: Collect release assets
         shell: pwsh
         run: |
-          $version = '2.1.8'
+          $version = '2.1.9'
           New-Item -ItemType Directory -Force -Path release\windows-installer | Out-Null
           New-Item -ItemType Directory -Force -Path release\windows-full-portable | Out-Null
           New-Item -ItemType Directory -Force -Path release\windows-server | Out-Null
@@ -124,10 +124,10 @@ jobs:
         shell: pwsh
         run: |
           $expected = @(
-            'release\windows-installer\SyncWatch-v2.1.8-Full-Offline-Installer-x64.exe',
-            'release\windows-full-portable\SyncWatch-v2.1.8-Full-Offline-Portable-x64.exe',
-            'release\windows-server\SyncWatch-Standard-Server-Portable-v2.1.8-x64.exe',
-            'release\windows-client\SyncWatch-Experience-Client-Portable-v2.1.8-x64.exe'
+            'release\windows-installer\SyncWatch-v2.1.9-Full-Offline-Installer-x64.exe',
+            'release\windows-full-portable\SyncWatch-v2.1.9-Full-Offline-Portable-x64.exe',
+            'release\windows-server\SyncWatch-Standard-Server-Portable-v2.1.9-x64.exe',
+            'release\windows-client\SyncWatch-Experience-Client-Portable-v2.1.9-x64.exe'
           )
           foreach ($file in $expected) {
             if (-not (Test-Path -LiteralPath $file -PathType Leaf)) { throw "Missing release asset: $file" }
@@ -138,8 +138,8 @@ jobs:
             throw 'The Full and Standard server builds require the bundled cloudflared.exe.'
           }
           $fullPackages = @(
-            'release\windows-installer\SyncWatch-v2.1.8-Full-Offline-Installer-x64.exe',
-            'release\windows-full-portable\SyncWatch-v2.1.8-Full-Offline-Portable-x64.exe'
+            'release\windows-installer\SyncWatch-v2.1.9-Full-Offline-Installer-x64.exe',
+            'release\windows-full-portable\SyncWatch-v2.1.9-Full-Offline-Portable-x64.exe'
           )
           foreach ($file in $fullPackages) {
             if ((Get-Item -LiteralPath $file).Length -lt 1GB) {

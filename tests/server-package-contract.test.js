@@ -80,7 +80,7 @@ try {
   fs.mkdirSync(path.join(source, 'dist-mac-client'), { recursive: true });
   fs.writeFileSync(path.join(source, 'mac', serverZip), 'server-zip');
   fs.writeFileSync(path.join(source, 'dist-mac-client', clientDmg), 'client-dmg');
-  fs.writeFileSync(path.join(source, 'mac', 'SyncWatch同步观影-unrelated-v2.1.8-x64.zip'), 'unrelated');
+  fs.writeFileSync(path.join(source, 'mac', 'SyncWatch同步观影-unrelated-v2.1.9-x64.zip'), 'unrelated');
   fs.writeFileSync(path.join(source, 'mac', 'private-key.pem'), 'must-not-leak');
   fs.writeFileSync(path.join(source, 'mac', 'mac-distribution.json'), JSON.stringify({
     manifestVersion: 1,

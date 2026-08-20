@@ -42,6 +42,10 @@ assert.match(css, /\.header-online-stat[\s\S]*white-space:\s*nowrap/,
 
 assert.match(app, /function openServerSettingsFromLogin\([\s\S]*!state\.authenticated[\s\S]*请先登录超级管理员账号/,
   'login-page settings must require an authenticated super-admin account');
+assert.match(app, /async function loginAsServerAdmin\([\s\S]*finishAuthentication\(result, state\.rememberSession, false, \{ managementOnly: true \}\)[\s\S]*openManagementHub\(['"]server['"]\)/,
+  'server-admin login must land on the server settings hub after authentication');
+assert.match(app, /if \(managementOnly\) \{[\s\S]*elements\.loginPage\.classList\.remove\(['"]is-hidden['"]\)[\s\S]*elements\.mainPage\.classList\.add\(['"]is-hidden['"]\)/,
+  'server-admin settings authentication must keep the room surface hidden');
 
 assert.match(app, /get-account-audit-logs/);
 assert.match(app, /delete-account-audit-logs/);
@@ -61,4 +65,4 @@ assert.match(app, /passwordMeta\.changedAt/,
 assert.doesNotMatch(app, /account\.passwordHash|account\.password\b/,
   'browser code must not render server-side password material');
 
-console.log('Frontend v2.1.8 account management, auth gate, tutorial, audit, deletion, and responsive header contracts passed.');
+console.log('Frontend v2.1.9 account management, auth gate, tutorial, audit, deletion, and responsive header contracts passed.');

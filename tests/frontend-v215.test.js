@@ -25,7 +25,7 @@ assert.match(app, /游客数据已清除，欢迎再次体验/);
 // 2) Login marquee is moved inside the auth card while keeping the old hook.
 assert.match(app, /\(elements\.authCard \|\| elements\.loginPage\)\.prepend\(marquee\)/);
 assert.match(css, /\.login-page > \.login-marquee, \.auth-card > \.login-marquee/);
-assert.match(css, /\.login-page\s*\{[^}]*padding-top:\s*(?:[4-9]\d|\d{3})px/);
+assert.match(css, /\.login-page\s*\{[^}]*padding-top:\s*12px/);
 
 // 3) Login cube default rotation speed is 16 degrees per second.
 assert.match(html, /id="loginCubeRotationSpeed"[^>]*value="16"/);
@@ -78,10 +78,10 @@ assert.match(app, /maxBitrate = 320000/);
 assert.match(app, /maxaveragebitrate=320000/);
 assert.match(app, /jitterBufferTarget = 0\.08/);
 
-// 9) The web surface stays on v2.1.8 and the standalone client uses the
+// 9) The web surface stays on v2.1.9 and the standalone client uses the
 // unified desktop product identity introduced by the split release.
-assert.match(html, /版本 v2\.1\.7 · 版权所有/);
-assert.match(html, /id="versionText">v2\.1\.7</);
+assert.match(html, /版本 v2\.1\.8 · 版权所有/);
+assert.match(html, /id="versionText">v2\.1\.8</);
 assert.match(launcher, /<title>同步观影<\/title>/);
 assert.match(launcher, /SYNCWATCH DESKTOP/);
 assert.doesNotMatch(html, /v2\.0\.5|2\.0\.5/);
@@ -107,4 +107,4 @@ assert.match(proMaxCss, /@media \(max-width:\s*760px\)[\s\S]*?button:not\([^}]+m
 assert.doesNotMatch(proMaxCss, /min-height:\s*44px/);
 assert.match(launcherProMaxCss, /focus-visible/);
 
-console.log('Frontend v2.1.8 product, accessibility and Pro Max redesign contracts passed.');
+console.log('Frontend v2.1.9 product, accessibility and Pro Max redesign contracts passed.');

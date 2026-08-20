@@ -23,6 +23,7 @@ const browserCandidates = [
 const chromePath = browserCandidates.find((candidate) => fs.existsSync(candidate));
 if (!chromePath) throw new Error('Chrome or Microsoft Edge is required for the browser UI smoke test.');
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+const expectedAndroidDownloadAvailable = fs.existsSync(path.join(__dirname, '..', 'mobile', 'SyncWatch同步观影-v2.1.9.apk'));
 
 function findAvailablePort() {
   return new Promise((resolve, reject) => {
@@ -649,7 +650,7 @@ async function main() {
     assert.ok(mobileWebActions.minTargetHeight >= 43.5, JSON.stringify(mobileWebActions));
     assert.equal(mobileWebActions.outside, 0, JSON.stringify(mobileWebActions));
     assert.ok(mobileWebActions.bodyWidth <= mobileWebActions.viewport + 2, JSON.stringify(mobileWebActions));
-    assert.equal(mobileWebActions.androidDownloadAvailable, true, JSON.stringify(mobileWebActions));
+    assert.equal(mobileWebActions.androidDownloadAvailable, expectedAndroidDownloadAvailable, JSON.stringify(mobileWebActions));
     assert.equal(mobileWebActions.androidDownloadIndex, mobileWebActions.clientDownloadIndex + 1, JSON.stringify(mobileWebActions));
     const mobileWebActionsPath = path.join(outputDir, 'mobile-web-actions.png'); await capture(cdp, mobileWebActionsPath); images.push(mobileWebActionsPath);
     await evaluate(cdp, `toggleMobileActionMenu(false); true`);
@@ -876,8 +877,8 @@ async function main() {
     }
     await waitFor(() => evaluate(cdp, `Boolean(state.authenticated && state.adminSettings?.serverAdmin && elements.managementAuth.classList.contains('is-hidden'))`), '登录页验证并加载超级管理员设置');
     await evaluate(cdp, `if (typeof activeAppDialog !== 'undefined' && activeAppDialog) settleAppDialog(false); true`);
-    const loginSettingsAuth = await evaluate(cdp, `({ username: state.user?.username, authHidden: elements.managementAuth.classList.contains('is-hidden'), usernameValue: elements.adminUsername.value, passwordValue: elements.adminPassword.value })`);
-    assert.deepEqual(loginSettingsAuth, { username: 'admin', authHidden: true, usernameValue: '', passwordValue: '' });
+    const loginSettingsAuth = await evaluate(cdp, `({ username: state.user?.username, authHidden: elements.managementAuth.classList.contains('is-hidden'), usernameValue: elements.adminUsername.value, passwordValue: elements.adminPassword.value, loginVisible: !elements.loginPage.classList.contains('is-hidden'), roomVisible: !elements.mainPage.classList.contains('is-hidden'), managementVisible: !elements.managementHubModal.classList.contains('is-hidden'), section: state.managementSection })`);
+    assert.deepEqual(loginSettingsAuth, { username: 'admin', authHidden: true, usernameValue: '', passwordValue: '', loginVisible: true, roomVisible: false, managementVisible: true, section: 'server' });
     await evaluate(cdp, `openManagementHub('notices'); true`);
     await waitFor(() => evaluate(cdp, `!elements.managementHubModal.classList.contains('is-hidden') && state.managementSection === 'notices'`), '打开通知通告设置中的登录立方体模块');
     await cdp.send('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 1, mobile: true });

@@ -160,16 +160,16 @@ function Ensure-MediaTools {
 }
 
 $androidBuildScript = Join-Path $PSScriptRoot 'mobile\build-apk.ps1'
-$androidApk = Join-Path $PSScriptRoot 'mobile\SyncWatch-Android-v2.1.8-universal.apk'
+$androidApk = Join-Path $PSScriptRoot 'mobile\SyncWatch-Android-v2.1.9-universal.apk'
 $powerShellExecutable = Join-Path $PSHOME 'powershell.exe'
 if (-not (Test-Path -LiteralPath $androidBuildScript) -or -not (Test-Path -LiteralPath $powerShellExecutable)) {
     throw 'The Android build script or system PowerShell executable is missing.'
 }
 
-Write-Host 'Building and verifying the signed Android v2.1.8 APK...' -ForegroundColor Cyan
+Write-Host 'Building and verifying the signed Android v2.1.9 APK...' -ForegroundColor Cyan
 & $powerShellExecutable -NoProfile -NonInteractive -ExecutionPolicy Bypass -File $androidBuildScript
 if ($LASTEXITCODE -ne 0) { throw 'Android APK build failed; EXE packaging stopped.' }
-if (-not (Test-Path -LiteralPath $androidApk)) { throw 'Android build completed without mobile\SyncWatch-Android-v2.1.8-universal.apk.' }
+if (-not (Test-Path -LiteralPath $androidApk)) { throw 'Android build completed without mobile\SyncWatch-Android-v2.1.9-universal.apk.' }
 $androidApkInfo = Get-Item -LiteralPath $androidApk
 if ($androidApkInfo.Length -lt 10KB) { throw 'The Android APK is unexpectedly small; EXE packaging stopped.' }
 $androidApkHash = (Get-FileHash -Algorithm SHA256 -LiteralPath $androidApk).Hash
@@ -219,7 +219,7 @@ else { & $npm audit --omit=dev }
 if ($LASTEXITCODE -ne 0) { throw 'Production dependency audit failed; packaging stopped.' }
 
 $package = $buildManifest
-if ([string]$package.version -ne '2.1.8') { throw 'package.json version must be exactly 2.1.8.' }
+if ([string]$package.version -ne '2.1.9') { throw 'package.json version must be exactly 2.1.9.' }
 $artifactName = [string]$package.build.portable.artifactName
 if ([string]::IsNullOrWhiteSpace($artifactName) -or [System.IO.Path]::GetFileName($artifactName) -ne $artifactName) {
     throw 'The portable artifact name in package.json is invalid.'
@@ -276,7 +276,7 @@ $clientConfigPath = Join-Path $PSScriptRoot 'electron-builder-client.json'
 if (-not (Test-Path -LiteralPath $clientConfigPath -PathType Leaf)) {
     throw 'The SyncWatch同步观影 client packaging configuration is missing.'
 }
-$clientArtifactName = 'SyncWatch同步观影-Client-v2.1.8.exe'
+$clientArtifactName = 'SyncWatch同步观影-Client-v2.1.9.exe'
 $clientDelivery = Join-Path $releaseWindowsClient $clientArtifactName
 $clientBuildRoot = Join-Path ([System.IO.Path]::GetTempPath()) ('syncwatch-client-build-' + [Guid]::NewGuid().ToString('N'))
 $clientStage = Join-Path $PSScriptRoot ('.syncwatch-client-' + [Guid]::NewGuid().ToString('N') + '.tmp')

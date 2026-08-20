@@ -1,6 +1,6 @@
 # SyncWatch同步观影 技术架构、模块与依赖说明
 
-适用版本：v2.1.8
+适用版本：v2.1.9
 文档日期：2026-08-19
 
 ## 1. 项目定位
@@ -182,10 +182,11 @@ Android APK 内嵌与桌面端相同的 `server/index.js`、`public/**` 和生�
 - 同一普通账号默认只允许一台设备在线；`admin` 默认可不限设备登录，也可由服务器修改策略。
 - 每个账户默认可创建 1 个房间；服务器管理员可直接提高额度，用户也可提交房间额度申请。
 - 同一注册 IP 默认限制重复注册；注册页常驻“申请一次注册名额”按钮，管理员可审批或把 IP 加入白名单。
-- 服务器设备登录页可直接选择“服务器超级管理员登录”，只输入管理员密码。
+- 服务器设备登录页可直接选择“服务器超级管理员登录”，填写超级管理员账号和密码。
 - 首次使用 `admin/admin888` 登录时，不再重复要求当前初始密码；同一弹窗直接填写新密码和确认密码，也可选择“暂不更改”进入。
 - 密码有效期默认为 7 天，可设为 0 关闭；账户与服务器管理员哈希同步更新 `passwordChangedAt`。
 - 登录页的服务器设置入口允许使用超级管理员账号/密码建立会话，不依赖预先登录或本机令牌。
+- 登录页的“超级管理员登录”建立管理专用会话后由前端直接打开管理中心服务器设置页；认证仍使用同一服务端权限和会话校验，但管理专用模式不切换到房间主界面、不触发房间进入动画或房间聊天/位置初始化，只有管理员主动选择房间入口时才进入观影。
 - 首次登录必须阅读并接受服务器发布的使用协议；同一协议版本接受后无需重复确认。
 
 ### 4.2 房间与权限
@@ -328,7 +329,7 @@ npm run start:server
 powershell -ExecutionPolicy Bypass -File .\build-windows.ps1
 ```
 
-该脚本会先构建并验证 APK，再执行接口、硬化、媒体、Electron、同步、主进程、穿透和成品测试，最后原子替换 `release/windows-server/SyncWatch同步观影-v2.1.8.exe`，并同步生成 Windows 客户端和服务器部署包。
+该脚本会先构建并验证 APK，再执行接口、硬化、媒体、Electron、同步、主进程、穿透和成品测试，最后原子替换 `release/windows-server/SyncWatch同步观影-v2.1.9.exe`，并同步生成 Windows 客户端和服务器部署包。
 
 ### 7.4 生成 Android APK
 
@@ -344,7 +345,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\mobile\build-apk.ps1
 powershell -NoProfile -ExecutionPolicy Bypass -File .\build-server-package.ps1
 ```
 
-产物为 `release/server-deployment/SyncWatch同步观影-Server-v2.1.8.zip`，包含服务器源码、网页、APK、启动脚本、Docker 文件、部署文档和锁定的 Windows x64 生产依赖，不包含 Electron、测试目录、开发缓存和 Android 私钥。
+产物为 `release/server-deployment/SyncWatch同步观影-Server-v2.1.9.zip`，包含服务器源码、网页、APK、启动脚本、Docker 文件、部署文档和锁定的 Windows x64 生产依赖，不包含 Electron、测试目录、开发缓存和 Android 私钥。
 
 ## 8. 测试体系
 
@@ -392,4 +393,3 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\build-server-package.ps1
 - 最终 EXE、APK、服务器 ZIP
 
 `SyncWatch同步观影-Data/` 是运行数据，不属于空白源码发布包；重新发布前应删除真实账户、媒体、聊天、密钥、缓存和旧构建产物。
-

@@ -514,8 +514,8 @@ if ($env:SYNCWATCH_ANDROID_OFFLINE -eq '1') { $gradleArgs = @('--offline') + $gr
 if ($LASTEXITCODE -ne 0) { throw 'Android release build failed.' }
 
 $builtApk = Join-Path $PSScriptRoot 'app\build\outputs\apk\release\app-release.apk'
-$deliveryApk = Join-Path $PSScriptRoot 'SyncWatch同步观影-v2.1.8.apk'
-$releaseApk = Join-Path $PSScriptRoot 'SyncWatch-Android-v2.1.8-universal.apk'
+$deliveryApk = Join-Path $PSScriptRoot 'SyncWatch同步观影-v2.1.9.apk'
+$releaseApk = Join-Path $PSScriptRoot 'SyncWatch-Android-v2.1.9-universal.apk'
 if (-not (Test-Path -LiteralPath $builtApk)) { throw 'Gradle completed without the expected release APK.' }
 
 $buildTools = Join-Path $sdk 'build-tools\35.0.0'
@@ -530,7 +530,7 @@ try {
     $aaptExitCode = $LASTEXITCODE
     $badging = $badgingOutput | Select-Object -First 1
     if ($aaptExitCode -ne 0 -or $badging -notmatch "name='com\.xuan\.syncwatch'" -or
-        $badging -notmatch "versionCode='20108'" -or $badging -notmatch "versionName='2\.1\.8'") {
+        $badging -notmatch "versionCode='20109'" -or $badging -notmatch "versionName='2\.1\.9'") {
         throw "APK package metadata verification failed: $badging"
     }
 

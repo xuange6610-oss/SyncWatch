@@ -76,6 +76,7 @@ SyncWatch同步观影是一套开源、自托管的多人同步观影与实时�
 - **媒体与上传**：HTTP 上传、文件夹扫描、媒体索引、字幕/图片/文档支持、HTTP Range 播放；FFprobe 分析，FFmpeg 负责缩略图和兼容版本处理。
 - **实时协作**：公聊、私聊、弹幕、公告、语音消息、全屏通知、好友/申请、在线状态和操作日志。
 - **管理与数据**：权限组、注册审批、邮件配置、备份/导入导出、回收站、网络诊断、服务器设置和数据目录锁。
+- **管理员快捷入口**：服务器设备上的“超级管理员登录”完成认证后建立管理专用会话，保持登录页和观影主界面隔离，直接打开管理中心的“服务器设置”页；管理员完成权限策略后可主动进入房间。
 - **多端入口**：浏览器 UI、Electron 服务器窗口、独立 Electron 客户端、Node 独立服务端和 Android WebView/手机服务器源码均存在并有对应构建配置。
 - **公网访问**：桌面端和独立服务端包含 Cloudflare Tunnel 调用、网络诊断和自有 HTTPS/反向代理配置路径。
 
@@ -87,8 +88,8 @@ SyncWatch同步观影是一套开源、自托管的多人同步观影与实时�
 - **临时公网地址**：Cloudflare Quick Tunnel 依赖出站网络、DNS、代理/VPN/TUN 和 Cloudflare 服务，地址不固定；网络受限时应使用固定 HTTPS 反向代理。
 - **AI 工作台**：`server/ai-relay.js` 和前端配置支持兼容 Responses API/Chat Completions 的中转，但模型、密钥、额度和可用能力由用户提供的服务决定。
 - **屏幕/系统音频共享**：浏览器、Electron、Android 有不同的权限和 API；系统级音频与浏览器支持范围取决于平台版本和用户授权。
-- **发布架构**：`2.1.8` Release 已按固定清单提供 Windows、Android、macOS、Node.js 与 cloudflared 真实资产；所有跨平台下载声明仍必须以 Release API 中实际存在的文件为准。
-- **发布数量标准**：v2.1.7 和 v2.1.8 的 Release API 均有 26 个维护者资产，加上 GitHub 自动生成的 2 个源码归档后页面显示 28 个文件。后续每个正式版本必须严格按 [Release 资产清单](docs/release/release-manifest.md)发布；不能只凭 README 或公告列出名称就视为文件已上传。
+- **发布架构**：v2.1.8 Release 已按固定清单提供 Windows、Android、macOS、Node.js 与 cloudflared 真实资产；v2.1.9 目前只有源码分支，成品发布前不得把下载链接写成已验证资产。
+- **发布数量标准**：v2.1.7 和 v2.1.8 的 Release API 均有 26 个维护者资产，加上 GitHub 自动生成的 2 个源码归档后页面显示 28 个文件。v2.1.9 必须在真实构建和验收通过后再按 [Release 资产清单](docs/release/release-manifest.md)发布；不能只凭 README 或公告列出名称就视为文件已上传。
 
 ### 计划开发
 

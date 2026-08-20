@@ -10,7 +10,8 @@ const { app, BrowserWindow, session } = require('electron');
 const { io: createSocketClient } = require('socket.io-client');
 const { startSyncWatchServer } = require('../server');
 
-const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'syncwatch-electron-v2.1.8-'));
+const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'syncwatch-electron-v2.1.9-'));
+const expectedAndroidDownloadAvailable = fs.existsSync(path.join(__dirname, '..', 'mobile', 'SyncWatch同步观影-v2.1.9.apk'));
 app.setPath('userData', path.join(dataDir, 'electron-profile'));
 app.commandLine.appendSwitch('disable-gpu-shader-disk-cache');
 let controller;
@@ -273,7 +274,7 @@ async function run() {
     directHistoryHidden: featureControls.directHistoryHidden, directChatManagerHidden: featureControls.directChatManagerHidden,
     managementHistoryExists: featureControls.managementHistoryExists, managementChatExists: featureControls.managementChatExists
   }, {
-    apkVisible: true, managementVisible: true, directHistoryHidden: true, directChatManagerHidden: true,
+    apkVisible: expectedAndroidDownloadAvailable, managementVisible: true, directHistoryHidden: true, directChatManagerHidden: true,
     managementHistoryExists: true, managementChatExists: true
   });
   assert.deepEqual({ chatMode: featureControls.chatMode, desktopDanmakuActive: featureControls.desktopDanmakuActive, fullscreenChatMode: featureControls.fullscreenChatMode }, {
@@ -468,8 +469,12 @@ async function run() {
   assert.equal(androidFolderAndApkBridge.stalePathsCleared, true);
   assert.equal(androidFolderAndApkBridge.relativePath, '手机目录/电影/movie.txt');
   assert.equal(androidFolderAndApkBridge.pathsConsumed, true);
-  assert.equal(new URL(androidFolderAndApkBridge.apkHref).origin, new URL(baseUrl).origin);
-  assert.equal(new URL(androidFolderAndApkBridge.apkHref).pathname, '/api/android-apk');
+  if (expectedAndroidDownloadAvailable) {
+    assert.equal(new URL(androidFolderAndApkBridge.apkHref).origin, new URL(baseUrl).origin);
+    assert.equal(new URL(androidFolderAndApkBridge.apkHref).pathname, '/api/android-apk');
+  } else {
+    assert.equal(androidFolderAndApkBridge.apkHref, '');
+  }
 
   const operationPagination = await window.webContents.executeJavaScript(`(async () => {
     const originalEmitAck = emitAck;
@@ -568,8 +573,12 @@ async function run() {
     const bytes = new Uint8Array(await response.arrayBuffer());
     return { status: response.status, size: bytes.length, zip: bytes[0] === 0x50 && bytes[1] === 0x4b };
   })`, true);
-  assert.equal(apkResponse.status, 200); assert.equal(apkResponse.zip, true); assert.ok(apkResponse.size > 10 * 1024);
-  console.log('✓ 文件夹上传/中止、影片栏折叠、灯光、全屏浮层、房间分享链接和 APK 下载入口正常');
+  if (expectedAndroidDownloadAvailable) {
+    assert.equal(apkResponse.status, 200); assert.equal(apkResponse.zip, true); assert.ok(apkResponse.size > 10 * 1024);
+  } else {
+    assert.equal(apkResponse.status, 404); assert.equal(apkResponse.zip, false);
+  }
+  console.log(`✓ 文件夹上传/中止、影片栏折叠、灯光、全屏浮层、房间分享链接和 APK 下载入口状态正常（${expectedAndroidDownloadAvailable ? '已提供' : '未提供，入口隐藏'}）`);
 
   await window.webContents.executeJavaScript(`
     document.querySelector('[data-chat-mode="danmaku"]').click();
@@ -1016,7 +1025,7 @@ async function run() {
   await window.webContents.executeJavaScript(`document.getElementById('forgotPasswordBtn').click()`, true);
   await waitFor(`!document.getElementById('appDialog').classList.contains('is-hidden') && document.getElementById('appDialogTitle').textContent === 'QQ 邮箱找回密码'`, '打开 QQ 邮箱找回密码对话框');
   const recoveryDescription = await window.webContents.executeJavaScript(`document.getElementById('appDialogDescription').textContent`, true);
-  // v2.1.8 may explicitly explain an unknown account instead of promising a
+  // v2.1.9 may explicitly explain an unknown account instead of promising a
   // privacy-masked response; both variants must keep a usable description.
   assert.ok(recoveryDescription.trim().length > 0);
   await window.webContents.executeJavaScript(`document.getElementById('appDialogInput').value = '邮箱界面恢复'; document.getElementById('appDialogConfirmBtn').click()`, true);
@@ -1081,12 +1090,11 @@ app.whenReady().then(async () => {
   let exitCode = 0;
   try {
     await run();
-    console.log('\nElectron v2.1.8 渲染验收全部通过。');
+    console.log('\nElectron v2.1.9 渲染验收全部通过。');
   } catch (error) {
     exitCode = 1;
-    console.error('\nElectron v2.1.8 渲染验收失败:', error);
+    console.error('\nElectron v2.1.9 渲染验收失败:', error);
   }
   try { await finishTest(exitCode); }
-  catch (error) { console.error('\nElectron v2.1.8 清理失败:', error); app.exit(1); }
-}).catch((error) => { console.error('\nElectron v2.1.8 启动失败:', error); app.exit(1); });
-
+  catch (error) { console.error('\nElectron v2.1.9 清理失败:', error); app.exit(1); }
+}).catch((error) => { console.error('\nElectron v2.1.9 启动失败:', error); app.exit(1); });

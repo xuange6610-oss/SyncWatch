@@ -22,7 +22,7 @@ Windows · Android · macOS · Web  ·  同步播放 · 弹幕 · 聊天 · 语�
 
 [立即下载](https://github.com/xuange6610/SyncWatch/releases/latest) · [在线预览](https://xuange6610.github.io/SyncWatch/) · [新手快速开始](https://xuange6610.github.io/SyncWatch/quick-start.html) · [部署教程](docs/server-deployment-guide.md) · [GitHub Wiki](https://github.com/xuange6610/SyncWatch/wiki)
 
-> 当前版本：v2.1.8 · 许可证：[Apache-2.0](LICENSE) · 作者：xuan
+> 当前版本：v2.1.9 · 许可证：[Apache-2.0](LICENSE) · 作者：xuan
 
 ## 在线参观
 
@@ -43,14 +43,14 @@ Windows · Android · macOS · Web  ·  同步播放 · 弹幕 · 聊天 · 语�
 
 | 类型 | 适合谁 | 作用 |
 | --- | --- | --- |
-| [`SyncWatch-Experience-Client-Portable-v2.1.8-x64.exe`](https://github.com/xuange6610/SyncWatch/releases/download/2.1.8/SyncWatch-Experience-Client-Portable-v2.1.8-x64.exe) | 体验版；普通成员 | 输入已有服务器地址加入房间，不启动服务端 |
-| [`SyncWatch-Standard-Server-Portable-v2.1.8-x64.exe`](https://github.com/xuange6610/SyncWatch/releases/download/2.1.8/SyncWatch-Standard-Server-Portable-v2.1.8-x64.exe) | 标准版；房主 | 绿色便携服务器，内置运行环境和 cloudflared，双击即用 |
-| [`SyncWatch-v2.1.8-Full-Offline-Installer-x64.exe`](https://github.com/xuange6610/SyncWatch/releases/download/2.1.8/SyncWatch-v2.1.8-Full-Offline-Installer-x64.exe) | 完整版；房主 | 安装向导和完整服务器运行时；离线内嵌 Windows 客户端、Android APK、macOS x64/arm64 客户端与服务器 ZIP |
-| [`SyncWatch-v2.1.8-Full-Offline-Portable-x64.exe`](https://github.com/xuange6610/SyncWatch/releases/download/2.1.8/SyncWatch-v2.1.8-Full-Offline-Portable-x64.exe) | 完整版；Windows 房主 | 无需安装的独立 EXE；功能和内嵌文件与安装完整版一致 |
-| [macOS Intel 完整版 DMG](https://github.com/xuange6610/SyncWatch/releases/download/2.1.8/SyncWatch-Full-Offline-macOS-v2.1.8-x64.dmg) / [ZIP](https://github.com/xuange6610/SyncWatch/releases/download/2.1.8/SyncWatch-Full-Offline-macOS-v2.1.8-x64.zip) | 完整版；Intel Mac 房主 | 完整 Mac 服务端和全平台离线下载中心，内置 Intel cloudflared |
-| [macOS Apple 芯片完整版 DMG](https://github.com/xuange6610/SyncWatch/releases/download/2.1.8/SyncWatch-Full-Offline-macOS-v2.1.8-arm64.dmg) / [ZIP](https://github.com/xuange6610/SyncWatch/releases/download/2.1.8/SyncWatch-Full-Offline-macOS-v2.1.8-arm64.zip) | 完整版；Apple Silicon 房主 | 完整 Mac 服务端和全平台离线下载中心，内置 arm64 cloudflared |
-| [cloudflared Windows x64 安装包 MSI](https://github.com/xuange6610/SyncWatch/releases/download/2.1.8/cloudflared-windows-x64-installer.msi) / [Windows x86 MSI](https://github.com/xuange6610/SyncWatch/releases/download/2.1.8/cloudflared-windows-x86-installer.msi) | 公网访问工具 | 双击 MSI 安装；安装后在终端执行 `cloudflared --version`，再按教程创建 Tunnel；[Cloudflare 官网](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/) · [官方 Release 下载](https://github.com/cloudflare/cloudflared/releases/latest) |
-| [Node.js Windows x64](https://github.com/xuange6610/SyncWatch/releases/download/2.1.8/node-v24.19.0-x64.msi) / [Windows ARM64](https://github.com/xuange6610/SyncWatch/releases/download/2.1.8/node-v24.19.0-arm64.msi) / [macOS Intel](https://github.com/xuange6610/SyncWatch/releases/download/2.1.8/node-v24.19.0-macos-x64.pkg) / [macOS Apple 芯片](https://github.com/xuange6610/SyncWatch/releases/download/2.1.8/node-v24.19.0-darwin-arm64.tar.gz) | 源码/独立服务器环境 | 正式 SyncWatch EXE 无需另装；源码和独立服务端安装后运行 `node --version` 验证；[Node.js 官网](https://nodejs.org/) · [官方下载](https://nodejs.org/en/download) |
+| [`SyncWatch-Experience-Client-Portable-v2.1.9-x64.exe`](https://github.com/xuange6610/SyncWatch/releases/download/v2.1.9/SyncWatch-Experience-Client-Portable-v2.1.9-x64.exe) | 体验版；普通成员 | 输入已有服务器地址加入房间，不启动服务端 |
+| [`SyncWatch-Standard-Server-Portable-v2.1.9-x64.exe`](https://github.com/xuange6610/SyncWatch/releases/download/v2.1.9/SyncWatch-Standard-Server-Portable-v2.1.9-x64.exe) | 标准版；房主 | 绿色便携服务器，内置运行环境和 cloudflared，双击即用 |
+| [`SyncWatch-v2.1.9-Full-Offline-Installer-x64.exe`](https://github.com/xuange6610/SyncWatch/releases/download/v2.1.9/SyncWatch-v2.1.9-Full-Offline-Installer-x64.exe) | 完整版；房主 | 安装向导和完整服务器运行时；离线内嵌 Windows 客户端、Android APK、macOS x64/arm64 客户端与服务器 ZIP |
+| [`SyncWatch-v2.1.9-Full-Offline-Portable-x64.exe`](https://github.com/xuange6610/SyncWatch/releases/download/v2.1.9/SyncWatch-v2.1.9-Full-Offline-Portable-x64.exe) | 完整版；Windows 房主 | 无需安装的独立 EXE；功能和内嵌文件与安装完整版一致 |
+| [macOS Intel 完整版 DMG](https://github.com/xuange6610/SyncWatch/releases/download/v2.1.9/SyncWatch-Full-Offline-macOS-v2.1.9-x64.dmg) / [ZIP](https://github.com/xuange6610/SyncWatch/releases/download/v2.1.9/SyncWatch-Full-Offline-macOS-v2.1.9-x64.zip) | 完整版；Intel Mac 房主 | 完整 Mac 服务端和全平台离线下载中心，内置 Intel cloudflared |
+| [macOS Apple 芯片完整版 DMG](https://github.com/xuange6610/SyncWatch/releases/download/v2.1.9/SyncWatch-Full-Offline-macOS-v2.1.9-arm64.dmg) / [ZIP](https://github.com/xuange6610/SyncWatch/releases/download/v2.1.9/SyncWatch-Full-Offline-macOS-v2.1.9-arm64.zip) | 完整版；Apple Silicon 房主 | 完整 Mac 服务端和全平台离线下载中心，内置 arm64 cloudflared |
+| [cloudflared Windows x64 安装包 MSI](https://github.com/xuange6610/SyncWatch/releases/download/v2.1.9/cloudflared-windows-x64-installer.msi) / [Windows x86 MSI](https://github.com/xuange6610/SyncWatch/releases/download/v2.1.9/cloudflared-windows-x86-installer.msi) | 公网访问工具 | 双击 MSI 安装；安装后在终端执行 `cloudflared --version`，再按教程创建 Tunnel；[Cloudflare 官网](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/) · [官方 Release 下载](https://github.com/cloudflare/cloudflared/releases/latest) |
+| [Node.js Windows x64](https://github.com/xuange6610/SyncWatch/releases/download/v2.1.9/node-v24.19.0-x64.msi) / [Windows ARM64](https://github.com/xuange6610/SyncWatch/releases/download/v2.1.9/node-v24.19.0-arm64.msi) / [macOS Intel](https://github.com/xuange6610/SyncWatch/releases/download/v2.1.9/node-v24.19.0-macos-x64.pkg) / [macOS Apple 芯片](https://github.com/xuange6610/SyncWatch/releases/download/v2.1.9/node-v24.19.0-darwin-arm64.tar.gz) | 源码/独立服务器环境 | 正式 SyncWatch EXE 无需另装；源码和独立服务端安装后运行 `node --version` 验证；[Node.js 官网](https://nodejs.org/) · [官方下载](https://nodejs.org/en/download) |
 | Android APK | Android 用户 | 加入已有房间；完整包可在受支持设备上运行手机服务器 |
 | macOS 服务器/客户端 | Mac 用户 | Intel Mac 使用 x64，Apple Silicon 使用 arm64 |
 | 独立服务器 ZIP | Windows/Linux 服务器管理员 | 使用 Node.js 启动服务，适合长期部署和 Docker |
@@ -69,6 +69,8 @@ Releases 页面只应列出已经真实构建和验证的文件。某个平台�
 5. 立即进入安全设置修改管理员密码。
 6. 创建房间，可以设置房间密码、人数限制和成员权限。
 7. 先让同一 Wi-Fi 下的成员使用局域网地址连接，确认成功后再配置公网访问。
+
+> 服务器设备也可以在登录页点击“超级管理员登录”。验证成功后会建立管理专用会话，直接打开“管理中心 → 服务器设置”；登录页保持可见，观影主界面不会先打开，也无需经过临时房间。完成权限、上传、端口或公网策略设置后，管理员再主动选择房间入口进入观影；普通成员和普通账号仍按房间登录流程进入观影。
 
 ### 从源码启动
 
