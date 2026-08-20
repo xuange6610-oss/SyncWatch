@@ -1,8 +1,6 @@
 ---
 name: SyncWatch同步观影
 description: 面向新手的自托管同步观影产品展示与使用导览
-version: 2.1.8
-surface: operation-first cinema control room
 colors:
   cinema-ink: "#101318"
   cinema-surface: "#1a2027"
@@ -58,15 +56,6 @@ colors:
   download-line: "rgba(255, 235, 220, 0.26)"
   signal-glow: "rgba(40, 212, 144, 0.32)"
   hero-shade: "rgba(7, 10, 13, 0.7)"
-  ui-ink: "#090c0f"
-  ui-stage: "#10161a"
-  ui-panel: "#151d22"
-  ui-panel-raised: "#1c272d"
-  ui-signal: "#39d8a2"
-  ui-warning: "#e9bd69"
-  ui-danger: "#ff8274"
-  ui-muted-label: "#718088"
-  ui-signal-bright: "#62e4b5"
 typography:
   display:
     fontFamily: "Microsoft YaHei, PingFang SC, Noto Sans CJK SC, sans-serif"
@@ -96,8 +85,6 @@ typography:
     fontSize: "13px"
   label:
     fontSize: "14px"
-  ui-label:
-    fontSize: "10-11px"
   compact-body:
     fontSize: "15px"
   gallery-title:
@@ -119,8 +106,6 @@ typography:
 rounded:
   control: "4px"
   surface: "6px"
-  elevated: "8px"
-  auth: "10px"
 spacing:
   xs: "8px"
   sm: "12px"
@@ -181,14 +166,6 @@ components:
 - **纸面正文** (`#1c252b`) / **纸面次文** (`#53616a`)：浅色背景文字层级。
 
 **稀缺强调规则。** 同一屏幕内不要同时大量使用绿色、珊瑚色和琥珀色；每种颜色只表达一种明确状态。
-
-### v2.1.8 操作界面层
-
-登录和房间工作区使用独立的 `public/css/ui-v218.css` 表面层。它把近黑影院墨色作为底，使用 `#39d8a2` 作为唯一“已连接/可继续”信号，琥珀色只用于键盘焦点，珊瑚色只用于错误和危险操作。新增的 `ui-ink`、`ui-stage`、`ui-panel`、`ui-panel-raised`、`ui-signal`、`ui-warning` 和 `ui-danger` 是设计系统的正式 token，不应在组件中重新写一套颜色。
-
-该层的结构是“身份与连接状态 → 主观影画面 → 片库/成员辅助面板”。登录页用左侧真实 3D 产品视觉建立产品识别，右侧表单承担唯一主动作；进入房间后播放器保持最大视觉权重，片库和成员面板使用固定列宽，状态卡使用六项稳定网格，避免按钮挤压和异步数据造成跳动。窄屏收为播放器优先，片库转为抽屉式面板，成员区降为次级入口。
-
-动效只用于表单进入、控件悬停和状态切换，采用 `transform`/`opacity`，并对 `prefers-reduced-motion: reduce` 直接降级为静态状态。所有新增可操作控件保留可见琥珀焦点、最小 44px 触控高度和文字标签；未把 emoji 当作新的结构化导航图标。
 
 ## Typography
 

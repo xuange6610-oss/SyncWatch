@@ -8,14 +8,8 @@ const root = path.resolve(__dirname, '..');
 const html = fs.readFileSync(path.join(root, 'public', 'index.html'), 'utf8');
 const app = fs.readFileSync(path.join(root, 'public', 'js', 'app.js'), 'utf8');
 const css = fs.readFileSync(path.join(root, 'public', 'css', 'style.css'), 'utf8');
-const uiCss = fs.readFileSync(path.join(root, 'public', 'css', 'ui-v218.css'), 'utf8');
-
-assert.match(html, /href="\/css\/ui-v218\.css"/, 'v2.1.8 UI surface must be loaded after the incumbent styles');
-assert.match(html, /THESIS:\s*SyncWatch同步观影/, 'the UI direction contract must survive in the emitted HTML');
 assert.match(app, /if\s*\(!result\.success\)\s*\{[\s\S]{0,260}loginErrorMessage\(result/, 'ordinary account login must expose actionable error IDs');
 assert.match(app, /SOCKET_EVENT_FAILED[\s\S]{0,360}errorId/, 'socket failures must include a support error ID');
-assert.match(uiCss, /prefers-reduced-motion/, 'v2.1.8 UI must respect reduced-motion preferences');
-assert.match(uiCss, /grid-template-columns:\s*minmax\(220px, 260px\)/, 'room workspace must establish a stable desktop hierarchy');
 
 for (const id of [
   'showSuperAdminAccountsBtn',
