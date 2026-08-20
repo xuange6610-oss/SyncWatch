@@ -113,7 +113,7 @@ Windows Server、Linux、Docker Compose、自定义端口、安全组、域名 H
 
 生产依赖及完整构建依赖已通过 `npm audit`，结果为 0 个已知漏洞。EXE 未使用商业代码签名证书，首次运行可能出现 SmartScreen；正式公开分发建议配置代码签名证书。
 
-最终 EXE SHA256：`73CA4F60B137E180D693DA75DFDC9803E66FE08443DCEA77EF4CD6BA76B187B8`。
+最终 EXE SHA256：`A10C131DFDC6C8E35130EE5D9BB2BF3FC1998EA3229B8B64ACBDC4A5789D0FFC`。
 
 ## 从源代码重新生成 EXE
 

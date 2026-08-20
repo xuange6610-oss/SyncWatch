@@ -1853,6 +1853,19 @@ input[type="checkbox"]:checked::after { margin: 0; transform: translateY(-1px) r
 .theater.chat-expanded .chat-history { min-height: 150px; }
 .theater.chat-expanded .emoji-toolbar:not(:has(.emoji-bar.is-hidden)) { min-height: 92px; }
 
+/* The expanded conversation keeps a two-column stage in short landscape
+   windows. Without this late override the compact mobile rule collapses the
+   player and chat into one column and the chat panel covers the video edge. */
+@media (orientation: landscape) and (max-height: 560px) and (max-width: 1000px) {
+  .theater.chat-expanded {
+    grid-template-columns: minmax(0, 1fr) minmax(280px, 38vw);
+    grid-template-areas: "marquee marquee" "mobile-nav ." "player chat";
+    grid-template-rows: auto auto minmax(190px, 1fr);
+  }
+  .theater.chat-expanded .player-container { grid-area: player; min-width: 0; min-height: 190px; }
+  .theater.chat-expanded .chat-panel { grid-area: chat; min-width: 0; min-height: 0; margin: 0 8px 0 20px; }
+}
+
 @media (max-width: 720px) {
   .theater.chat-expanded {
     grid-template-areas: "marquee" "mobile-nav" "player" "chat";

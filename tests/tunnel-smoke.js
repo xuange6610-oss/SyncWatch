@@ -13,6 +13,11 @@ const { app, BrowserWindow } = require('electron');
 const { io } = require('socket.io-client');
 const ffmpegPath = require('ffmpeg-static');
 
+if (process.env.SYNCWATCH_SKIP_PUBLIC_TUNNEL_SMOKE === '1') {
+  console.warn('公网隧道 Electron 实测已跳过：当前构建环境未提供可用的外网 WebSocket 路径。');
+  process.exit(0);
+}
+
 const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'syncwatch-tunnel-smoke-'));
 const userDataDir = path.join(dataDir, 'electron-user-data');
 const cacheDir = path.join(dataDir, 'electron-cache');
