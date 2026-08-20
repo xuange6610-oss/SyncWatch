@@ -53,7 +53,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 
 /* Login: the cube is evidence; the form owns the action. */
 .login-page { position: relative; display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(390px, .8fr); align-items: center; gap: clamp(32px, 7vw, 112px); min-height: calc(100dvh - 66px); padding: clamp(34px, 7vw, 84px) clamp(20px, 6vw, 100px); background: var(--ui-ink); }
-.login-page::before { content: ""; position: absolute; inset: 0; pointer-events: none; opacity: .32; background-image: linear-gradient(rgba(255,255,255,.035) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.035) 1px, transparent 1px); background-size: 48px 48px; mask-image: linear-gradient(90deg, #000 0%, transparent 82%); }
+.login-page::before { content: ""; position: absolute; inset: 0; pointer-events: none; background: rgba(255,255,255,.012); }
 .login-visual { position: relative; z-index: 1; min-height: 420px; display: grid; place-items: center; }
 .login-visual::before { content: "SYNC / ROOM / READY"; position: absolute; top: 6%; left: 0; color: var(--ui-signal); font: 700 11px/1.4 "Cascadia Code", Consolas, monospace; letter-spacing: .18em; }
 .login-cube-scene { width: min(70vw, 560px); height: min(70vw, 560px); max-height: 580px; perspective: 1100px; }

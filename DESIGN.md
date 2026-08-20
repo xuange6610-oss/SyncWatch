@@ -65,6 +65,8 @@ colors:
   ui-signal: "#39d8a2"
   ui-warning: "#e9bd69"
   ui-danger: "#ff8274"
+  ui-muted-label: "#718088"
+  ui-signal-bright: "#62e4b5"
 typography:
   display:
     fontFamily: "Microsoft YaHei, PingFang SC, Noto Sans CJK SC, sans-serif"
@@ -94,6 +96,8 @@ typography:
     fontSize: "13px"
   label:
     fontSize: "14px"
+  ui-label:
+    fontSize: "10-11px"
   compact-body:
     fontSize: "15px"
   gallery-title:
@@ -115,6 +119,8 @@ typography:
 rounded:
   control: "4px"
   surface: "6px"
+  elevated: "8px"
+  auth: "10px"
 spacing:
   xs: "8px"
   sm: "12px"
