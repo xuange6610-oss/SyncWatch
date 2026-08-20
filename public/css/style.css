@@ -67,7 +67,7 @@ label { display: grid; gap: 6px; margin: 10px 0; color: #d8cbdc; }
 .account-dropdown button { padding: 9px 11px; text-align: left; border: 0; background: transparent; border-radius: 7px; }
 .account-dropdown button:hover { background: #ffffff0d; color: var(--pink-2); }
 main { height: calc(100% - 58px); }
-.login-page { position: relative; height: 100%; display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(410px, .75fr); padding-top: 38px; box-sizing: border-box; overflow-y: auto; background: #0d1114; }
+.login-page { position: relative; height: 100%; display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(410px, .75fr); padding-top: 12px; box-sizing: border-box; overflow-y: auto; background: #0d1114; }
 .login-visual { position: relative; display: grid; place-items: center; min-height: 100%; overflow: hidden; }
 .login-visual::before, .login-visual::after { content: ""; position: absolute; inset-block: 8%; width: 1px; background: #52c7b81f; box-shadow: 78px 0 #52c7b812, 156px 0 #52c7b80d, 234px 0 #52c7b808; }
 .login-visual::before { left: 8%; }.login-visual::after { right: 8%; transform: scaleX(-1); }
@@ -1033,7 +1033,7 @@ input[type="checkbox"]:focus-visible { outline: 2px solid var(--theme-accent, va
 .login-page > .login-marquee, .auth-card > .login-marquee { position: relative; z-index: 25; top: auto; right: auto; left: auto; width: 100%; max-width: none; overflow: hidden; margin: 0 0 12px; box-shadow: 0 8px 24px #0008; }
 
 @media (max-width: 760px) {
-  .login-page { padding-top: 58px; }
+  .login-page { padding-top: 18px; }
   .account-profile-editor { grid-template-columns: 1fr; }
   .account-profile-editor .wide, .account-profile-editor button { grid-column: 1; }
   .permission-group-bulk, .account-bulk-toolbar { align-items: stretch; }

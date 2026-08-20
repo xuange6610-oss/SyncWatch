@@ -6,12 +6,12 @@ const path = require('node:path');
 
 const root = path.resolve(__dirname, '..', 'release', 'offline-bundle');
 const expected = [
-  ['windows/SyncWatch同步观影-Client-v2.1.8.exe', 50 * 1024 * 1024],
-  ['android/SyncWatch同步观影-v2.1.8.apk', 50 * 1024 * 1024],
-  ['mac/SyncWatch同步观影-服务器-v2.1.8-x64.zip', 100 * 1024 * 1024],
-  ['mac/SyncWatch同步观影-服务器-v2.1.8-arm64.zip', 100 * 1024 * 1024],
-  ['mac/SyncWatch同步观影-客户端-v2.1.8-x64.zip', 100 * 1024 * 1024],
-  ['mac/SyncWatch同步观影-客户端-v2.1.8-arm64.zip', 100 * 1024 * 1024]
+  ['windows/SyncWatch同步观影-Client-v2.1.9.exe', 50 * 1024 * 1024],
+  ['android/SyncWatch同步观影-v2.1.9.apk', 50 * 1024 * 1024],
+  ['mac/SyncWatch同步观影-服务器-v2.1.9-x64.zip', 100 * 1024 * 1024],
+  ['mac/SyncWatch同步观影-服务器-v2.1.9-arm64.zip', 100 * 1024 * 1024],
+  ['mac/SyncWatch同步观影-客户端-v2.1.9-x64.zip', 100 * 1024 * 1024],
+  ['mac/SyncWatch同步观影-客户端-v2.1.9-arm64.zip', 100 * 1024 * 1024]
 ];
 
 let total = 0;

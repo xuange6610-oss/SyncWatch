@@ -21,7 +21,7 @@ try {
 const state = {
   socket: null, token: localStorage.getItem('syncwatchToken') || '', user: null,
   capabilities: { owner: false, serverHost: false, superAdmin: false }, permissions: { control: false, upload: true, delete: false, manageMedia: false, shareScreen: false, shareAudio: false, shareWeb: false, voiceChat: true, manageChat: false, manageRoom: false, sendNotice: false },
-  publicConfig: { version: 'v2.1.8', addresses: [], accessPasswordRequired: false, maxUploadBytes: 10 * 1024 * 1024 * 1024, uploadTimeLimitSeconds: 0, androidApkAvailable: false, clientDownloadAvailable: false, macServerDownloads: [], macClientDownloads: [], serverHostLoginAvailable: false, passwordRecoveryAvailable: false, registrationEmailVerificationRequired: false, emailBindingAvailable: false, lanAccessEnabled: true, defaultPlaybackQuality: 'original', experiencePerMinute: 1, passwordPolicy: { mode: 'unrestricted', minLength: 6, maxLength: 72, expiryDays: 7 }, roomIdPolicy: { enabled: false, mode: 'uppercase_alnum', minLength: 4, maxLength: 32, customPattern: '' }, contact: {}, legalAgreement: {}, branding: { owner: 'xuan', notice: '版权所有 © xuan，保留所有权利。' }, f11PromptEnabled: true, initialPasswordReminderEnabled: true, downloadButtonsVisible: true, loginMusic: { enabled: false, showTitle: true, title: '', url: '', volume: 0.3, loop: true }, loginVideo: { enabled: false, url: '', originalName: '' }, loginCube: { displayMode: 'cube', rotationDirection: 'right', autoRotate: true, inertia: true, rotationSpeed: 16, faces: LOGIN_CUBE_FACE_DEFAULTS.map((face) => ({ ...face })), model: { url: '', originalName: '', size: 0, sha256: '' } } },
+  publicConfig: { version: 'v2.1.9', addresses: [], accessPasswordRequired: false, maxUploadBytes: 10 * 1024 * 1024 * 1024, uploadTimeLimitSeconds: 0, androidApkAvailable: false, clientDownloadAvailable: false, macServerDownloads: [], macClientDownloads: [], serverHostLoginAvailable: false, passwordRecoveryAvailable: false, registrationEmailVerificationRequired: false, emailBindingAvailable: false, lanAccessEnabled: true, defaultPlaybackQuality: 'original', experiencePerMinute: 1, passwordPolicy: { mode: 'unrestricted', minLength: 6, maxLength: 72, expiryDays: 7 }, roomIdPolicy: { enabled: false, mode: 'uppercase_alnum', minLength: 4, maxLength: 32, customPattern: '' }, contact: {}, legalAgreement: {}, branding: { owner: 'xuan', notice: '版权所有 © xuan，保留所有权利。' }, f11PromptEnabled: true, initialPasswordReminderEnabled: true, downloadButtonsVisible: true, loginMusic: { enabled: false, showTitle: true, title: '', url: '', volume: 0.3, loop: true }, loginVideo: { enabled: false, url: '', originalName: '' }, loginCube: { displayMode: 'cube', rotationDirection: 'right', autoRotate: true, inertia: true, rotationSpeed: 16, faces: LOGIN_CUBE_FACE_DEFAULTS.map((face) => ({ ...face })), model: { url: '', originalName: '', size: 0, sha256: '' } } },
   publicConfigKnown: false, publicConfigRetryTimer: null, roomInfoTimer: null, files: new Map(), users: [], room: null, queue: [], currentFile: null,
   applyingPlayback: false, pendingPlayback: null, playbackAnchor: null, playbackRevision: -1, syncSeekCooldownUntil: 0,
   expectedSeek: null, expectedPlaybackEvent: null, expectedVolume: null, mediaGeneration: 0,
@@ -60,6 +60,7 @@ const state = {
   tunnelPollTimer: null, tunnelPollInFlight: false, tunnelPollGeneration: 0, tunnelLastStatus: null, tunnelStopRequested: false,
   operationHistory: [], operationHistoryBefore: '', operationHistoryHasMore: false, operationHistoryLoading: false,
   operationHistoryQuery: '', operationHistoryScope: '', selectedOperations: new Set(), returnToManagementAfterChild: false,
+  managementOnlyAuth: false,
   managementSection: 'server', managementHomeParent: null, managementHomeNextSibling: null, adminRefreshTimer: null, adminRefreshInFlight: false,
   controlRequest: null, controlSuppressions: {}, lanRooms: [], onlineRooms: [], lanScanResolver: null,
   screenPeers: new Map(), remoteScreenPeer: null, remoteScreenStream: null, screenSignalQueues: new Map(),
@@ -2740,7 +2741,10 @@ async function loginAsServerAdmin() {
       return;
     }
     state.token = result.token; state.rememberSession = elements.autoLogin.checked;
-    await finishAuthentication(result, state.rememberSession);
+    await finishAuthentication(result, state.rememberSession, false, { managementOnly: true });
+    // The server-admin entry is a settings shortcut. Keep the authenticated
+    // session in the management hub instead of entering a temporary room.
+    if (state.authenticated) openManagementHub('server');
   } catch (error) { setLoginStatus(localizedError(error, '服务器超级管理员登录失败')); }
   finally { elements.serverAdminLoginBtn.disabled = false; }
 }
@@ -3830,7 +3834,9 @@ function resetRoomScopedClientState() {
   state.files = new Map(); state.queue = []; state.currentFile = null; clearStage();
 }
 
-async function finishAuthentication(result, remember, reconnecting = false) {
+async function finishAuthentication(result, remember, reconnecting = false, options = {}) {
+  const managementOnly = Boolean(options.managementOnly || (reconnecting && state.managementOnlyAuth));
+  const sessionRemember = managementOnly ? false : Boolean(remember);
   const wasAuthenticated = state.authenticated;
   if (!wasAuthenticated) state.initialAdminPasswordSetupSkipped = false;
   const previousRoomId = state.room?.id || '';
@@ -3856,20 +3862,35 @@ async function finishAuthentication(result, remember, reconnecting = false) {
   if (roomChanged) resetRoomScopedClientState();
   state.token = token; state.user = result.user; state.room = result.room;
   state.capabilities = result.capabilities || {}; state.permissions = result.permissions || {};
-  state.authenticated = true; state.socketAuthenticated = true; state.resumeNeeded = false; state.rememberSession = Boolean(remember); state.intentionalLogout = false;
+  state.authenticated = true; state.socketAuthenticated = true; state.resumeNeeded = false; state.rememberSession = sessionRemember; state.intentionalLogout = false;
+  state.managementOnlyAuth = managementOnly;
   // Keep the room focused on playback on every fresh entry; users can reopen chat with one click.
   state.mobileChatCollapsed = true;
   try { localStorage.setItem('syncwatchMobileChatCollapsed', '1'); } catch (_) {}
-  if (remember) localStorage.setItem('syncwatchToken', state.token); else localStorage.removeItem('syncwatchToken');
-  elements.loginPage.classList.add('is-hidden'); elements.mainPage.classList.remove('is-hidden');
+  if (sessionRemember) localStorage.setItem('syncwatchToken', state.token); else localStorage.removeItem('syncwatchToken');
+  if (managementOnly) {
+    // Keep the room surface hidden while the administrator works in the
+    // management hub. Authentication still establishes the protected socket
+    // session needed by server settings actions.
+    elements.loginPage.classList.remove('is-hidden');
+    elements.mainPage.classList.add('is-hidden');
+    elements.roomHeader.classList.add('is-hidden');
+    elements.accountMenuBtn.classList.add('is-hidden');
+    elements.logoutBtn.classList.add('is-hidden');
+  } else {
+    elements.loginPage.classList.add('is-hidden'); elements.mainPage.classList.remove('is-hidden');
+  }
   elements.loginMusicAudio?.pause();
   elements.loginBackgroundVideo?.pause();
   elements.loginBackgroundVideo?.classList.add('is-hidden');
   stopLoginCubeMotion();
-  elements.mainPage.classList.add('room-entering');
-  setTimeout(() => elements.mainPage.classList.remove('room-entering'), 900);
-  elements.roomHeader.classList.remove('is-hidden'); elements.accountMenuBtn.classList.remove('is-hidden');
-  elements.accountName.textContent = state.user.displayName || state.user.username; elements.logoutBtn.classList.remove('is-hidden');
+  if (!managementOnly) {
+    elements.mainPage.classList.add('room-entering');
+    setTimeout(() => elements.mainPage.classList.remove('room-entering'), 900);
+    elements.roomHeader.classList.remove('is-hidden'); elements.accountMenuBtn.classList.remove('is-hidden');
+  }
+  elements.accountName.textContent = state.user.displayName || state.user.username;
+  elements.logoutBtn.classList.toggle('is-hidden', managementOnly);
   updateGuestConversionAccess();
   elements.newRoomBtn?.classList.remove('is-hidden'); elements.switchRoomBtn?.classList.remove('is-hidden'); elements.lanScanBtn?.classList.remove('is-hidden'); elements.webShareBtn?.classList.remove('is-hidden');
   elements.androidApkBtn?.classList.toggle('is-hidden', state.publicConfig.downloadButtonsVisible === false || !state.publicConfig.androidApkAvailable);
@@ -3894,18 +3915,20 @@ async function finishAuthentication(result, remember, reconnecting = false) {
   for (const request of Array.isArray(result.friendRoomRequests) ? result.friendRoomRequests : []) {
       if (!request.snoozedUntil || Date.parse(request.snoozedUntil) <= Date.now()) addPersistentRequest({ ...request, requestType: request.kind, kind: 'friend-room', own: false });
   }
-  if (!wasAuthenticated || roomChanged || !state.messages.length) await loadChatHistory(false);
-  else if (reconnecting) await synchronizeMissedChat();
+  if (!managementOnly) {
+    if (!wasAuthenticated || roomChanged || !state.messages.length) await loadChatHistory(false);
+    else if (reconnecting) await synchronizeMissedChat();
+  }
   if (state.localCapture) await restoreLocalScreenShare();
   updateConnection(true); setReconnectState(false); setReconnectMessage('正在重新连接…');
   void refreshAccountAvatar();
   sessionStorage.setItem('syncwatchRoomId', state.room.id);
   const currentUrl = new URL(location.href); currentUrl.searchParams.set('room', state.room.id); history.replaceState(null, '', currentUrl.pathname + currentUrl.search);
   if (state.capabilities.serverHost || state.capabilities.superAdmin) startTunnelPolling(); else stopTunnelPolling();
-  if (!reconnecting && roomChanged || !wasAuthenticated) setTimeout(showF11PromptIfNeeded, 420);
+  if (!managementOnly && ((!reconnecting && roomChanged) || !wasAuthenticated)) setTimeout(showF11PromptIfNeeded, 420);
    // Request location as soon as the room is entered. Browsers may still
    // require a user gesture; the room toolbar remains a retry action.
-   setTimeout(() => void reportMemberLocation({ interactive: !reconnecting }), 250);
+  if (!managementOnly) setTimeout(() => void reportMemberLocation({ interactive: !reconnecting }), 250);
   if (state.capabilities.mustChangeAccountPassword) {
     setTimeout(async () => {
       await promptRequiredAccountPasswordChange();
@@ -3916,7 +3939,7 @@ async function finishAuthentication(result, remember, reconnecting = false) {
       await promptAdminPasswordChange();
       await showClaimedRegistrationRequests(result.claimedRegistrationRequests);
     }, 350);
-  } else setTimeout(() => void showClaimedRegistrationRequests(result.claimedRegistrationRequests), 350);
+  } else if (!managementOnly) setTimeout(() => void showClaimedRegistrationRequests(result.claimedRegistrationRequests), 350);
   if (reconnecting && state.liveVoiceMode === 'room') setTimeout(joinRoomVoice, 500);
   else if (reconnecting && state.liveVoiceMode === 'private') void leaveLiveVoice(false);
   if (reconnecting) toast('连接已恢复，播放状态已重新同步', 'success', 2400);
@@ -4206,10 +4229,10 @@ async function loadPublicConfig(silent = false) {
 }
 
 function applyPublicConfig() {
-  elements.versionText.textContent = state.publicConfig.version || 'v2.1.8';
+  elements.versionText.textContent = state.publicConfig.version || 'v2.1.9';
   const branding = state.publicConfig.branding || {};
   if (elements.copyrightNotice) elements.copyrightNotice.textContent = branding.notice || `版权所有 © ${branding.owner || 'xuan'}，保留所有权利。`;
-  if (elements.loginVersionInfo) elements.loginVersionInfo.textContent = `版本 ${state.publicConfig.version || 'v2.1.8'} · ${branding.notice || `版权所有 © ${branding.owner || 'xuan'}，保留所有权利。`}`;
+  if (elements.loginVersionInfo) elements.loginVersionInfo.textContent = `版本 ${state.publicConfig.version || 'v2.1.9'} · ${branding.notice || `版权所有 © ${branding.owner || 'xuan'}，保留所有权利。`}`;
   applyLoginMarquee(state.publicConfig.marqueeNotice || {});
   applyLoginMusic(state.publicConfig.loginMusic || {});
   applyLoginVideo(state.publicConfig.loginVideo || {});
@@ -4706,7 +4729,7 @@ async function downloadAndroidApk() {
   if (window.SyncWatchAndroid) {
     const link = document.createElement('a');
     link.href = new URL('/api/android-apk', location.href).href;
-    link.download = 'SyncWatch同步观影-v2.1.8.apk';
+    link.download = 'SyncWatch同步观影-v2.1.9.apk';
     link.rel = 'noopener'; document.body.appendChild(link); link.click(); link.remove();
     toast('已交给安卓下载管理器处理', 'success');
     return;
@@ -4723,7 +4746,7 @@ async function downloadAndroidApk() {
     const blob = await response.blob();
     if (!blob.size) throw new Error('服务器返回的安装包为空');
     const url = URL.createObjectURL(blob); const link = document.createElement('a');
-    link.href = url; link.download = 'SyncWatch同步观影-v2.1.8.apk';
+    link.href = url; link.download = 'SyncWatch同步观影-v2.1.9.apk';
     document.body.appendChild(link); link.click(); link.remove(); setTimeout(() => URL.revokeObjectURL(url), 60000);
     toast('安卓安装包已开始下载', 'success');
   } catch (error) { toast(`安卓安装包下载失败：${localizedError(error, '请稍后重试')}`, 'error'); }
@@ -5279,7 +5302,7 @@ async function batchDeleteManagedVideos() {
 
 function exportVideoManagement() {
   const files = manageableMediaFiles().map((file) => ({ id: file.id, originalName: file.originalName, collection: fileCollectionName(file), note: file.note || '', uploadedAt: file.uploadedAt, size: file.size }));
-  downloadJsonFile(`SyncWatch同步观影-影片管理-${new Date().toISOString().slice(0, 10)}.json`, { version: '2.1.8', type: 'syncwatch-media-management', files });
+  downloadJsonFile(`SyncWatch同步观影-影片管理-${new Date().toISOString().slice(0, 10)}.json`, { version: '2.1.9', type: 'syncwatch-media-management', files });
 }
 
 async function importVideoManagement() {
@@ -10117,7 +10140,7 @@ async function loadAdminSettings({ silent = false } = {}) {
       if (!loginResult.success) return toast(loginResult.error || '超级管理员验证失败', 'error');
       if (!loginResult.capabilities?.superAdmin) return toast('该账号不是超级管理员，不能打开服务器设置', 'error', 7000);
       state.token = loginResult.token;
-      await finishAuthentication(loginResult, false);
+      await finishAuthentication(loginResult, false, false, { managementOnly: true });
       if (!state.authenticated) return;
     } catch (error) {
       return toast(localizedError(error, '超级管理员验证失败'), 'error');
@@ -10221,7 +10244,7 @@ async function loadAdminSettings({ silent = false } = {}) {
     elements.adminContactWechat.value = contact.wechat || ''; elements.adminContactEmail.value = contact.email || '';
     elements.adminContactPhone.value = contact.phone || ''; elements.adminContactNote.value = contact.note || '';
     const agreement = result.admin.legalAgreement || state.publicConfig.legalAgreement || {};
-    elements.legalAgreementVersion.value = agreement.version || '2.1.8'; elements.legalAgreementTitle.value = agreement.title || '';
+    elements.legalAgreementVersion.value = agreement.version || '2.1.9'; elements.legalAgreementTitle.value = agreement.title || '';
     elements.legalAgreementText.value = agreement.text || '';
     const marquee = result.admin.marqueeNotice || {};
     elements.marqueeEnabled.checked = Boolean(marquee.enabled);
@@ -11018,7 +11041,7 @@ async function exportServerData() {
   try {
     const response = await fetchWithTimeout(`/api/host/data/export?scopes=${encodeURIComponent(scopes.join(','))}${includesMedia ? '&format=binary' : ''}`, { headers: authHeaders() }, includesMedia ? 30 * 60 * 1000 : 2 * 60 * 1000);
     if (!response.ok) throw new Error((await response.text()) || `导出失败（${response.status}）`);
-    const blob = await readBackupResponseWithProgress(response); const link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = `SyncWatch同步观影-v2.1.8-${scope}-${new Date().toISOString().slice(0, 10)}.${includesMedia ? 'swbackup' : 'json'}`; document.body.appendChild(link); link.click(); link.remove(); setTimeout(() => URL.revokeObjectURL(link.href), 60000);
+    const blob = await readBackupResponseWithProgress(response); const link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = `SyncWatch同步观影-v2.1.9-${scope}-${new Date().toISOString().slice(0, 10)}.${includesMedia ? 'swbackup' : 'json'}`; document.body.appendChild(link); link.click(); link.remove(); setTimeout(() => URL.revokeObjectURL(link.href), 60000);
     elements.dataBackupStatus.textContent = '备份已生成并下载'; toast('数据备份已导出', 'success');
   } catch (error) { elements.dataBackupStatus.textContent = localizedError(error, '导出备份失败'); updateBackupExportProgress({ label: '备份导出失败', failed: true }); if (elements.dataBackupProgressDetail) elements.dataBackupProgressDetail.textContent = elements.dataBackupStatus.textContent; toast(elements.dataBackupStatus.textContent, 'error'); }
   finally { elements.exportDataBtn.disabled = false; }
@@ -13128,7 +13151,7 @@ async function profileDeleteSelected(kind) {
 
 function exportProfileCollection(kind) {
   const p = state.profile || {}; const data = kind === 'room' ? p.recentRooms : kind === 'favorites' ? p.favoriteFiles : kind === 'history' ? p.history : p.myFiles;
-  downloadJsonFile(`SyncWatch同步观影-${kind}-${new Date().toISOString().slice(0, 10)}.json`, { type: `syncwatch-profile-${kind}`, version: '2.1.8', data, meta: { favoriteMeta: p.favoriteMeta, roomMeta: p.roomMeta } });
+  downloadJsonFile(`SyncWatch同步观影-${kind}-${new Date().toISOString().slice(0, 10)}.json`, { type: `syncwatch-profile-${kind}`, version: '2.1.9', data, meta: { favoriteMeta: p.favoriteMeta, roomMeta: p.roomMeta } });
 }
 
 async function importProfileCollection(kind, file) {

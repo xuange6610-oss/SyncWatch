@@ -115,9 +115,9 @@ for (const [label, config] of [
     assert.ok(resources.some((entry) => entry.includes(directory)), `${label} must embed ${directory}`);
   }
 }
-assert.equal(fullInstallerConfig.nsis.artifactName, 'SyncWatch-v2.1.8-Full-Offline-Installer-${arch}.exe');
-assert.equal(fullPortableConfig.portable.artifactName, 'SyncWatch-v2.1.8-Full-Offline-Portable-${arch}.exe');
-assert.equal(macFullConfig.artifactName, 'SyncWatch同步观影-完整版-v2.1.8-${arch}.${ext}');
+assert.equal(fullInstallerConfig.nsis.artifactName, 'SyncWatch-v2.1.9-Full-Offline-Installer-${arch}.exe');
+assert.equal(fullPortableConfig.portable.artifactName, 'SyncWatch-v2.1.9-Full-Offline-Portable-${arch}.exe');
+assert.equal(macFullConfig.artifactName, 'SyncWatch同步观影-完整版-v2.1.9-${arch}.${ext}');
 assert.match(electronServer, /offline-downloads['"], ['"]windows/);
 assert.match(electronServer, /offline-downloads['"], ['"]android/);
 assert.match(electronServer, /offline-downloads['"], ['"]mac/);
@@ -126,7 +126,7 @@ assert.match(electronServer, /offline-downloads['"], ['"]mac/);
 // built after the two Windows executables have passed their own checks.
 assert.match(windowsBuild, /build-server-package\.ps1/);
 assert.doesNotMatch(windowsBuild, /SyncWatch同步观影-Client-v2\.1\.7\.exe/);
-assert.match(windowsBuild, /SyncWatch同步观影-Client-v2\.1\.8\.exe/);
+assert.match(windowsBuild, /SyncWatch同步观影-Client-v2\.1\.9\.exe/);
 assert.match(windowsBuild, /SyncWatch同步观影-Server-v/i);
 
 // GitHub strips some non-ASCII characters from uploaded asset names. Keep the
@@ -141,10 +141,10 @@ for (const arch of ['x64', 'arm64']) {
 assert.match(macReleaseWorkflow, /release_role="Client"/);
 assert.match(macReleaseWorkflow, /release_role="Server"/);
 for (const publicName of [
-  'SyncWatch-Experience-Client-Portable-v2.1.8-x64.exe',
-  'SyncWatch-Standard-Server-Portable-v2.1.8-x64.exe',
-  'SyncWatch-v2.1.8-Full-Offline-Installer-x64.exe',
-  'SyncWatch-v2.1.8-Full-Offline-Portable-x64.exe'
+  'SyncWatch-Experience-Client-Portable-v2.1.9-x64.exe',
+  'SyncWatch-Standard-Server-Portable-v2.1.9-x64.exe',
+  'SyncWatch-v2.1.9-Full-Offline-Installer-x64.exe',
+  'SyncWatch-v2.1.9-Full-Offline-Portable-x64.exe'
 ]) {
   assert.match(windowsReleaseWorkflow, new RegExp(publicName.replaceAll('.', '\\.')),
     `Windows release workflow must publish the tiered asset ${publicName}`);

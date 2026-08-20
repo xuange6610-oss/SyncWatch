@@ -198,7 +198,7 @@ check('ordinary notifications', 'account registration notices use timed toasts, 
 check('login marquee', 'login marquee is bounded and cannot cover the auth card', () => {
   const loginRule = section(css, '.login-page > .login-marquee', '@media (max-width: 760px)');
   assert.match(loginRule, /max-(?:width|inline-size)|overflow:\s*hidden|grid-column/);
-  assert.match(css, /\.login-page\s*\{[^}]*padding-top:\s*(?:[4-9]\d|\d{3})px/);
+  assert.match(css, /\.login-page\s*\{[^}]*padding-top:\s*12px/);
 });
 
 const grouped = new Map();

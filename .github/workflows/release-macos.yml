@@ -4,9 +4,9 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: Existing release tag
+        description: Existing v-prefixed release tag (for example v2.1.9)
         required: true
-        default: 2.1.8
+        default: v2.1.9
 
 permissions:
   contents: write
@@ -26,12 +26,20 @@ jobs:
         kind: [client, server]
     env:
       CSC_IDENTITY_AUTO_DISCOVERY: "false"
-      VERSION: "2.1.8"
+      VERSION: "2.1.9"
     steps:
       - name: Checkout release source
         uses: actions/checkout@v4
         with:
           ref: ${{ inputs.tag }}
+
+      - name: Validate v-prefixed release tag
+        run: |
+          tag='${{ inputs.tag }}'
+          if [[ ! "$tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Release workflow requires a v-prefixed SemVer tag such as v2.1.9; received '$tag'" >&2
+            exit 1
+          fi
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -129,12 +137,20 @@ jobs:
         arch: [x64, arm64]
     env:
       CSC_IDENTITY_AUTO_DISCOVERY: "false"
-      VERSION: "2.1.8"
+      VERSION: "2.1.9"
     steps:
       - name: Checkout release source
         uses: actions/checkout@v4
         with:
           ref: ${{ inputs.tag }}
+
+      - name: Validate v-prefixed release tag
+        run: |
+          tag='${{ inputs.tag }}'
+          if [[ ! "$tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Release workflow requires a v-prefixed SemVer tag such as v2.1.9; received '$tag'" >&2
+            exit 1
+          fi
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -162,21 +178,21 @@ jobs:
           mv vendor/cloudflared vendor/cloudflared-darwin-arm64
           chmod 755 vendor/cloudflared-darwin-x64 vendor/cloudflared-darwin-arm64
 
-          gh release download "${{ inputs.tag }}" --pattern 'SyncWatch-Experience-Client-Portable-v2.1.8-x64.exe' --dir release/offline-bundle/windows --clobber
-          mv release/offline-bundle/windows/SyncWatch-Experience-Client-Portable-v2.1.8-x64.exe \
-            release/offline-bundle/windows/SyncWatch同步观影-Client-v2.1.8.exe
+          gh release download "${{ inputs.tag }}" --pattern 'SyncWatch-Experience-Client-Portable-v2.1.9-x64.exe' --dir release/offline-bundle/windows --clobber
+          mv release/offline-bundle/windows/SyncWatch-Experience-Client-Portable-v2.1.9-x64.exe \
+            release/offline-bundle/windows/SyncWatch同步观影-Client-v2.1.9.exe
 
-          gh release download "${{ inputs.tag }}" --pattern 'SyncWatch-Android-v2.1.8-universal.apk' --dir release/offline-bundle/android --clobber
-          mv release/offline-bundle/android/SyncWatch-Android-v2.1.8-universal.apk \
-            release/offline-bundle/android/SyncWatch同步观影-v2.1.8.apk
+          gh release download "${{ inputs.tag }}" --pattern 'SyncWatch-Android-v2.1.9-universal.apk' --dir release/offline-bundle/android --clobber
+          mv release/offline-bundle/android/SyncWatch-Android-v2.1.9-universal.apk \
+            release/offline-bundle/android/SyncWatch同步观影-v2.1.9.apk
 
-          gh release download "${{ inputs.tag }}" --pattern 'SyncWatch-Server-macOS-v2.1.8-*.zip' --dir release/offline-bundle/mac --clobber
-          gh release download "${{ inputs.tag }}" --pattern 'SyncWatch-Client-macOS-v2.1.8-*.zip' --dir release/offline-bundle/mac --clobber
+          gh release download "${{ inputs.tag }}" --pattern 'SyncWatch-Server-macOS-v2.1.9-*.zip' --dir release/offline-bundle/mac --clobber
+          gh release download "${{ inputs.tag }}" --pattern 'SyncWatch-Client-macOS-v2.1.9-*.zip' --dir release/offline-bundle/mac --clobber
           for arch in x64 arm64; do
-            mv "release/offline-bundle/mac/SyncWatch-Server-macOS-v2.1.8-${arch}.zip" \
-              "release/offline-bundle/mac/SyncWatch同步观影-服务器-v2.1.8-${arch}.zip"
-            mv "release/offline-bundle/mac/SyncWatch-Client-macOS-v2.1.8-${arch}.zip" \
-              "release/offline-bundle/mac/SyncWatch同步观影-客户端-v2.1.8-${arch}.zip"
+            mv "release/offline-bundle/mac/SyncWatch-Server-macOS-v2.1.9-${arch}.zip" \
+              "release/offline-bundle/mac/SyncWatch同步观影-服务器-v2.1.9-${arch}.zip"
+            mv "release/offline-bundle/mac/SyncWatch-Client-macOS-v2.1.9-${arch}.zip" \
+              "release/offline-bundle/mac/SyncWatch同步观影-客户端-v2.1.9-${arch}.zip"
           done
           node scripts/verify-full-offline-bundle.js
 
