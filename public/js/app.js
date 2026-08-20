@@ -2733,7 +2733,12 @@ async function loginAsServerAdmin() {
   setLoginStatus('正在验证服务器超级管理员…', true);
   try {
     const result = await emitAck('host-admin-login', { adminPassword: password, roomId: String(elements.roomIdInput?.value || '').trim().toUpperCase(), ...deviceInfo() }, 30000);
-    if (!result.success) return setLoginStatus(result.error);
+    if (!result.success) {
+      const message = loginErrorMessage(result, '账号登录失败，请检查账号、密码和服务器地址');
+      setLoginStatus(message);
+      toast(message, 'error', 7000);
+      return;
+    }
     state.token = result.token; state.rememberSession = elements.autoLogin.checked;
     await finishAuthentication(result, state.rememberSession);
   } catch (error) { setLoginStatus(localizedError(error, '服务器超级管理员登录失败')); }
@@ -3192,7 +3197,9 @@ async function login(event) {
     state.token = result.token; state.rememberSession = elements.autoLogin.checked;
     await finishAuthentication(result, state.rememberSession);
   } catch (error) {
-    setLoginStatus(`登录初始化失败：${localizedError(error, '请检查服务器连接')}，正在自动重试…`);
+    const message = `登录初始化失败：${localizedError(error, '请检查服务器连接')}`;
+    setLoginStatus(message);
+    toast(message, 'error', 7000);
     if (state.token) queueSessionResume(false);
   }
 }
