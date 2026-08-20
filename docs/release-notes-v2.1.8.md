@@ -1,6 +1,21 @@
 # SyncWatch同步观影 v2.1.8
 
-## 本次发布
+和朋友、家人、情侣远程一起看电影。v2.1.8 提供 Windows 一键安装与便携运行、Android 通用 APK，以及由真实 macOS runner 构建的 Intel / Apple Silicon 客户端、服务器和完整离线包。
+
+> 第一次使用请立即修改默认管理员密码，并先在局域网完成连接测试，再开启公网访问。
+
+| 下载文件 | 版本标识 | 最适合谁 | 一句话说明 |
+| --- | --- | --- | --- |
+| [`SyncWatch-Experience-Client-Portable-v2.1.8-x64.exe`](https://github.com/xuange6610/SyncWatch/releases/download/2.1.8/SyncWatch-Experience-Client-Portable-v2.1.8-x64.exe) | 体验版 | Windows 普通成员 | 连接已有服务器，不在本机启动服务端 |
+| [`SyncWatch-Standard-Server-Portable-v2.1.8-x64.exe`](https://github.com/xuange6610/SyncWatch/releases/download/2.1.8/SyncWatch-Standard-Server-Portable-v2.1.8-x64.exe) | 标准版 | 不想安装的 Windows 房主 | 内置运行环境和 cloudflared，绿色便携运行 |
+| [`SyncWatch-v2.1.8-Full-Offline-Installer-x64.exe`](https://github.com/xuange6610/SyncWatch/releases/download/2.1.8/SyncWatch-v2.1.8-Full-Offline-Installer-x64.exe) | 完整版 | 需要离线全平台下载中心的 Windows 房主 | 安装向导、完整服务器运行时，并离线内嵌 Windows、Android 与 macOS 发布文件 |
+| [`SyncWatch-v2.1.8-Full-Offline-Portable-x64.exe`](https://github.com/xuange6610/SyncWatch/releases/download/2.1.8/SyncWatch-v2.1.8-Full-Offline-Portable-x64.exe) | 完整版 | 不想安装的 Windows 房主 | 独立 EXE，直接双击运行；功能和离线资源与安装完整版相同 |
+| [macOS Intel 完整版 DMG](https://github.com/xuange6610/SyncWatch/releases/download/2.1.8/SyncWatch-Full-Offline-macOS-v2.1.8-x64.dmg) / [ZIP](https://github.com/xuange6610/SyncWatch/releases/download/2.1.8/SyncWatch-Full-Offline-macOS-v2.1.8-x64.zip) | 完整版 | Intel Mac 房主 | x64 完整服务器、cloudflared 和全平台离线下载中心 |
+| [macOS Apple 芯片完整版 DMG](https://github.com/xuange6610/SyncWatch/releases/download/2.1.8/SyncWatch-Full-Offline-macOS-v2.1.8-arm64.dmg) / [ZIP](https://github.com/xuange6610/SyncWatch/releases/download/2.1.8/SyncWatch-Full-Offline-macOS-v2.1.8-arm64.zip) | 完整版 | Apple Silicon 房主 | arm64 完整服务器、cloudflared 和全平台离线下载中心 |
+| [cloudflared Windows x64 MSI](https://github.com/xuange6610/SyncWatch/releases/download/2.1.8/cloudflared-windows-x64-installer.msi) / [x86 MSI](https://github.com/xuange6610/SyncWatch/releases/download/2.1.8/cloudflared-windows-x86-installer.msi) | 公网工具 | 需要手工安装 Tunnel 的 Windows 用户 | 双击 MSI 安装，不要双击命令行 EXE；安装后运行 `cloudflared --version` |
+| [Node.js Windows x64 MSI](https://github.com/xuange6610/SyncWatch/releases/download/2.1.8/node-v24.19.0-x64.msi) / [Windows ARM64 MSI](https://github.com/xuange6610/SyncWatch/releases/download/2.1.8/node-v24.19.0-arm64.msi) / [macOS Intel PKG](https://github.com/xuange6610/SyncWatch/releases/download/2.1.8/node-v24.19.0-macos-x64.pkg) / [macOS Apple 芯片包](https://github.com/xuange6610/SyncWatch/releases/download/2.1.8/node-v24.19.0-darwin-arm64.tar.gz) | 开发环境 | 源码开发或独立服务器用户 | 安装后运行 `node --version`；正式 SyncWatch EXE 已内置运行环境，无需另装 Node.js |
+
+## v2.1.8 更新公告
 
 v2.1.8 是本项目当前最新版本，面向 Windows、Android、macOS 与独立服务器用户。此次发布重点解决版本标识不一致、Android 服务端构建与登录协议兼容性、发布包校验和文档入口不同步问题。
 
