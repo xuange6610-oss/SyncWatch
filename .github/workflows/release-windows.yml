@@ -25,6 +25,14 @@ jobs:
         with:
           ref: ${{ inputs.tag || github.ref }}
 
+      - name: Validate v-prefixed release tag
+        shell: pwsh
+        run: |
+          $tag = '${{ inputs.tag || github.ref_name }}'
+          if ($tag -notmatch '^v\d+\.\d+\.\d+$') {
+            throw "Release workflow requires a v-prefixed SemVer tag such as v2.1.9; received '$tag'."
+          }
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
